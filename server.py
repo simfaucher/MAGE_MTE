@@ -8,11 +8,10 @@ import numpy as np
 import cv2
 import imagezmq
 
-class MTEMode(Enum):
-    PRELEARNING = 1
-    LEARNING = 2
-    RECOGNITION = 3
-    FRAMING = 4
+from MTEMode import MTEMode
+
+CROP_SIZE_HOR = 1/3
+CROP_SIZE_VER = 1/3
 
 class MTE:
     def __init__(self):
@@ -21,10 +20,10 @@ class MTE:
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         # Prelearning data
-        self.latest_pov_id = -1
-        self.kp_ref = []
-        self.des_ref = []
-        self.ref = []
+        # self.latest_pov_id = -1
+        # self.kp_ref = []
+        # self.des_ref = []
+        # self.ref = []
         self.sift = cv2.xfeatures2d.SIFT_create()
 
     def listen_images(self):
@@ -42,22 +41,30 @@ class MTE:
 
             ret_data = {}
 
+            id_pov = data["id_pov"]
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
                 print("MODE prelearning")
-                save_ref = "save_ref" in data and data["save_ref"]
-                ret_data["prelearning_pts"] = self.prelearning(0, image, force_new_ref=save_ref)
+                nb_kp = self.prelearning(id_pov, image)
+                # save_ref = "save_ref" in data and data["save_ref"]
+                # ret_data["prelearning_pts"] = self.get_rectangle(0, image, force_new_ref=save_ref)
+                ret_data["prelearning"] = {
+                    "nb_kp": nb_kp
+                }
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
+                self.learning()
             elif mode == MTEMode.RECOGNITION:
                 print("MODE recognition")
+                self.recognition()
             # elif mode == MTEMode.FRAMING:
             else:
                 print("MODE framing")
+                self.framing()
 
             self.image_hub.send_reply(json.dumps(ret_data).encode())
-    
-    def init_prelearning(self, pov_id, image=None, force_new_ref=False):
+
+    def init_get_rectangle(self, pov_id, image=None, force_new_ref=False):
         if force_new_ref:
             ref = image.copy()
             cv2.imwrite("ref.jpg", ref)
@@ -70,8 +77,8 @@ class MTE:
 
         self.kp_ref, self.des_ref = self.sift.detectAndCompute(self.ref, None)
 
-    def prelearning(self, pov_id, image, force_new_ref=False):
-        self.init_prelearning(pov_id, image=image, force_new_ref=force_new_ref)
+    def get_rectangle(self, pov_id, image, force_new_ref=False):
+        self.init_get_rectangle(pov_id, image=image, force_new_ref=force_new_ref)
 
         image = cv2.resize(image, None, fx=0.5, fy=0.5)
         h_img, w_img = image.shape[:2]
@@ -143,6 +150,31 @@ class MTE:
             return ret_dst
         else:
             return False
+
+    def prelearning(self, id_pov, image):
+        # Renvoyer le nombre d'amers sur l'image envoyée
+        img = self.crop_image(image)
+        kp, _ = self.sift.detectAndCompute(img, None)
+        return len(kp)
+    
+    def learning(self):
+        # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
+        pass
+    
+    def recognition(self):
+        # Récupération d'une image, SIFT puis si validé VC léger avec mires auto. Si tout ok, envoi image 4K à VCE.
+        pass
+
+    def framing(self):
+        # Recadrage avec SIFT et renvoi de l'image
+        pass
+
+    def crop_image(self, image):
+        h, w = image.shape[:2]
+        croped = image[int(h*CROP_SIZE_VER/2): int(h*(1-CROP_SIZE_VER/2)), \
+            int(w*CROP_SIZE_HOR/2): int(w*(1-CROP_SIZE_HOR/2))]
+
+        return croped
 
 if __name__ == "__main__":
     mte = MTE()
