@@ -11,8 +11,8 @@ from imutils.video import VideoStream
 import imagezmq
 
 print("Connecting...")
-# sender = imagezmq.ImageSender(connect_to='tcp://192.168.42.129:5555')
-sender = imagezmq.ImageSender()
+sender = imagezmq.ImageSender(connect_to='tcp://10.1.162.2226:5555')
+# sender = imagezmq.ImageSender()
  
 rpi_name = socket.gethostname() # send RPi hostname with each image
 # vs = VideoStream(usePiCamera=True).start()
