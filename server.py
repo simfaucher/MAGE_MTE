@@ -45,7 +45,8 @@ class MTE:
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
                 print("MODE prelearning")
-                ret_data["prelearning_pts"] = self.prelearning(0, image)
+                save_ref = "save_ref" in data and data["save_ref"]
+                ret_data["prelearning_pts"] = self.prelearning(0, image, force_new_ref=save_ref)
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
             elif mode == MTEMode.RECOGNITION:
@@ -56,17 +57,21 @@ class MTE:
 
             self.image_hub.send_reply(json.dumps(ret_data).encode())
     
-    def init_prelearning(self, pov_id):
-        if self.latest_pov_id != pov_id:
+    def init_prelearning(self, pov_id, image=None, force_new_ref=False):
+        if force_new_ref:
+            ref = image.copy()
+            cv2.imwrite("ref.jpg", ref)
+        elif self.latest_pov_id != pov_id:
             ref = cv2.imread("ref.jpg")
-            ref = cv2.resize(ref, None, fx=0.5, fy=0.5)
-            h_ref, w_ref = ref.shape[:2]
-            self.ref = ref[int(h_ref/6): int(h_ref*5/6), int(w_ref/6): int(w_ref*5/6)]
 
-            self.kp_ref, self.des_ref = self.sift.detectAndCompute(self.ref, None)
+        ref = cv2.resize(ref, None, fx=0.5, fy=0.5)
+        h_ref, w_ref = ref.shape[:2]
+        self.ref = ref[int(h_ref/6): int(h_ref*5/6), int(w_ref/6): int(w_ref*5/6)]
 
-    def prelearning(self, pov_id, image):
-        self.init_prelearning(pov_id)
+        self.kp_ref, self.des_ref = self.sift.detectAndCompute(self.ref, None)
+
+    def prelearning(self, pov_id, image, force_new_ref=False):
+        self.init_prelearning(pov_id, image=image, force_new_ref=force_new_ref)
 
         image = cv2.resize(image, None, fx=0.5, fy=0.5)
         h_img, w_img = image.shape[:2]

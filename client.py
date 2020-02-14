@@ -19,6 +19,8 @@ rpi_name = socket.gethostname() # send RPi hostname with each image
 vs = VideoStream(src=0).start()
 time.sleep(2.0)  # allow camera sensor to warm up
 
+save_ref = False
+
 while True:  # send images as stream until Ctrl-C
     image = vs.read()
     # cv2.imshow("Image", image)
@@ -27,6 +29,10 @@ while True:  # send images as stream until Ctrl-C
     msg = {
         "mode": 1
     }
+    if save_ref:
+        msg["save_ref"] = True
+        save_ref = False
+
     reply = json.loads(sender.send_image(json.dumps(msg), image).decode())
 
     if "prelearning_pts" in reply and reply["prelearning_pts"]:
@@ -35,6 +41,9 @@ while True:  # send images as stream until Ctrl-C
         debug_img = image.copy()
     
     cv2.imshow("Debug", debug_img)
-    cv2.waitKey(1)
+    key = cv2.waitKey(1)
+
+    if key == ord("s"):
+        save_ref = True
 
     print(reply)
