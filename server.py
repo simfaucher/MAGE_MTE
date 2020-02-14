@@ -18,6 +18,7 @@ class MTE:
     def __init__(self):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
+        # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         # Prelearning data
         self.latest_pov_id = -1
@@ -127,12 +128,14 @@ class MTE:
         # cv2.imshow("Mathing", matching_result)
         # key = cv2.waitKey(1)
 
-        cv2.imshow("Reference", self.ref)
-        cv2.waitKey(1)
+        # cv2.imshow("Reference", self.ref)
+        # cv2.waitKey(1)
 
         if len(goodMatches) > MIN_MATCH_COUNT:
-            dst = np.int32(dst)*2
-            return dst.tolist()
+            ret_dst = []
+            for pt in dst:
+                ret_dst.append([(1/6 * w_img + pt[0][0])*2, (1/6 * h_img + pt[0][1])*2])
+            return ret_dst
         else:
             return False
 
