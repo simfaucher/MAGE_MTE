@@ -2,15 +2,16 @@
     Client side to stream a camera to a server
 """
 
-import numpy as np
+import sys
+import time
 import socket
 import json
-import time
+import numpy as np
 import cv2
 import imutils
 import imagezmq
 
-from MTEMode import MTEMode
+from Domain.MTEMode import MTEMode
 
 class ACD:
     def __init__(self):
@@ -23,7 +24,7 @@ class ACD:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
         self.mode = MTEMode.PRELEARNING
-        self.id_pov = 0
+        self.pov_id = 3
 
         time.sleep(2.0)  # allow camera sensor to warm up
 
@@ -39,11 +40,25 @@ class ACD:
 
             data = {
                 "mode": self.mode.value,
-                "id_pov": self.id_pov
+                "pov_id": self.pov_id
             }
 
             # print("Sending frame")
-            reply = json.loads(self.sender.send_image(json.dumps(data), image_640).decode())
+            if self.mode == MTEMode.LEARNING:
+                image = full_image
+            else:
+                image = image_640
+            
+            if self.mode == MTEMode.FRAMING:
+                reply, reply_image = self.sender.send_image_reqrep_image(json.dumps(data), image)
+                reply = json.loads(reply)
+                cv2.imshow("Reply image framing", reply_image)
+            else:
+                reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
+
+                # Destroying the framing window if opened
+                # if cv2.getWindowProperty("Reply image framing", cv2.WND_PROP_VISIBLE) < 1:
+                #     cv2.destroyWindow("Reply image framing")
 
             # Response
             if self.mode == MTEMode.PRELEARNING:
@@ -66,6 +81,9 @@ class ACD:
             cv2.imshow("Debug", debug_img)
             key = cv2.waitKey(1)
 
+            if self.mode == MTEMode.LEARNING:
+                self.mode = MTEMode.PRELEARNING
+
             if key == ord("1"):
                 self.mode = MTEMode.PRELEARNING
             elif key == ord("2"):
@@ -74,6 +92,8 @@ class ACD:
                 self.mode = MTEMode.RECOGNITION
             elif key == ord("4"):
                 self.mode = MTEMode.FRAMING
+            elif key == ord("q"):
+                sys.exit("User ended program.")
 
             # print(reply)
 

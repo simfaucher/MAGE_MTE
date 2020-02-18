@@ -136,3 +136,5 @@ dmypy.json
 # Visual Studio Code
 .vscode/
 .pylintrc
+images/
+mte.db
