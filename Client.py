@@ -24,7 +24,7 @@ class ACD:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
         self.mode = MTEMode.PRELEARNING
-        self.pov_id = 3
+        self.pov_id = 4
 
         time.sleep(2.0)  # allow camera sensor to warm up
 

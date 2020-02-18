@@ -23,6 +23,10 @@ SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
 
+CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
+    [0., 951.09864051, 359.47108905],  \
+        [0., 0., 1.]])
+
 class MTE:
     def __init__(self):
         print("Launching server")
@@ -57,7 +61,7 @@ class MTE:
                 self.learning(image)
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
-                print("MODE recognition")
+                # print("MODE recognition")
                 self.recognition(pov_id, image)
             # elif mode == MTEMode.FRAMING:
             else:
@@ -118,7 +122,7 @@ class MTE:
 
         # Homography
         MIN_MATCH_COUNT = 30
-        print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
+        # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
 
         if len(goodMatches) > MIN_MATCH_COUNT:
             dst_pts = np.float32([kp_img[m.queryIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
@@ -131,7 +135,7 @@ class MTE:
             pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, M)
 
-            # img2 = cv2.polylines(img, [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
+            img2 = cv2.polylines(img, [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
 
         else:
             img2 = img.copy()
@@ -177,9 +181,30 @@ class MTE:
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto. Si tout ok, envoi image 4K à VCE.
         learning_data = self.get_learning_data(pov_id)
 
-        sift_success, perspective_transform = self.get_sift_matrix(image, learning_data)
+        sift_success, H = self.get_homography_matrix(image, learning_data)
 
-        #TODO: Logique de validation en fonction de la déformation de M
+        #TODO: Logique de validation en fonction de la déformation de H
+        # if sift_success:
+        #     _, R, T, N = cv2.decomposeHomographyMat(H, CAM_MATRIX)
+        #     print(R)
+        if sift_success:
+            h, w = image.shape[:2]
+            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+            dst = cv2.perspectiveTransform(pts, H)
+
+            debug_img = cv2.polylines(image, [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
+
+            cv2.imshow("Deformation", debug_img)
+
+            # Print the deformation and scale
+            print("scale x: {}, scale y: {}, skew x: {}, skew y: {}, tx: {}, ty: {}".format(round(H[0][0], 2), round(H[1][1], 2), round(H[0][1], 2), round(H[1][0], 2), round(H[0][2], 2), round(H[1][2], 2)))
+            scale_x = H[0][0]
+            scale_y = H[1][1]
+            skew_x = H[0][1]
+            skew_y = H[1][0]
+            t_x = H[0][2]
+            t_y = H[1][2]
+        cv2.waitKey(1)
 
         #TODO: ML validation
 
@@ -189,13 +214,12 @@ class MTE:
         # Recadrage avec SIFT et renvoi de l'image
         learning_data = self.get_learning_data(pov_id)
 
-        sift_success, perspective_transform = self.get_sift_matrix(image, learning_data)
-
-        #TODO: résoudre la transformation, elle semble inversée
+        sift_success, H = self.get_homography_matrix(image, learning_data, \
+            crop_image=False, dst_to_src=True)
 
         if sift_success:
             h, w = image.shape[:2]
-            warped_image = cv2.warpPerspective(image, perspective_transform, (w, h))
+            warped_image = cv2.warpPerspective(image, H, (w, h))
             return sift_success, warped_image
         else:
             return sift_success, image
@@ -234,9 +258,13 @@ class MTE:
         #TODO: Learn ML data
 
         return learning_data
-    
-    def get_sift_matrix(self, image, learning_data):
-        img = self.crop_image(image)
+
+    def get_homography_matrix(self, image, learning_data, crop_image=True, dst_to_src=False):
+        if crop_image:
+            img = self.crop_image(image)
+        else:
+            img = image
+
         h_img, w_img = img.shape[:2]
         kp_img, des_img = self.sift.detectAndCompute(img, None)
 
@@ -257,19 +285,22 @@ class MTE:
                 pass
 
         # Homography
-        print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
+        # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
 
         success = len(goodMatches) > MIN_MATCH_COUNT
 
-        if len(goodMatches) > MIN_MATCH_COUNT:
+        if success:
             dst_pts = np.float32([kp_img[m.queryIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
             src_pts = np.float32([learning_data.sift_data.kp[m.trainIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
 
-            M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            if dst_to_src:
+                H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+            else:
+                H, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
         else:
-            M = None
+            H = None
 
-        return success, M
+        return success, H
 
 if __name__ == "__main__":
     mte = MTE()
