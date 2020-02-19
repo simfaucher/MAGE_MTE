@@ -23,9 +23,9 @@ SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
 
-CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
-    [0., 951.09864051, 359.47108905],  \
-        [0., 0., 1.]])
+# CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
+#     [0., 951.09864051, 359.47108905],  \
+#         [0., 0., 1.]])
 
 class MTE:
     def __init__(self):
@@ -61,13 +61,17 @@ class MTE:
                 self.learning(image)
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
-                # print("MODE recognition")
+                print("MODE recognition")
                 self.recognition(pov_id, image)
             # elif mode == MTEMode.FRAMING:
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
                 success, warped_image = self.framing(pov_id, image)
+
+                ret_data["framing"] = {
+                    "success": success
+                }
 
                 # cv2.imshow("Warped image", warped_image)
                 # cv2.waitKey(1)
@@ -77,6 +81,7 @@ class MTE:
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
+    #TODO: remove
     def init_get_rectangle(self, pov_id, image=None, force_new_ref=False):
         if force_new_ref:
             ref = image.copy()
@@ -90,6 +95,7 @@ class MTE:
 
         self.kp_ref, self.des_ref = self.sift.detectAndCompute(self.ref, None)
 
+    #TODO: remove
     def get_rectangle(self, pov_id, image, force_new_ref=False):
         self.init_get_rectangle(pov_id, image=image, force_new_ref=force_new_ref)
 
@@ -204,9 +210,20 @@ class MTE:
             skew_y = H[1][0]
             t_x = H[0][2]
             t_y = H[1][2]
+
+            scale_ok = 0.75 <= scale_x <= 0.95 and 0.75 <= scale_y <= 0.95
+            skew_ok = 0 <= skew_x <= 0.08 and 0 <= skew_y <= 0.08
+            translation_ok = 0 <= t_x < 50 and 0 <= t_y < 50
+
+            if scale_ok and skew_ok and translation_ok:
+                #TODO: recadrage + ML validation
+                pass
+            else:
+                #TODO: Retourner indications de positionnement au client
+                pass
+
         cv2.waitKey(1)
 
-        #TODO: ML validation
 
         return sift_success
 
