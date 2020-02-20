@@ -9,14 +9,16 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, EnumStringField, FloatField
-from Domain.ImageFilterType import ImageFilterType
-from Domain.Image import Image
+from ML.Domain.ImageFilterType import ImageFilterType
+from ML.Domain.Image import Image
+from ML.Domain.ROIFeatureType import ROIFeatureType
 
 class RegionOfInterest(JsonObject):
     name = StringField()
     tolerance = FloatField()
     image_filter_type = EnumStringField(ImageFilterType, serialized_name="filter")
     images = ObjectListField(Image, null=True)
+    feature_type = EnumStringField(ROIFeatureType, serialized_name="feature_type")
 
     _x = IntegerField(serialized_name="x")
     _y = IntegerField(serialized_name="y")

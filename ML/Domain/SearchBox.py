@@ -9,10 +9,10 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, EnumStringField
-from Domain.Point2D import Point2D
-from Domain.RegionOfInterest import RegionOfInterest
-from Domain.Step import Step
-from Domain.Iteration import Iteration
+from ML.Domain.Point2D import Point2D
+from ML.Domain.RegionOfInterest import RegionOfInterest
+from ML.Domain.Step import Step
+from ML.Domain.Iteration import Iteration
 
 class SearchBox(JsonObject):
     step = Step()

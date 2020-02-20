@@ -17,3 +17,4 @@ class ImageFilterType(Enum):
     LSD = "lsd"
     EMBOSS = "emboss"
     BINARISATION = "binarisation"
+    POSTERISATION = "posterisation"

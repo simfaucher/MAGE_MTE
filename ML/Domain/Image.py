@@ -9,9 +9,9 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField
-from Domain.ROIFeature import ROIFeature
-from Domain.Point2D import Point2D
-from Domain.ImageClass import ImageClass
+from ML.Domain.ROIFeature import ROIFeature
+from ML.Domain.Point2D import Point2D
+from ML.Domain.ImageClass import ImageClass
 
 
 class Image(JsonObject):

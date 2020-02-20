@@ -9,7 +9,7 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ListField, EnumStringField, FloatField, ObjectListField
-from Domain.ROIFeatureType import ROIFeatureType
+from ML.Domain.ROIFeatureType import ROIFeatureType
 
 class ROIFeature(JsonObject):
     feature_type = EnumStringField(ROIFeatureType, serialized_name="type")

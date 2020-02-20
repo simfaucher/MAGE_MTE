@@ -9,7 +9,7 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, DateTimeField, FloatField
-from Domain.RecognitionFlag import RecognitionFlag
+from ML.Domain.RecognitionFlag import RecognitionFlag
 
 class MeasureAndIndicators(JsonObject):
     timespan = FloatField()

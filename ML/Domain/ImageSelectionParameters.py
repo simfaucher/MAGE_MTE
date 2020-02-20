@@ -9,8 +9,6 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, EnumStringField, FloatField
-from Domain.ROIFeatureType import ROIFeatureType
 
 class ImageSelectionParameters(JsonObject):
     uncertainty = FloatField()
-    feature_type = EnumStringField(ROIFeatureType, serialized_name="type")

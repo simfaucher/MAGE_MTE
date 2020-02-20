@@ -1,0 +1,52 @@
+{
+    "recognition_selector": {
+        "uncertainty": 400
+    },
+    "sights": [
+        {
+            "name": "POV automatic validation",
+            "width": 128,
+            "height": 128,
+            "anchor": {
+                "x": 64,
+                "y": 32
+            },
+            "search_box": {
+                "step": {
+                    "x": 10,
+                    "y": 10
+                },
+                "iteration": {
+                    "x": 14,
+                    "y": 10
+                },
+				"anchor": {
+					"x": 0,
+					"y": 0
+				}
+            },
+            "roi": [
+                {
+                    "name": "Shape ver",
+                    "filter": "kirsch",
+                    "feature_type": "composite_profile",
+                    "tolerance": 2000,
+                    "width": 128,
+                    "height": 64,
+                    "x": 0,
+                    "y": 0
+                },
+                {
+                    "name": "Shape hor",
+                    "filter": "kirsch",
+                    "feature_type": "composite_profile",
+                    "tolerance": 2000,
+                    "width": 64,
+                    "height": 128,
+                    "x": 0,
+                    "y": 0
+                }
+            ]
+        }
+    ]
+}

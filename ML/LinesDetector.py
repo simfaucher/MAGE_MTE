@@ -10,7 +10,7 @@
 
 import numpy as np
 import cv2
-from Domain.ImageFilterType import ImageFilterType
+from ML.Domain.ImageFilterType import ImageFilterType
 
 # Parameters
 LSD_THICKNESS = 3
@@ -81,6 +81,10 @@ class LinesDetector():
                                     np.maximum(kirsch7, kirsch8)))))))
         elif self.algo == ImageFilterType.BINARISATION:
             mask = self.binarisation_whole_mean(grey)
+        elif self.algo == ImageFilterType.POSTERISATION:
+            mask = self.input_image.copy()
+            mask[mask >= 128]= 255
+            mask[mask < 128] = 0
         else:
             mask = grey
 

@@ -21,29 +21,28 @@ import numpy as np
 
 from sklearn.neighbors import KNeighborsClassifier
 
-from Domain.LearningKnowledge import LearningKnowledge
-from Domain.Image import Image
-from Domain.ROIFeatureType import ROIFeatureType
-from Domain.ROIFeature import ROIFeature
-from Domain.ImageFilterType import ImageFilterType
-from Domain.Point2D import Point2D
-from Domain.ROIFeatureType import ROIFeatureType
-from Domain.Sight import Sight
-from Domain.Step import Step
-from Domain.RecognitionFlag import RecognitionFlag
-from Domain.LearnerMatch import LearnerMatch
+from ML.Domain.LearningKnowledge import LearningKnowledge
+from ML.Domain.Image import Image
+from ML.Domain.ROIFeatureType import ROIFeatureType
+from ML.Domain.ROIFeature import ROIFeature
+from ML.Domain.ImageFilterType import ImageFilterType
+from ML.Domain.Point2D import Point2D
+from ML.Domain.ROIFeatureType import ROIFeatureType
+from ML.Domain.Sight import Sight
+from ML.Domain.Step import Step
+from ML.Domain.RecognitionFlag import RecognitionFlag
+from ML.Domain.LearnerMatch import LearnerMatch
 
-from Imagery.LinesDetector import LinesDetector
+from ML.LinesDetector import LinesDetector
 
 class BoxLearner():
-    def __init__(self, sights: list, feature_type: ROIFeatureType = None, uncertainty: float = 0):
+    def __init__(self, sights: list, uncertainty: float = 0):
         self.sight = None
         self.sights = sights
         self.input_image = None
 
         self.knn_contexts = []
         self.learning_classes = []
-        self.feature_type = feature_type
         self.uncertainty = uncertainty
 
     def get_knn_contexts(self, sight: Sight):
@@ -62,8 +61,7 @@ class BoxLearner():
                 # If there are features
                 if image.features:
                     for feature in image.features:
-                        if self.feature_type is None \
-                            or ROIFeatureType(feature.feature_type) == self.feature_type:
+                        if ROIFeatureType(feature.feature_type) == ROIFeatureType(roi.feature_type):
                             # Uncertainty
                             keep_feature = True
                             if self.uncertainty != 0:
@@ -172,7 +170,7 @@ class BoxLearner():
 
         #     roi_mask = mask[y:y+height, x:x+width]
         #     cv2.imshow("ROI"+str(k), roi_mask)
-        #     cv2.imshow("ROI_raw_pixels"+str(k), cv2.resize(roi_mask, (8, 8)))
+        #     cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
         # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
@@ -298,7 +296,7 @@ class BoxLearner():
 
         #         roi_mask = mask[y:y+height, x:x+width]
         #         cv2.imshow("ROI"+str(k), roi_mask)
-        #         cv2.imshow("ROI_raw_pixels"+str(k), cv2.resize(roi_mask, (8, 8)))
+        #         cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
         #     cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
         #     print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
@@ -334,7 +332,7 @@ class BoxLearner():
             sight_mask = detector.detect()
 
             roi_mask = sight_mask[roi_y1: roi_y2, roi_x1: roi_x2]
-            features = BoxLearner.extract_pixels_features(roi_mask, self.feature_type)
+            features = BoxLearner.extract_pixels_features(roi_mask, ROIFeatureType(roi.feature_type))
             # if "C" in self.sight.name:
             #     cv2.imshow("roi_mask"+str(k), roi_mask) # Debug
 

@@ -9,9 +9,9 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, EnumStringField
-from Domain.Point2D import Point2D
-from Domain.RegionOfInterest import RegionOfInterest
-from Domain.SearchBox import SearchBox
+from ML.Domain.Point2D import Point2D
+from ML.Domain.RegionOfInterest import RegionOfInterest
+from ML.Domain.SearchBox import SearchBox
 
 class Sight(JsonObject):
     name = StringField()

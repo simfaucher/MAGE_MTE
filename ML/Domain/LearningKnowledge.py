@@ -9,8 +9,8 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, DateTimeField
-from Domain.ImageSelectionParameters import ImageSelectionParameters
-from Domain.Sight import Sight
+from ML.Domain.ImageSelectionParameters import ImageSelectionParameters
+from ML.Domain.Sight import Sight
 
 class LearningKnowledge(JsonObject):
     image_folder = StringField(null=True)

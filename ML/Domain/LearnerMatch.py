@@ -9,8 +9,8 @@
 """
 
 from pykson import JsonObject, IntegerField, StringField, ListField, DateTimeField, FloatField, BooleanField, EnumStringField
-from Domain.RecognitionFlag import RecognitionFlag
-from Domain.Point2D import Point2D
+from ML.Domain.RecognitionFlag import RecognitionFlag
+from ML.Domain.Point2D import Point2D
 
 class LearnerMatch(JsonObject):
     image_name = StringField()
