@@ -48,7 +48,7 @@ class ACD:
                 image = full_image
             else:
                 image = image_640
-            
+
             if self.mode == MTEMode.FRAMING:
                 reply, reply_image = self.sender.send_image_reqrep_image(json.dumps(data), image)
                 reply = json.loads(reply)
@@ -66,7 +66,15 @@ class ACD:
             elif self.mode == MTEMode.LEARNING:
                 pass
             elif self.mode == MTEMode.RECOGNITION:
-                pass
+                reco_data = reply["recognition"]
+                if reco_data["success"]:
+                    print("Recognition OK")
+                elif reco_data["sift_success"]:
+                    print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
+                        reco_data["skew"]["x"], reco_data["skew"]["y"], \
+                        reco_data["translation"]["x"], reco_data["translation"]["y"]))
+                else:
+                    print("Recognition failed")
             # elif mode == MTEMode.FRAMING:
             else:
                 pass

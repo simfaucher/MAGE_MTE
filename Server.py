@@ -37,6 +37,12 @@ SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
 
+HOMOGRAPHY_MIN_SCALE = 0.75
+HOMOGRAPHY_MAX_SCALE = 1
+HOMOGRAPHY_MAX_SKEW = 0.13
+HOMOGRAPHY_MIN_TRANS = 0
+HOMOGRAPHY_MAX_TRANS = 50
+
 CONFIG_SIGHTS_FILENAME = "learning_settings.json"
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
@@ -56,7 +62,9 @@ class MTE:
         self.last_learning_data = None
 
         self.load_ml_settings()
-    
+        self.box_learner = BoxLearner(self.learning_settings.sights, \
+            self.learning_settings.recognition_selector.uncertainty)
+
     def load_ml_settings(self):
         try:
             print("Reading the input file : {}".format(CONFIG_SIGHTS_FILENAME))
@@ -93,7 +101,10 @@ class MTE:
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
-                self.recognition(pov_id, image)
+                success, recog_ret_data = self.recognition(pov_id, image)
+
+                ret_data["recognition"] = recog_ret_data
+                ret_data["recognition"]["success"] = success
             # elif mode == MTEMode.FRAMING:
             else:
                 pov_id = data["pov_id"]
@@ -216,6 +227,8 @@ class MTE:
 
     def recognition(self, pov_id, image):
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto. Si tout ok, envoi image 4K à VCE.
+        ret_data = {}
+
         learning_data = self.get_learning_data(pov_id)
 
         sift_success, src_pts, dst_pts = self.apply_sift(image, learning_data)
@@ -244,10 +257,14 @@ class MTE:
             t_x = H[0][2]
             t_y = H[1][2]
 
-            scale_ok = 0.75 <= scale_x <= 0.95 and 0.75 <= scale_y <= 0.95
-            skew_ok = 0 <= skew_x <= 0.10 and 0 <= skew_y <= 0.10
-            translation_ok = 0 <= t_x < 50 and 0 <= t_y < 50
+            scale_ok = HOMOGRAPHY_MIN_SCALE <= scale_x <= HOMOGRAPHY_MAX_SCALE \
+                and HOMOGRAPHY_MIN_SCALE <= scale_y <= HOMOGRAPHY_MAX_SCALE
+            skew_ok = 0 <= abs(skew_x) <= HOMOGRAPHY_MAX_SKEW \
+                and 0 <= abs(skew_y) <= HOMOGRAPHY_MAX_SKEW
+            translation_ok = HOMOGRAPHY_MIN_TRANS <= t_x <= HOMOGRAPHY_MAX_TRANS \
+                and HOMOGRAPHY_MIN_TRANS <= t_y <= HOMOGRAPHY_MAX_TRANS
 
+            ml_success = False
             if scale_ok and skew_ok and translation_ok:
                 print("Valide")
 
@@ -257,22 +274,87 @@ class MTE:
 
                 cv2.imshow("Warped image", warped_image)
 
-                #TODO: ML validation
-            else:
-                #TODO: Retourner indications de positionnement au client
-                string = "Non valide "
-                if not scale_ok:
-                    string += "scale not ok "
-                if not skew_ok:
-                    string += "skew not ok "
-                if not translation_ok:
-                    string += "translation not ok"
-                print(string)
+                # ML validation
+                ml_success = self.ml_validation(learning_data, warped_image)
+
+            if not ml_success:
+                ret_data["scale"] = "OK"
+                ret_data["skew"] = {
+                    "x": "OK",
+                    "y": "OK"
+                }
+                ret_data["translation"] = {
+                    "x": "OK",
+                    "y": "OK"
+                }
+
+                # Scale
+                if scale_x < HOMOGRAPHY_MIN_SCALE or scale_y < HOMOGRAPHY_MIN_SCALE:
+                    ret_data["scale"] = "far"
+                elif scale_x > HOMOGRAPHY_MAX_SCALE or scale_y > HOMOGRAPHY_MAX_SCALE:
+                    ret_data["scale"] = "close"
+
+                # Skew
+                if -1*HOMOGRAPHY_MAX_SKEW > skew_x:
+                    ret_data["skew"]["x"] = "minus"
+                elif skew_x > HOMOGRAPHY_MAX_SKEW:
+                    ret_data["skew"]["x"] = "plus"
+
+                if -1*HOMOGRAPHY_MAX_SKEW > skew_y:
+                    ret_data["skew"]["y"] = "minus"
+                elif skew_y > HOMOGRAPHY_MAX_SKEW:
+                    ret_data["skew"]["y"] = "plus"
+
+                # Translation
+                if t_x < HOMOGRAPHY_MIN_TRANS:
+                    ret_data["translation"]["x"] = "minus"
+                elif t_x > HOMOGRAPHY_MAX_TRANS:
+                    ret_data["translation"]["x"] = "plus"
+
+                if t_y < HOMOGRAPHY_MIN_TRANS:
+                    ret_data["translation"]["y"] = "minus"
+                elif t_y > HOMOGRAPHY_MAX_TRANS:
+                    ret_data["translation"]["y"] = "plus"
+
+                # string = "Non valide "
+                # if not scale_ok:
+                #     string += "scale not ok "
+                # if not skew_ok:
+                #     string += "skew not ok "
+                # if not translation_ok:
+                #     string += "translation not ok"
+                # print(string)
 
         cv2.waitKey(1)
 
+        ret_data["sift_success"] = sift_success
 
-        return sift_success
+        success = sift_success and ml_success
+
+        return success, ret_data
+
+    def ml_validation(self, learning_data, warped_image):
+        success = len(learning_data.ml_data.sights) > 0
+
+        for sight in learning_data.ml_data.sights:
+            self.box_learner.get_knn_contexts(sight)
+            self.box_learner.input_image = warped_image
+
+            h, w = warped_image.shape[:2]
+
+            pt_tl = Point2D()
+            pt_tl.x = int(w / 2 - sight.width / 2)
+            pt_tl.y = int(h / 2 - sight.height / 2)
+
+            pt_br = Point2D()
+            pt_br.x = pt_tl.x + sight.width
+            pt_br.y = pt_tl.y + sight.height
+
+            match = self.box_learner.find_target(pt_tl, pt_br)
+
+            success = match.success if not match.success else success
+
+        return success
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
@@ -323,6 +405,10 @@ class MTE:
         if learning_data.ml_data is None:
             learning_data.ml_data = deepcopy(self.learning_settings)
 
+            image_class = ImageClass()
+            image_class.id = 0
+            image_class.name = "Reference"
+
             h, w = learning_data.image_640.shape[:2]
 
             for sight in learning_data.ml_data.sights:
@@ -342,7 +428,7 @@ class MTE:
                     image.sight_position = Point2D()
                     image.sight_position.x = pt_tl.x
                     image.sight_position.y = pt_tl.y
-                    image.image_class = 0
+                    image.image_class = image_class
 
                     image_filter = ImageFilterType(roi.image_filter_type)
 
