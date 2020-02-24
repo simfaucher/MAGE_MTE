@@ -233,10 +233,6 @@ class MTE:
 
         sift_success, src_pts, dst_pts = self.apply_sift(image, learning_data)
 
-        #TODO: Logique de validation en fonction de la déformation de H
-        # if sift_success:
-        #     _, R, T, N = cv2.decomposeHomographyMat(H, CAM_MATRIX)
-        #     print(R)
         if sift_success:
             H = self.get_homography_matrix(src_pts, dst_pts)
 
@@ -248,8 +244,6 @@ class MTE:
 
             cv2.imshow("Deformation", debug_img)
 
-            # Print the deformation and scale
-            # print("scale x: {}, scale y: {}, skew x: {}, skew y: {}, tx: {}, ty: {}".format(round(H[0][0], 2), round(H[1][1], 2), round(H[0][1], 2), round(H[1][0], 2), round(H[0][2], 2), round(H[1][2], 2)))
             scale_x = H[0][0]
             scale_y = H[1][1]
             skew_x = H[0][1]
@@ -315,15 +309,6 @@ class MTE:
                     ret_data["translation"]["y"] = "minus"
                 elif t_y > HOMOGRAPHY_MAX_TRANS:
                     ret_data["translation"]["y"] = "plus"
-
-                # string = "Non valide "
-                # if not scale_ok:
-                #     string += "scale not ok "
-                # if not skew_ok:
-                #     string += "skew not ok "
-                # if not translation_ok:
-                #     string += "translation not ok"
-                # print(string)
 
         cv2.waitKey(1)
 
@@ -401,7 +386,7 @@ class MTE:
 
             learning_data.sift_data = SiftData(kp, des, croped)
 
-        #TODO: Learn ML data OK ?
+        # Learn ML data
         if learning_data.ml_data is None:
             learning_data.ml_data = deepcopy(self.learning_settings)
 

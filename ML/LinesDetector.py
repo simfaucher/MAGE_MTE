@@ -57,7 +57,8 @@ class LinesDetector():
             mask = self.get_lsd_mask(grey, lines, LSD_THICKNESS)
         elif self.algo == ImageFilterType.CANNY:
             # Find lines with Canny
-            mask = cv2.Canny(grey, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
+            smoothed = cv2.GaussianBlur(grey, (7, 7), 2)
+            mask = cv2.Canny(smoothed, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
         elif self.algo == ImageFilterType.EMBOSS:
             # Find lines with embossing
             mask = cv2.filter2D(grey, -1, EMBOSS_KERNEL)
@@ -83,7 +84,7 @@ class LinesDetector():
             mask = self.binarisation_whole_mean(grey)
         elif self.algo == ImageFilterType.POSTERISATION:
             mask = self.input_image.copy()
-            mask[mask >= 128]= 255
+            mask[mask >= 128] = 255
             mask[mask < 128] = 0
         else:
             mask = grey

@@ -34,7 +34,17 @@
                     "width": 128,
                     "height": 64,
                     "x": 0,
-                    "y": 0
+                    "y": 32
+                },
+                {
+                    "name": "Sketch ver",
+                    "filter": "canny",
+                    "feature_type": "composite_profile",
+                    "tolerance": 4000,
+                    "width": 128,
+                    "height": 64,
+                    "x": 0,
+                    "y": 32
                 },
                 {
                     "name": "Shape hor",
@@ -43,7 +53,17 @@
                     "tolerance": 4000,
                     "width": 64,
                     "height": 128,
-                    "x": 0,
+                    "x": 32,
+                    "y": 0
+                },
+                {
+                    "name": "Sketch ver",
+                    "filter": "canny",
+                    "feature_type": "composite_profile",
+                    "tolerance": 4000,
+                    "width": 64,
+                    "height": 128,
+                    "x": 32,
                     "y": 0
                 }
             ]
