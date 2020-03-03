@@ -137,4 +137,6 @@ dmypy.json
 .vscode/
 .pylintrc
 images/
+videos/
+demo*
 mte.db

@@ -3,6 +3,7 @@
 """
 
 import sys
+import time
 from copy import deepcopy
 import json
 import numpy as np
@@ -45,6 +46,8 @@ HOMOGRAPHY_MAX_TRANS = 50
 
 CONFIG_SIGHTS_FILENAME = "learning_settings.json"
 
+CAPTURE_DEMO = False
+
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
 #         [0., 0., 1.]])
@@ -64,6 +67,9 @@ class MTE:
         self.load_ml_settings()
         self.box_learner = BoxLearner(self.learning_settings.sights, \
             self.learning_settings.recognition_selector.uncertainty)
+
+        if CAPTURE_DEMO:
+            self.out = None
 
     def load_ml_settings(self):
         try:
@@ -97,7 +103,11 @@ class MTE:
                 }
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
-                self.learning(image)
+                learning_id = self.learning(image)
+
+                ret_data["learning"] = {
+                    "id": learning_id
+                }
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
@@ -123,95 +133,6 @@ class MTE:
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
-    #TODO: remove
-    def init_get_rectangle(self, pov_id, image=None, force_new_ref=False):
-        if force_new_ref:
-            ref = image.copy()
-            cv2.imwrite("ref.jpg", ref)
-        elif self.latest_pov_id != pov_id:
-            ref = cv2.imread("ref.jpg")
-
-        ref = cv2.resize(ref, None, fx=0.5, fy=0.5)
-        h_ref, w_ref = ref.shape[:2]
-        self.ref = ref[int(h_ref/6): int(h_ref*5/6), int(w_ref/6): int(w_ref*5/6)]
-
-        self.kp_ref, self.des_ref = self.sift.detectAndCompute(self.ref, None)
-
-    #TODO: remove
-    def get_rectangle(self, pov_id, image, force_new_ref=False):
-        self.init_get_rectangle(pov_id, image=image, force_new_ref=force_new_ref)
-
-        image = cv2.resize(image, None, fx=0.5, fy=0.5)
-        h_img, w_img = image.shape[:2]
-        img = image[int(h_img/6): int(h_img*5/6), int(w_img/6): int(w_img*5/6)]
-        kp_img, des_img = self.sift.detectAndCompute(img, None)
-
-        FLANN_INDEX_KDTREE = 0
-        INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-
-        SEARCH_PARAMS = dict(checks=50)   # or pass empty dictionary
-        flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
-
-        matches = flann.knnMatch(des_img, self.des_ref, k=2)
-
-        FLANN_THRESH = 0.7
-        # Need to draw only good matches, so create a mask
-        # matchesMask = [[0, 0] for i in range(len(matches))]
-        goodMatches = []
-
-        # ratio test as per Lowe's paper
-        for i, pair in enumerate(matches):
-            try:
-                m, n = pair
-                if m.distance < FLANN_THRESH*n.distance:
-                    goodMatches.append(m)
-            except ValueError:
-                pass
-
-        # Homography
-        MIN_MATCH_COUNT = 30
-        # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
-
-        if len(goodMatches) > MIN_MATCH_COUNT:
-            dst_pts = np.float32([kp_img[m.queryIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
-            src_pts = np.float32([self.kp_ref[m.trainIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
-
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-            matchesMask = mask.ravel().tolist()
-
-            h, w = self.ref.shape[:2]
-            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-            dst = cv2.perspectiveTransform(pts, M)
-
-            img2 = cv2.polylines(img, [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
-
-        else:
-            img2 = img.copy()
-            matchesMask = None
-
-        # Draw
-        
-        # DRAW_PARAMS = dict(matchColor=(0, 255, 0),
-        #                 singlePointColor=(255, 0, 0),
-        #                 matchesMask=matchesMask,
-        #                 flags=0)
-
-        # matching_result = cv2.drawMatches(img2, kp_img, self.ref.copy(), self.kp_ref, goodMatches, None, **DRAW_PARAMS)
-
-        # cv2.imshow("Mathing", matching_result)
-        # key = cv2.waitKey(1)
-
-        # cv2.imshow("Reference", self.ref)
-        # cv2.waitKey(1)
-
-        if len(goodMatches) > MIN_MATCH_COUNT:
-            ret_dst = []
-            for pt in dst:
-                ret_dst.append([(1/6 * w_img + pt[0][0])*2, (1/6 * h_img + pt[0][1])*2])
-            return ret_dst
-        else:
-            return False
-
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
         img = self.crop_image(image)
@@ -222,27 +143,31 @@ class MTE:
         # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
         learning_id = self.repo.save_new_pov(full_image)
 
-        learning_data = self.repo.get_pov_by_id(learning_id)
-        self.learning_db.append(learning_data)
+        success, learning_data = self.repo.get_pov_by_id(learning_id)
+        if success:
+            self.learning_db.append(learning_data)
+
+        return learning_id
 
     def recognition(self, pov_id, image):
-        # Récupération d'une image, SIFT puis si validé VC léger avec mires auto. Si tout ok, envoi image 4K à VCE.
+        # Récupération d'une image, SIFT puis si validé VC léger avec mires auto
         ret_data = {}
 
         learning_data = self.get_learning_data(pov_id)
 
-        sift_success, src_pts, dst_pts = self.apply_sift(image, learning_data)
+        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches = self.apply_sift(image, learning_data, debug=True)
 
         if sift_success:
-            H = self.get_homography_matrix(src_pts, dst_pts)
+            H, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
+            matches_mask = mask.ravel().tolist()
 
-            h, w = image.shape[:2]
+            h, w = learning_data.sift_data.ref.shape[:2]
             pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, H)
 
             debug_img = cv2.polylines(image.copy(), [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
 
-            cv2.imshow("Deformation", debug_img)
+            # cv2.imshow("Deformation", debug_img)
 
             scale_x = H[0][0]
             scale_y = H[1][1]
@@ -309,8 +234,31 @@ class MTE:
                     ret_data["translation"]["y"] = "minus"
                 elif t_y > HOMOGRAPHY_MAX_TRANS:
                     ret_data["translation"]["y"] = "plus"
+        else:
+            matches_mask = None
+            debug_img = image.copy()
 
-        cv2.waitKey(1)
+        DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
+                        singlePointColor=(255, 0, 0), \
+                        matchesMask=matches_mask, \
+                        flags=0)
+
+        matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        cv2.imshow("Matching result", matching_result)
+
+        if CAPTURE_DEMO:
+            if self.out is None:
+                h_matching, w_matching = matching_result.shape[:2]
+                self.out = cv2.VideoWriter('demo_recognition_{}.avi'.format(int(round(time.time() * 1000))), \
+                    cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, \
+                    (w_matching, h_matching))
+
+            self.out.write(matching_result)
+
+        key = cv2.waitKey(1)
+
+        if key == ord('q'):
+            self.out.release()
 
         ret_data["sift_success"] = sift_success
 
@@ -444,15 +392,20 @@ class MTE:
         # cv2.waitKey(0)
         return learning_data
 
-    def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False):
+    def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
         if dst_to_src:
-            H, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+            H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
         else:
-            H, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
-        return H
-    
-    def apply_sift(self, image, learning_data, crop_image=True):
+        if return_mask:
+            return H, mask
+        else:
+            return H
+
+    def apply_sift(self, image, learning_data, crop_image=True, debug=False):
+        h, w = image.shape[:2]
+
         if crop_image:
             img = self.crop_image(image)
         else:
@@ -466,30 +419,37 @@ class MTE:
         matches = flann.knnMatch(des_img, learning_data.sift_data.des, k=2)
 
         # Need to draw only good matches, so create a mask
-        goodMatches = []
+        good_matches = []
 
         # ratio test as per Lowe's paper
         for i, pair in enumerate(matches):
             try:
                 m, n = pair
                 if m.distance < FLANN_THRESH*n.distance:
-                    goodMatches.append(m)
+                    good_matches.append(m)
             except ValueError:
                 pass
+
+        # Add crop
+        if crop_image:
+            for kp in kp_img:
+                kp.pt = (kp.pt[0] + w * CROP_SIZE_HOR/2, kp.pt[1] + h * CROP_SIZE_VER/2)
 
         # Homography
         # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
 
-        success = len(goodMatches) > MIN_MATCH_COUNT
+        success = len(good_matches) > MIN_MATCH_COUNT
 
+        dst_pts = []
+        src_pts = []
         if success:
-            dst_pts = np.float32([kp_img[m.queryIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
-            src_pts = np.float32([learning_data.sift_data.kp[m.trainIdx].pt for m in goodMatches]).reshape(-1, 1, 2)
-        else:
-            dst_pts = []
-            src_pts = []
+            dst_pts = np.float32([kp_img[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+            src_pts = np.float32([learning_data.sift_data.kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
-        return success, src_pts, dst_pts
+        if debug:
+            return success, src_pts, dst_pts, kp_img, des_img, good_matches
+        else:
+            return success, src_pts, dst_pts
 
 
 if __name__ == "__main__":
