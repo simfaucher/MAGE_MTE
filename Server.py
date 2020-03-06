@@ -2,14 +2,15 @@
     Server side to catch a camera stream from a client
 """
 
+import os
 import sys
 import time
 from copy import deepcopy
 import json
 import numpy as np
 import cv2
-import imagezmq
 from pykson import Pykson
+import imagezmq
 
 from Domain.MTEMode import MTEMode
 from Domain.LearningData import LearningData
@@ -39,7 +40,7 @@ FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
 
 HOMOGRAPHY_MIN_SCALE = 0.75
-HOMOGRAPHY_MAX_SCALE = 1
+HOMOGRAPHY_MAX_SCALE = 1.25
 HOMOGRAPHY_MAX_SKEW = 0.13
 HOMOGRAPHY_MIN_TRANS = 0
 HOMOGRAPHY_MAX_TRANS = 50
@@ -47,6 +48,7 @@ HOMOGRAPHY_MAX_TRANS = 50
 CONFIG_SIGHTS_FILENAME = "learning_settings.json"
 
 CAPTURE_DEMO = False
+DEMO_FOLDER = "demo/"
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -56,6 +58,7 @@ class MTE:
     def __init__(self):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
+        self.image_hub.zmq_socket.RCVTIMEO = 3000
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         self.repo = Repository()
@@ -70,6 +73,8 @@ class MTE:
 
         if CAPTURE_DEMO:
             self.out = None
+            if not os.path.exists(DEMO_FOLDER):
+                os.makedirs(DEMO_FOLDER)
 
     def load_ml_settings(self):
         try:
@@ -91,6 +96,14 @@ class MTE:
             data = json.loads(msg)
 
             ret_data = {}
+
+            if "error" in data and data["error"]:
+                if CAPTURE_DEMO and self.out is not None:
+                    print("No connection")
+                    self.out.release()
+                    self.out = None
+                    cv2.destroyWindow("Matching result")
+                continue
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -249,16 +262,15 @@ class MTE:
         if CAPTURE_DEMO:
             if self.out is None:
                 h_matching, w_matching = matching_result.shape[:2]
-                self.out = cv2.VideoWriter('demo_recognition_{}.avi'.format(int(round(time.time() * 1000))), \
+
+                demo_path = os.path.join(DEMO_FOLDER, 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+                self.out = cv2.VideoWriter(demo_path, \
                     cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, \
                     (w_matching, h_matching))
 
             self.out.write(matching_result)
 
-        key = cv2.waitKey(1)
-
-        if key == ord('q'):
-            self.out.release()
+        cv2.waitKey(1)
 
         ret_data["sift_success"] = sift_success
 

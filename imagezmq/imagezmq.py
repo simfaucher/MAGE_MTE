@@ -285,7 +285,12 @@ class ImageHub():
           image: OpenCV image.
         """
 
-        msg, image = self.zmq_socket.recv_array(copy=False)
+        try:
+          # msg, image = self.zmq_socket.recv_array(copy=False, flags=zmq.NOBLOCK)
+          msg, image = self.zmq_socket.recv_array(copy=False)
+        except Exception as error:
+          msg = "{\"error\": 1}"
+          image = []
         return msg, image
 
     def recv_jpg(self, copy=False):
@@ -298,7 +303,12 @@ class ImageHub():
           jpg_buffer: bytestring jpg compressed image
         """
 
-        msg, jpg_buffer = self.zmq_socket.recv_jpg(copy=False)
+        try:
+          # msg, jpg_buffer = self.zmq_socket.recv_jpg(copy=False, flags=zmq.NOBLOCK)
+          msg, jpg_buffer = self.zmq_socket.recv_jpg(copy=False)
+        except Exception as error:
+          msg = "{\"error\": 1}"
+          jpg_buffer = []
         return msg, jpg_buffer
 
     def send_reply(self, reply_message=b'OK'):

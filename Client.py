@@ -2,9 +2,9 @@
     Client side to stream a camera to a server
 """
 
+import os
 import sys
 import time
-import socket
 import json
 import numpy as np
 import cv2
@@ -14,6 +14,7 @@ import imagezmq
 from Domain.MTEMode import MTEMode
 
 CAPTURE_DEMO = False
+DEMO_FOLDER = "demo/"
 
 MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
@@ -27,8 +28,37 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+
+# T1.4
+# VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
+# LEARNING_IMAGE_PATH = "videos/T1.4/vlcsnap-2020-03-02-16h02m56s976.png"
+# LEARNING_IMAGE_PATH = "videos/T1.4/vlcsnap-2020-03-02-16h02m33s403.png"
+
+# T2.1
+# VIDEO_PATH = "videos/T2.1/T2.1-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T2.1/vlcsnap-2020-02-28-11h41m09s756.png"
+
+# T2.2
+# VIDEO_PATH = "videos/T2.2/T2.2-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
+
+# T2.3
+VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
+LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
+
+# T3.1
+# VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T3.1/vlcsnap-2020-02-28-11h43m42s674.png"
+
+# T3.2
+# VIDEO_PATH = "videos/T3.2/T3.2-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T3.2/vlcsnap-2020-02-28-11h42m56s577.png"
+
+# T3.3
+# VIDEO_PATH = "videos/T3.3/T3.3-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T3.3/vlcsnap-2020-02-28-11h42m56s577.png"
 
 class ACD:
     def __init__(self):
@@ -52,17 +82,21 @@ class ACD:
         if CAPTURE_DEMO:
             out = None
 
+            if not os.path.exists(DEMO_FOLDER):
+                os.makedirs(DEMO_FOLDER)
+
         while self.cap.isOpened():
             # Sending
             success, full_image = self.cap.read()
 
             if not success:
-                continue
+                break
 
             image_640 = imutils.resize(full_image, width=640)
 
             if CAPTURE_DEMO and out is None:
-                out = cv2.VideoWriter('demo_framing.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (640*2, image_640.shape[0]))
+                demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
+                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (640*2, image_640.shape[0]))
 
             data = {
                 "mode": self.mode.value,
@@ -128,8 +162,16 @@ class ACD:
                 sys.exit("User ended program.")
                 if CAPTURE_DEMO:
                     out.release()
+                    out = None
 
             # print(reply)
+
+        # Release all
+        if CAPTURE_DEMO and out is not None:
+            out.release()
+
+        self.cap.release()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     acd = ACD()
