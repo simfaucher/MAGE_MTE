@@ -13,6 +13,8 @@ from enum import Enum, auto
 class ROIFeatureType(Enum):
     RAW_PIXELS = "raw_pixels"
     RAW_PIXELS_16 = "raw_pixels_16"
+    RAW_PIXELS_32_8 = "raw_pixels_32_8"
+    RAW_PIXELS_8_32 = "raw_pixels_8_32"
     COMPOSITE_PROFILE = "composite_profile"
     COLOR_HIST = "color_hist"
     # HOG = "hog"
