@@ -1,0 +1,52 @@
+{
+    "recognition_selector": {
+        "uncertainty": 400
+    },
+    "sights": [
+        {
+            "name": "Scale finder",
+            "width": 640,
+            "height": 363,
+            "anchor": {
+                "x": 320,
+                "y": 181
+            },
+            "search_box": {
+                "step": {
+                    "x": 10,
+                    "y": 10
+                },
+                "iteration": {
+                    "x": 14,
+                    "y": 10
+                },
+				"anchor": {
+					"x": 0,
+					"y": 0
+				}
+            },
+            "roi": [
+                {
+                    "name": "Color",
+                    "filter": "posterisation",
+                    "feature_type": "composite_profile",
+                    "tolerance": 16000,
+                    "width": 640,
+                    "height": 363,
+                    "x": 0,
+                    "y": 0
+                },
+                {
+                    "name": "Shape",
+                    "filter": "kirsch",
+                    "feature_type": "raw_pixels_16",
+                    "tolerance": 60000,
+                    "width": 640,
+                    "height": 363,
+                    "x": 0,
+                    "y": 0
+                }
+            ]
+        }
+    ]
+}

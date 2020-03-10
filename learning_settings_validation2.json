@@ -1,0 +1,112 @@
+{
+    "recognition_selector": {
+        "uncertainty": 400
+    },
+    "sights": [
+        {
+            "name": "Rotation finder",
+            "width": 400,
+            "height": 250,
+            "anchor": {
+                "x": 200,
+                "y": 125
+            },
+            "search_box": {
+                "step": {
+                    "x": 10,
+                    "y": 10
+                },
+                "iteration": {
+                    "x": 14,
+                    "y": 10
+                },
+				"anchor": {
+					"x": 0,
+					"y": 0
+				}
+            },
+            "roi": [
+                {
+                    "name": "Vertical left bar color",
+                    "filter": "posterisation",
+                    "feature_type": "raw_pixels_8_32",
+                    "tolerance": 66000,
+                    "width": 40,
+                    "height": 250,
+                    "x": 80,
+                    "y": 0
+                },
+                {
+                    "name": "Vertical left bar shape",
+                    "filter": "kirsch",
+                    "feature_type": "raw_pixels_8_32",
+                    "tolerance": 66000,
+                    "width": 40,
+                    "height": 250,
+                    "x": 80,
+                    "y": 0
+                },
+                {
+                    "name": "Vertical right bar color",
+                    "filter": "posterisation",
+                    "feature_type": "raw_pixels_8_32",
+                    "tolerance": 66000,
+                    "width": 40,
+                    "height": 250,
+                    "x": 280,
+                    "y": 0
+                },
+                {
+                    "name": "Vertical right bar shape",
+                    "filter": "kirsch",
+                    "feature_type": "raw_pixels_8_32",
+                    "tolerance": 66000,
+                    "width": 40,
+                    "height": 250,
+                    "x": 280,
+                    "y": 0
+                },
+                {
+                    "name": "Horizontal top bar color",
+                    "filter": "posterisation",
+                    "feature_type": "raw_pixels_32_8",
+                    "tolerance": 66000,
+                    "width": 400,
+                    "height": 40,
+                    "x": 0,
+                    "y": 45
+                },
+                {
+                    "name": "Vertical top bar shape",
+                    "filter": "kirsch",
+                    "feature_type": "raw_pixels_32_8",
+                    "tolerance": 66000,
+                    "width": 400,
+                    "height": 40,
+                    "x": 0,
+                    "y": 45
+                },
+                {
+                    "name": "Horizontal bottom bar color",
+                    "filter": "posterisation",
+                    "feature_type": "raw_pixels_32_8",
+                    "tolerance": 66000,
+                    "width": 400,
+                    "height": 40,
+                    "x": 0,
+                    "y": 165
+                },
+                {
+                    "name": "Vertical bottom bar shape",
+                    "filter": "kirsch",
+                    "feature_type": "raw_pixels_32_8",
+                    "tolerance": 66000,
+                    "width": 400,
+                    "height": 40,
+                    "x": 0,
+                    "y": 165
+                }
+            ]
+        }
+    ]
+}
