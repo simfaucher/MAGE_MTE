@@ -464,13 +464,13 @@ class BoxLearner():
             resized = cv2.resize(image, (16, 16))
             return resized.reshape(1, 16*16*nb_layers).astype(np.float32)
 
-        elif features_type == ROIFeatureType.RAW_PIXELS_32_8:
-            resized = cv2.resize(image, (32, 8))
-            return resized.reshape(1, 32*8*nb_layers).astype(np.float32)
+        elif features_type == ROIFeatureType.RAW_PIXELS_64_4:
+            resized = cv2.resize(image, (64, 4))
+            return resized.reshape(1, 64*4*nb_layers).astype(np.float32)
 
-        elif features_type == ROIFeatureType.RAW_PIXELS_8_32:
-            resized = cv2.resize(image, (8, 32))
-            return resized.reshape(1, 8*32*nb_layers).astype(np.float32)
+        elif features_type == ROIFeatureType.RAW_PIXELS_4_64:
+            resized = cv2.resize(image, (4, 64))
+            return resized.reshape(1, 4*64*nb_layers).astype(np.float32)
 
         # Composite profile
         elif features_type == ROIFeatureType.COMPOSITE_PROFILE:

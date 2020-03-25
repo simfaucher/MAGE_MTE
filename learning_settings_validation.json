@@ -1,12 +1,12 @@
 {
     "recognition_selector": {
-        "uncertainty": 400
+        "uncertainty": 0
     },
     "sights": [
         {
             "name": "Scale finder",
-            "width": 640,
-            "height": 363,
+            "width": 213,
+            "height": 121,
             "anchor": {
                 "x": 320,
                 "y": 181
@@ -30,9 +30,9 @@
                     "name": "Color",
                     "filter": "posterisation",
                     "feature_type": "composite_profile",
-                    "tolerance": 16000,
-                    "width": 640,
-                    "height": 363,
+                    "tolerance": 17000,
+                    "width": 213,
+                    "height": 121,
                     "x": 0,
                     "y": 0
                 },
@@ -40,9 +40,9 @@
                     "name": "Shape",
                     "filter": "kirsch",
                     "feature_type": "raw_pixels_16",
-                    "tolerance": 60000,
-                    "width": 640,
-                    "height": 363,
+                    "tolerance": 66000,
+                    "width": 213,
+                    "height": 121,
                     "x": 0,
                     "y": 0
                 }

@@ -1,6 +1,6 @@
 {
     "recognition_selector": {
-        "uncertainty": 400
+        "uncertainty": 0
     },
     "sights": [
         {
@@ -29,8 +29,8 @@
                 {
                     "name": "Vertical left bar color",
                     "filter": "posterisation",
-                    "feature_type": "raw_pixels_8_32",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_4_64",
+                    "tolerance": 150000,
                     "width": 40,
                     "height": 250,
                     "x": 80,
@@ -39,8 +39,8 @@
                 {
                     "name": "Vertical left bar shape",
                     "filter": "kirsch",
-                    "feature_type": "raw_pixels_8_32",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_4_64",
+                    "tolerance": 150000,
                     "width": 40,
                     "height": 250,
                     "x": 80,
@@ -49,8 +49,8 @@
                 {
                     "name": "Vertical right bar color",
                     "filter": "posterisation",
-                    "feature_type": "raw_pixels_8_32",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_4_64",
+                    "tolerance": 150000,
                     "width": 40,
                     "height": 250,
                     "x": 280,
@@ -59,8 +59,8 @@
                 {
                     "name": "Vertical right bar shape",
                     "filter": "kirsch",
-                    "feature_type": "raw_pixels_8_32",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_4_64",
+                    "tolerance": 150000,
                     "width": 40,
                     "height": 250,
                     "x": 280,
@@ -69,8 +69,8 @@
                 {
                     "name": "Horizontal top bar color",
                     "filter": "posterisation",
-                    "feature_type": "raw_pixels_32_8",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_64_4",
+                    "tolerance": 150000,
                     "width": 400,
                     "height": 40,
                     "x": 0,
@@ -79,8 +79,8 @@
                 {
                     "name": "Vertical top bar shape",
                     "filter": "kirsch",
-                    "feature_type": "raw_pixels_32_8",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_64_4",
+                    "tolerance": 150000,
                     "width": 400,
                     "height": 40,
                     "x": 0,
@@ -89,8 +89,8 @@
                 {
                     "name": "Horizontal bottom bar color",
                     "filter": "posterisation",
-                    "feature_type": "raw_pixels_32_8",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_64_4",
+                    "tolerance": 150000,
                     "width": 400,
                     "height": 40,
                     "x": 0,
@@ -99,8 +99,8 @@
                 {
                     "name": "Vertical bottom bar shape",
                     "filter": "kirsch",
-                    "feature_type": "raw_pixels_32_8",
-                    "tolerance": 66000,
+                    "feature_type": "raw_pixels_64_4",
+                    "tolerance": 150000,
                     "width": 400,
                     "height": 40,
                     "x": 0,
