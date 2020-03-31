@@ -1,6 +1,7 @@
 import sys
 import glob
 import itertools
+from copy import deepcopy
 import json
 from pykson import Pykson
 import numpy as np
@@ -20,16 +21,15 @@ from ML.Domain.ImageClass import ImageClass
 from ML.LinesDetector import LinesDetector
 from ML.BoxLearner import BoxLearner
 
+from Domain.LearningData import LearningData
+from Domain.VCLikeData import VCLikeData
+
 CONFIG_VALIDATION_SIGHTS_FILENAME = "learning_settings_validation.json"
 CONFIG_VALIDATION_SIGHTS_2_FILENAME = "learning_settings_validation2.json"
 ROTATION_IMAGES_FOLDER = "images/rotation/*"
 
-class Test:
+class VCLikeEngine:
     def __init__(self):
-        image_path = "videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png"
-        image = cv2.imread(image_path)
-        image = imutils.resize(image, width=640)
-
         self.learning_settings = self.load_ml_settings(CONFIG_VALIDATION_SIGHTS_FILENAME)
         self.box_learner = BoxLearner(self.learning_settings.sights, \
             self.learning_settings.recognition_selector.uncertainty)
@@ -38,10 +38,15 @@ class Test:
         self.box_learner2 = BoxLearner(self.learning_settings2.sights, \
             self.learning_settings2.recognition_selector.uncertainty)
 
-        self.dataset = self.generate_dataset(image)
-        self.learn_ml_data()
-        # self.learn_ml_data2()
-        self.learn_ml_data2(100)
+        self.last_position_found = None
+
+    def learn(self, learning_data):
+        if learning_data.vc_like_data is None:
+            dataset = self.generate_dataset(learning_data.image_640)
+            learning_settings = self.learn_ml_data(dataset)
+            learning_settings2 = self.learn_ml_data2(dataset)
+
+            learning_data.vc_like_data = VCLikeData(learning_settings, learning_settings2)
 
     def generate_dataset(self, image):
         h, w = image.shape[:2]
@@ -61,9 +66,9 @@ class Test:
             a3 = range(20, 41, 10)
             angles = itertools.chain(a1, a2, a3)
             for angle in angles:
-                scaled = self.scale_image(image, scale)
-                M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, 1)
-                transformed = cv2.warpAffine(scaled, M, (w, h))
+                # scaled = self.scale_image(image, scale)
+                M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
+                transformed = cv2.warpAffine(image, M, (w, h))
 
                 dataset.append(({"scale": scale, "angle": angle}, transformed))
 
@@ -86,20 +91,30 @@ class Test:
         except TypeError as error:
             sys.exit("Type error in {} with the attribute \"{}\". Expected {} but had {}.".format(error.args[0], error.args[1], error.args[2], error.args[3]))
 
-    def learn_ml_data(self):
-        for i, data in enumerate(self.dataset):
+    def learn_ml_data(self, dataset):
+        learning_settings = deepcopy(self.learning_settings)
+
+        # for sight in learning_settings.sights:
+        #     for j, roi in enumerate(sight.roi):
+        #         roi.images = []
+
+        for i, data in enumerate(dataset):
             attr, image = data[:]
             class_id = int(attr["scale"]*100)
             class_name = "scale: {}".format(attr["scale"])
 
-            self.learn_image(self.learning_settings, class_id, class_name, image)
+            self.learn_image(learning_settings, class_id, class_name, image)
 
-    def learn_ml_data2(self, scale):
+        return learning_settings
+
+    def learn_ml_data2(self, dataset, scale=100):
+        learning_settings2 = deepcopy(self.learning_settings2)
+
         # for sight in self.learning_settings2.sights:
         #     for j, roi in enumerate(sight.roi):
         #         roi.images = []
 
-        for i, data in enumerate(self.dataset):
+        for i, data in enumerate(dataset):
             attr, image = data[:]
 
             current_scale = int(attr["scale"]*100)
@@ -108,7 +123,9 @@ class Test:
                 class_id = int(attr["angle"]) + 100
                 class_name = "angle: {}".format(attr["angle"])
 
-                self.learn_image(self.learning_settings2, class_id, class_name, image)
+                self.learn_image(learning_settings2, class_id, class_name, image)
+
+        return learning_settings2
 
     def learn_image(self, learning_settings, class_id, class_name, img):
         # Learn ML data
@@ -171,46 +188,124 @@ class Test:
 
         for sight in learning_settings.sights:
             box_learner.get_knn_contexts(sight)
-            box_learner.input_image = image
+            # box_learner.input_image = image
 
-            h, w = image.shape[:2]
+            # h, w = image.shape[:2]
 
-            pt_tl = Point2D()
-            pt_tl.x = int(w / 2 - sight.width / 2)
-            pt_tl.y = int(h / 2 - sight.height / 2)
+            # pt_tl = Point2D()
+            # pt_tl.x = int(w / 2 - sight.width / 2)
+            # pt_tl.y = int(h / 2 - sight.height / 2)
 
-            pt_br = Point2D()
-            pt_br.x = pt_tl.x + sight.width
-            pt_br.y = pt_tl.y + sight.height
+            # pt_br = Point2D()
+            # pt_br.x = pt_tl.x + sight.width
+            # pt_br.y = pt_tl.y + sight.height
 
-            match = box_learner.find_target(pt_tl, pt_br)
+            # match = box_learner.find_target(pt_tl, pt_br)
+            match = box_learner.scan(image)
 
             success = match.success if not match.success else success
             matches.append(match)
 
         return success, matches
 
-    def scale_image(self, image, scale):
-        if scale == 1:
-            return image
+    # def scale_image(self, image, scale):
+    #     if scale == 1:
+    #         return image
 
-        h, w, c = image.shape
+    #     h, w, c = image.shape
 
-        resized = cv2.resize(image, None, fx=scale, fy=scale)
-        h_r, w_r = resized.shape[:2]
+    #     resized = cv2.resize(image, None, fx=scale, fy=scale)
+    #     h_r, w_r = resized.shape[:2]
 
-        margin_h = int(abs(h_r - h) / 2)
-        margin_w = int(abs(w_r - w) / 2)
-        if scale < 1:
-            dest = np.zeros((h, w, c), dtype=image.dtype)
-            dest[margin_h: margin_h + h_r, margin_w: margin_w + w_r] = resized
+    #     margin_h = int(abs(h_r - h) / 2)
+    #     margin_w = int(abs(w_r - w) / 2)
+    #     if scale < 1:
+    #         dest = np.zeros((h, w, c), dtype=image.dtype)
+    #         dest[margin_h: margin_h + h_r, margin_w: margin_w + w_r] = resized
+    #     else:
+    #         dest = resized[margin_h: margin_h + h, margin_w: margin_w + w]
+
+    #     return dest
+
+    def find_target(self, image, learning_data):
+        #TODO: scan -> erreur sur le box learner 2
+        h, w = image.shape[:2]
+
+        # Scale
+        learning_settings = learning_data.vc_like_data.learning_settings
+        # success1, matches1 = self.ml_validation(learning_settings, self.box_learner, image)
+
+        self.box_learner.get_knn_contexts(learning_settings.sights[0])
+
+        match1 = None
+
+        if self.last_position_found is not None:
+            match1 = self.box_learner.optimised_scan(image, anchor_point=self.last_position_found)
+
+        # If never found a position or the optimised scan failed
+        if match1 is None or not match1.success:
+            match1 = self.box_learner.scan(image)
+
+        success1 = match1.success
+        success2 = False
+
+        scale = 1
+        angle = 0
+
+        if success1:
+            # scale = 1 + float(100 - matches1[0].predicted_class)/100
+            scale = 1 / (match1.predicted_class / 100)
+            print("Scale success, class: {}".format(match1.predicted_class))
+
+            # Data for plotting
+
+            M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, scale)
+            scaled = cv2.warpAffine(image, M, (w, h))
+
+            # scaled = self.scale_image(image, scale)
+
+            # cv2.imshow("Scaled", scaled)
+
+            # Rotation
+            learning_settings2 = learning_data.vc_like_data.learning_settings2
+            # success2, matches2 = self.ml_validation(learning_settings2, self.box_learner2, scaled)
+            self.box_learner2.get_knn_contexts(learning_settings2.sights[0])
+            match2 = self.box_learner2.optimised_scan(image, anchor_point=match1.anchor)
+
+            if not match2.success:
+                match2 = self.box_learner2.scan(image)
+
+            success2 = match2.success
+
+            if success2:
+                angle = -1 * (match2.predicted_class - 100)
+
+                # Save this position for next turn
+                self.last_position_found = match2.anchor
+
+                # Data for plotting
+
+                print("Rotation success, class: {}".format(match2.predicted_class - 100))
+            else:
+                print("Rotation fail")
         else:
-            dest = resized[margin_h: margin_h + h, margin_w: margin_w + w]
+            print("Scale fail")
 
-        return dest
+        M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
+        transformed = cv2.warpAffine(image, M, (w, h))
+
+        # cv2.imshow("Image", image)
+        # cv2.imshow("Transformed", transformed)
+        # cv2.waitKey(100)
+
+        return (success1 and success2), scale, angle, transformed
 
 if __name__ == "__main__":
-    app = Test()
+    image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")
+    image_ref = imutils.resize(image_ref, width=640)
+
+    app = VCLikeEngine()
+    app.learn(image_ref)
 
     # for image_path in glob.glob(ROTATION_IMAGES_FOLDER):
     #     image = cv2.imread(image_path)
@@ -229,91 +324,9 @@ if __name__ == "__main__":
     image = imutils.resize(image, width=640)
     dataset = app.generate_dataset(image)
 
-    scale_errors = {}
-    angle_errors = {}
-
-    fps = FPS().start()
-
     for data, image in dataset:
-        h, w = image.shape[:2]
+        success, scale, angle, transformed = app.find_target(image)
 
-        # Scale
-        success1, matches1 = app.ml_validation(app.learning_settings, app.box_learner, image)
-
-        scale = 1
-        angle = 0
-
-        if success1:
-            # scale = 1 + float(100 - matches1[0].predicted_class)/100
-            scale = 1 / (matches1[0].predicted_class / 100)
-            scale_error = abs(int(data["scale"]*100) - matches1[0].predicted_class)
-            print("Scale success, class: {}, expected: {}, error: {}".format(matches1[0].predicted_class, \
-                int(data["scale"]*100), scale_error))
-
-            # Data for plotting
-            scale_label = int(round(data["scale"]*100))
-            if scale_label not in scale_errors:
-                scale_errors[scale_label] = []
-
-            scale_errors[scale_label].append(scale_error)
-
-            M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, scale)
-            scaled = cv2.warpAffine(image, M, (w, h))
-
-            # scaled = app.scale_image(image, scale)
-
-            # cv2.imshow("Scaled", scaled)
-
-            # Rotation
-            success2, matches2 = app.ml_validation(app.learning_settings2, app.box_learner2, scaled)
-
-            if success2:
-                angle = -1 * (matches2[0].predicted_class - 100)
-                angle_error = abs((matches2[0].predicted_class - 100) - data["angle"])
-
-                # Data for plotting
-                angle_label = int(round(data["angle"]))
-                if angle_label not in angle_errors:
-                    angle_errors[angle_label] = []
-
-                angle_errors[angle_label].append(angle_error)
-
-                print("Rotation success, class: {}, expected: {}, error: {}".format(matches2[0].predicted_class - 100, \
-                    data["angle"], angle_error))
-            else:
-                print("Rotation fail")
-        else:
-            print("Scale fail")
-
-        M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
-        transformed = cv2.warpAffine(image, M, (w, h))
-
-        fps.update()
-
-        # cv2.imshow("Image", image)
-        # cv2.imshow("Transformed", transformed)
-        # cv2.waitKey(100)
-    
-    fps.stop()
-    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-    print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
-    # Plot angle errors
-    plt.figure(1)
-    angle_labels, angle_data = [*zip(*angle_errors.items())]
-    plt.boxplot(angle_data)
-    plt.xticks(range(1, len(angle_labels) + 1), angle_labels)
-    plt.title("Angle errors")
-    plt.xlabel("Angle (deg)")
-    plt.ylabel("Error (deg)")
-
-    # Plot scale errors
-    plt.figure(2)
-    scale_labels, scale_data = [*zip(*scale_errors.items())]
-    plt.boxplot(scale_data)
-    plt.xticks(range(1, len(scale_labels) + 1), scale_labels)
-    plt.title("Scale errors")
-    plt.xlabel("Scale (% of the original image)")
-    plt.ylabel("Error (% of the original image)")
-
-    plt.show()
+        cv2.imshow("Image", image)
+        cv2.imshow("Transformed", transformed)
+        cv2.waitKey(100)

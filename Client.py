@@ -28,8 +28,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -45,8 +45,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
-LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
+# VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
+# LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -131,11 +131,12 @@ class ACD:
                 reco_data = reply["recognition"]
                 if reco_data["success"]:
                     print("Recognition OK")
-                    # TODO: Envoi image 4K à VCE.
-                elif reco_data["sift_success"]:
+                elif "sift_success" in reco_data and reco_data["sift_success"]:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
                         reco_data["skew"]["x"], reco_data["skew"]["y"], \
                         reco_data["translation"]["x"], reco_data["translation"]["y"]))
+                elif "vc_like_engine_success" in reco_data and reco_data["vc_like_engine_success"]:
+                    print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
             # elif mode == MTEMode.FRAMING:

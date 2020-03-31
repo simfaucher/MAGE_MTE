@@ -29,21 +29,8 @@ from ML.Domain.ImageClass import ImageClass
 from ML.LinesDetector import LinesDetector
 from ML.BoxLearner import BoxLearner
 
-CROP_SIZE_HOR = 1/3
-CROP_SIZE_VER = 1/3
-
-FLANN_INDEX_KDTREE = 0
-INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-
-SEARCH_PARAMS = dict(checks=50)
-FLANN_THRESH = 0.7
-MIN_MATCH_COUNT = 30
-
-HOMOGRAPHY_MIN_SCALE = 0.75
-HOMOGRAPHY_MAX_SCALE = 1.25
-HOMOGRAPHY_MAX_SKEW = 0.13
-HOMOGRAPHY_MIN_TRANS = 0
-HOMOGRAPHY_MAX_TRANS = 50
+from VCLikeEngine import VCLikeEngine
+from SIFTEngine import SIFTEngine
 
 CONFIG_SIGHTS_FILENAME = "learning_settings.json"
 
@@ -54,6 +41,9 @@ DEMO_FOLDER = "demo/"
 #     [0., 951.09864051, 359.47108905],  \
 #         [0., 0., 1.]])
 
+VC_LIKE_ENGINE_MODE = True
+SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
+
 class MTE:
     def __init__(self):
         print("Launching server")
@@ -62,7 +52,6 @@ class MTE:
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         self.repo = Repository()
-        self.sift = cv2.xfeatures2d.SIFT_create()
 
         self.learning_db = []
         self.last_learning_data = None
@@ -75,6 +64,10 @@ class MTE:
             self.out = None
             if not os.path.exists(DEMO_FOLDER):
                 os.makedirs(DEMO_FOLDER)
+
+        #VC-like engine
+        self.sift_engine = SIFTEngine()
+        self.vc_like_engine = VCLikeEngine()
 
     def load_ml_settings(self):
         try:
@@ -140,7 +133,7 @@ class MTE:
 
                 # cv2.imshow("Warped image", warped_image)
                 # cv2.waitKey(1)
-            
+
             if mode == MTEMode.FRAMING:
                 self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
             else:
@@ -148,9 +141,11 @@ class MTE:
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
-        img = self.crop_image(image)
-        kp, _ = self.sift.detectAndCompute(img, None)
-        return len(kp)
+        if SIFT_ENGINE_MODE:
+            kp, _, _ = self.sift_engine.compute_sift(image, crop_image=True)
+            return len(kp)
+
+        return 0
 
     def learning(self, full_image):
         # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
@@ -164,117 +159,71 @@ class MTE:
 
     def recognition(self, pov_id, image):
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto
-        ret_data = {}
+        ret_data = {
+            "scale": "OK",
+            "skew": "OK",
+            "translation": {
+                "x": "OK",
+                "y": "OK"
+            },
+            "success": False
+        }
 
         learning_data = self.get_learning_data(pov_id)
 
-        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches = self.apply_sift(image, learning_data, debug=True)
+        if VC_LIKE_ENGINE_MODE:
+            success, scale, angle, transformed = self.vc_like_engine.find_target(image, learning_data)
 
-        if sift_success:
-            H, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
-            matches_mask = mask.ravel().tolist()
+            # cv2.imshow("VC-like engine", transformed)
+        else:
+            success, scale, skew, translation, transformed = self.sift_engine.recognition(image, learning_data)
 
-            h, w = learning_data.sift_data.ref.shape[:2]
-            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-            dst = cv2.perspectiveTransform(pts, H)
+        # ML validation
+        ml_success = self.ml_validation(learning_data, transformed)
 
-            debug_img = cv2.polylines(image.copy(), [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
+        if not ml_success:
+            # Scale
+            if scale < SIFTEngine.HOMOGRAPHY_MIN_SCALE:
+                ret_data["scale"] = "far"
+            elif scale > SIFTEngine.HOMOGRAPHY_MAX_SCALE:
+                ret_data["scale"] = "close"
 
-            # cv2.imshow("Deformation", debug_img)
-
-            scale_x = H[0][0]
-            scale_y = H[1][1]
-            skew_x = H[0][1]
-            skew_y = H[1][0]
-            t_x = H[0][2]
-            t_y = H[1][2]
-
-            scale_ok = HOMOGRAPHY_MIN_SCALE <= scale_x <= HOMOGRAPHY_MAX_SCALE \
-                and HOMOGRAPHY_MIN_SCALE <= scale_y <= HOMOGRAPHY_MAX_SCALE
-            skew_ok = 0 <= abs(skew_x) <= HOMOGRAPHY_MAX_SKEW \
-                and 0 <= abs(skew_y) <= HOMOGRAPHY_MAX_SKEW
-            translation_ok = HOMOGRAPHY_MIN_TRANS <= t_x <= HOMOGRAPHY_MAX_TRANS \
-                and HOMOGRAPHY_MIN_TRANS <= t_y <= HOMOGRAPHY_MAX_TRANS
-
-            ml_success = False
-            if scale_ok and skew_ok and translation_ok:
-                print("Valide")
-
-                # Framing
-                H = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, H, (w, h))
-
-                cv2.imshow("Warped image", warped_image)
-
-                # ML validation
-                ml_success = self.ml_validation(learning_data, warped_image)
-
-            if not ml_success:
-                ret_data["scale"] = "OK"
-                ret_data["skew"] = {
-                    "x": "OK",
-                    "y": "OK"
-                }
-                ret_data["translation"] = {
-                    "x": "OK",
-                    "y": "OK"
-                }
-
-                # Scale
-                if scale_x < HOMOGRAPHY_MIN_SCALE or scale_y < HOMOGRAPHY_MIN_SCALE:
-                    ret_data["scale"] = "far"
-                elif scale_x > HOMOGRAPHY_MAX_SCALE or scale_y > HOMOGRAPHY_MAX_SCALE:
-                    ret_data["scale"] = "close"
-
+            #TODO: à modifier en prenant en compte les infos de VC-like
+            if SIFT_ENGINE_MODE:
                 # Skew
-                if -1*HOMOGRAPHY_MAX_SKEW > skew_x:
-                    ret_data["skew"]["x"] = "minus"
-                elif skew_x > HOMOGRAPHY_MAX_SKEW:
-                    ret_data["skew"]["x"] = "plus"
-
-                if -1*HOMOGRAPHY_MAX_SKEW > skew_y:
-                    ret_data["skew"]["y"] = "minus"
-                elif skew_y > HOMOGRAPHY_MAX_SKEW:
-                    ret_data["skew"]["y"] = "plus"
+                if -1*SIFTEngine.HOMOGRAPHY_MAX_SKEW > skew:
+                    ret_data["skew"] = "minus"
+                elif skew > SIFTEngine.HOMOGRAPHY_MAX_SKEW:
+                    ret_data["skew"] = "plus"
 
                 # Translation
-                if t_x < HOMOGRAPHY_MIN_TRANS:
+                if translation[0] < SIFTEngine.HOMOGRAPHY_MIN_TRANS:
                     ret_data["translation"]["x"] = "minus"
-                elif t_x > HOMOGRAPHY_MAX_TRANS:
+                elif translation[0] > SIFTEngine.HOMOGRAPHY_MAX_TRANS:
                     ret_data["translation"]["x"] = "plus"
 
-                if t_y < HOMOGRAPHY_MIN_TRANS:
+                if translation[1] < SIFTEngine.HOMOGRAPHY_MIN_TRANS:
                     ret_data["translation"]["y"] = "minus"
-                elif t_y > HOMOGRAPHY_MAX_TRANS:
+                elif translation[1] > SIFTEngine.HOMOGRAPHY_MAX_TRANS:
                     ret_data["translation"]["y"] = "plus"
-        else:
-            matches_mask = None
-            debug_img = image.copy()
+            else:
+                pass
 
-        DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
-                        singlePointColor=(255, 0, 0), \
-                        matchesMask=matches_mask, \
-                        flags=0)
+        # if CAPTURE_DEMO:
+        #     if self.out is None:
+        #         h_matching, w_matching = matching_result.shape[:2]
 
-        matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
-        cv2.imshow("Matching result", matching_result)
+        #         demo_path = os.path.join(DEMO_FOLDER, 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+        #         self.out = cv2.VideoWriter(demo_path, \
+        #             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, \
+        #             (w_matching, h_matching))
 
-        if CAPTURE_DEMO:
-            if self.out is None:
-                h_matching, w_matching = matching_result.shape[:2]
+        #     self.out.write(matching_result)
 
-                demo_path = os.path.join(DEMO_FOLDER, 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
-                self.out = cv2.VideoWriter(demo_path, \
-                    cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, \
-                    (w_matching, h_matching))
-
-            self.out.write(matching_result)
-
+        cv2.imshow("Transformed", transformed)
         cv2.waitKey(1)
 
-        ret_data["sift_success"] = sift_success
-
-        success = sift_success and ml_success
+        ret_data["success"] = success and ml_success
 
         return success, ret_data
 
@@ -303,24 +252,22 @@ class MTE:
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
-        learning_data = self.get_learning_data(pov_id)
+        if SIFT_ENGINE_MODE:
+            learning_data = self.get_learning_data(pov_id)
 
-        sift_success, src_pts, dst_pts = self.apply_sift(image, learning_data)
+            sift_success, src_pts, dst_pts = self.sift_engine.apply_sift(image, learning_data.sift_data)
 
-        if sift_success:
-            h, w = image.shape[:2]
-            H = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-            warped_image = cv2.warpPerspective(image, H, (w, h))
-            return sift_success, warped_image
+            if sift_success:
+                h, w = image.shape[:2]
+                H = self.sift_engine.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
+                warped_image = cv2.warpPerspective(image, H, (w, h))
+                return sift_success, warped_image
+            else:
+                return sift_success, image
         else:
-            return sift_success, image
+            #TODO: à faire
+            return False, image
 
-    def crop_image(self, image):
-        h, w = image.shape[:2]
-        croped = image[int(h*CROP_SIZE_VER/2): int(h*(1-CROP_SIZE_VER/2)), \
-            int(w*CROP_SIZE_HOR/2): int(w*(1-CROP_SIZE_HOR/2))]
-
-        return croped
 
     def get_learning_data(self, pov_id):
         learning_data = None
@@ -339,14 +286,15 @@ class MTE:
 
         self.last_learning_data = learning_data
 
+        # Learn VC-like engine data
+        self.vc_like_engine.learn(learning_data)
+
         # Learn SIFT data
         if learning_data.sift_data is None:
-            croped = self.crop_image(learning_data.image_640)
-            kp, des = self.sift.detectAndCompute(croped, None)
-
-            learning_data.sift_data = SiftData(kp, des, croped)
+            self.sift_engine.learn(learning_data)
 
         # Learn ML data
+        #TODO: externaliser ML Validation
         if learning_data.ml_data is None:
             learning_data.ml_data = deepcopy(self.learning_settings)
 
@@ -403,66 +351,6 @@ class MTE:
 
         # cv2.waitKey(0)
         return learning_data
-
-    def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
-        if dst_to_src:
-            H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-        else:
-            H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-        if return_mask:
-            return H, mask
-        else:
-            return H
-
-    def apply_sift(self, image, learning_data, crop_image=True, debug=False):
-        h, w = image.shape[:2]
-
-        if crop_image:
-            img = self.crop_image(image)
-        else:
-            img = image
-
-        # h_img, w_img = img.shape[:2]
-        kp_img, des_img = self.sift.detectAndCompute(img, None)
-
-        flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
-
-        matches = flann.knnMatch(des_img, learning_data.sift_data.des, k=2)
-
-        # Need to draw only good matches, so create a mask
-        good_matches = []
-
-        # ratio test as per Lowe's paper
-        for i, pair in enumerate(matches):
-            try:
-                m, n = pair
-                if m.distance < FLANN_THRESH*n.distance:
-                    good_matches.append(m)
-            except ValueError:
-                pass
-
-        # Add crop
-        if crop_image:
-            for kp in kp_img:
-                kp.pt = (kp.pt[0] + w * CROP_SIZE_HOR/2, kp.pt[1] + h * CROP_SIZE_VER/2)
-
-        # Homography
-        # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
-
-        success = len(good_matches) > MIN_MATCH_COUNT
-
-        dst_pts = []
-        src_pts = []
-        if success:
-            dst_pts = np.float32([kp_img[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-            src_pts = np.float32([learning_data.sift_data.kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-        if debug:
-            return success, src_pts, dst_pts, kp_img, des_img, good_matches
-        else:
-            return success, src_pts, dst_pts
-
 
 if __name__ == "__main__":
     mte = MTE()
