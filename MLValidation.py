@@ -98,6 +98,8 @@ class MLValidation:
 
     def validate(self, learning_data, warped_image):
         success = len(learning_data.ml_data.sights) > 0
+        sum_distances = 0
+        distances = []
 
         for sight in learning_data.ml_data.sights:
             self.box_learner.get_knn_contexts(sight)
@@ -116,5 +118,7 @@ class MLValidation:
             match = self.box_learner.find_target(pt_tl, pt_br)
 
             success = match.success if not match.success else success
+            sum_distances += match.sum_distances
+            distances += match.roi_distances
 
-        return success
+        return success, sum_distances, distances

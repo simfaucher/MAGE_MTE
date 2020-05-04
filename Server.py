@@ -164,7 +164,11 @@ class MTE:
             success, scale, skew, translation, transformed = self.sift_engine.recognition(image, learning_data)
 
         # ML validation
-        ml_success = self.ml_validator.validate(learning_data, transformed)
+        ml_success = False
+        if success:
+            ml_success, sum_distances, distances = self.ml_validator.validate(learning_data, transformed)
+            #TODO: Nahor, sum_distances correspond au score "D" décrit par Frank
+            #TODO: Nahor, distances est une liste contenant les distances D de chaque ROI
 
         if not ml_success:
             # Scale
@@ -217,7 +221,7 @@ class MTE:
         if SIFT_ENGINE_MODE:
             learning_data = self.get_learning_data(pov_id)
 
-            sift_success, src_pts, dst_pts = self.sift_engine.apply_sift(image, learning_data.sift_data)
+            sift_success, src_pts, dst_pts, _ = self.sift_engine.apply_sift(image, learning_data.sift_data)
 
             if sift_success:
                 h, w = image.shape[:2]

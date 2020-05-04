@@ -32,7 +32,7 @@ class SIFTEngine:
 
     def __init__(self):
         self.sift = cv2.xfeatures2d.SIFT_create()
-    
+
     def learn(self, learning_data, crop_image=True):
         if learning_data.sift_data is None:
             kp, des, image_ref = self.compute_sift(learning_data.image_640, crop_image)
@@ -47,7 +47,7 @@ class SIFTEngine:
         t_x = 0
         t_y = 0
 
-        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches = self.apply_sift(image, \
+        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
             learning_data.sift_data, debug=True)
         homography_success = False
 
@@ -129,7 +129,7 @@ class SIFTEngine:
     def apply_sift(self, image, sift_data, crop_image=True, debug=False):
         h, w = image.shape[:2]
 
-        kp_img, des_img, _ = self.compute_sift(image, crop_image)
+        kp_img, des_img, image = self.compute_sift(image, crop_image)
 
         flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
 
@@ -148,9 +148,9 @@ class SIFTEngine:
                 pass
 
         # Add crop
-        if crop_image:
-            for kp in kp_img:
-                kp.pt = (kp.pt[0] + w * CROP_SIZE_HOR/2, kp.pt[1] + h * CROP_SIZE_VER/2)
+        # if crop_image:
+        #     for kp in kp_img:
+        #         kp.pt = (kp.pt[0] + w * CROP_SIZE_HOR, kp.pt[1] + h * CROP_SIZE_VER)
 
         # Homography
         # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
@@ -175,6 +175,6 @@ class SIFTEngine:
         # cv2.imshow("Matching result", matching_result)
 
         if debug:
-            return success, src_pts, dst_pts, kp_img, des_img, good_matches
+            return success, src_pts, dst_pts, kp_img, des_img, good_matches, image
         else:
-            return success, src_pts, dst_pts
+            return success, src_pts, dst_pts, image
