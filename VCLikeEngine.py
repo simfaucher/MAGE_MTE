@@ -42,7 +42,7 @@ class VCLikeEngine:
 
     def learn(self, learning_data):
         if learning_data.vc_like_data is None:
-            dataset = self.generate_dataset(learning_data.image_640)
+            dataset = self.generate_dataset(learning_data.resized_image)
             learning_settings = self.learn_ml_data(dataset)
             learning_settings2 = self.learn_ml_data2(dataset)
 

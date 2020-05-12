@@ -9,10 +9,14 @@ from copy import deepcopy
 import json
 import numpy as np
 import cv2
+import imutils
+from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
+import argparse
 
 from Domain.MTEMode import MTEMode
+from Domain.MTEAlgo import MTEAlgo
 from Domain.LearningData import LearningData
 from Domain.SiftData import SiftData
 from Domain.MLData import MLData
@@ -44,7 +48,7 @@ VC_LIKE_ENGINE_MODE = False
 SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
 
 class MTE:
-    def __init__(self):
+    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3000
@@ -64,6 +68,10 @@ class MTE:
                 os.makedirs(DEMO_FOLDER)
 
         # Motion tracking engines
+        self.mte_algo = mte_algo
+        self.crop_margin = crop_margin
+        self.resize_width = resize_width
+
         self.sift_engine = SIFTEngine()
         self.vc_like_engine = VCLikeEngine()
 
@@ -82,6 +90,10 @@ class MTE:
                     self.out = None
                     cv2.destroyWindow("Matching result")
                 continue
+
+            # Resize image if necessary
+            if image.shape[1] != self.resize_width:
+                image = imutils.resize(image, width=self.resize_width)
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -127,7 +139,7 @@ class MTE:
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
         if SIFT_ENGINE_MODE:
-            kp, _, _ = self.sift_engine.compute_sift(image, crop_image=True)
+            kp, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
             return len(kp)
 
         return 0
@@ -136,7 +148,7 @@ class MTE:
         # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
         learning_id = self.repo.save_new_pov(full_image)
 
-        success, learning_data = self.repo.get_pov_by_id(learning_id)
+        success, learning_data = self.repo.get_pov_by_id(learning_id, resize_width=self.resize_width)
         if success:
             self.learning_db.append(learning_data)
 
@@ -156,8 +168,9 @@ class MTE:
 
         learning_data = self.get_learning_data(pov_id)
 
-        if VC_LIKE_ENGINE_MODE:
-            success, scale, angle, transformed = self.vc_like_engine.find_target(image, learning_data)
+        fps = FPS().start()
+        if self.mte_algo == MTEAlgo.VC_LIKE:
+            success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
 
             # cv2.imshow("VC-like engine", transformed)
         else:
@@ -170,6 +183,9 @@ class MTE:
             #TODO: Nahor, sum_distances correspond au score "D" décrit par Frank
             #TODO: Nahor, distances est une liste contenant les distances D de chaque ROI
 
+        fps.update()
+        fps.stop()
+
         if not ml_success:
             # Scale
             if scale < SIFTEngine.HOMOGRAPHY_MIN_SCALE:
@@ -178,7 +194,7 @@ class MTE:
                 ret_data["scale"] = "close"
 
             #TODO: à modifier en prenant en compte les infos de VC-like
-            if SIFT_ENGINE_MODE:
+            if self.mte_algo == MTEAlgo.SIFT_KNN or self.mte_algo == MTEAlgo.SIFT_RANSAC:
                 # Skew
                 if -1*SIFTEngine.HOMOGRAPHY_MAX_SKEW > skew:
                     ret_data["skew"] = "minus"
@@ -209,6 +225,10 @@ class MTE:
 
         #     self.out.write(matching_result)
 
+
+        cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+            (255, 255, 255), 2)
+
         cv2.imshow("Transformed", transformed)
         cv2.waitKey(1)
 
@@ -218,7 +238,7 @@ class MTE:
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
-        if SIFT_ENGINE_MODE:
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             learning_data = self.get_learning_data(pov_id)
 
             sift_success, src_pts, dst_pts, _ = self.sift_engine.apply_sift(image, learning_data.sift_data)
@@ -234,7 +254,6 @@ class MTE:
             #TODO: à faire
             return False, image
 
-
     def get_learning_data(self, pov_id):
         learning_data = None
 
@@ -246,7 +265,7 @@ class MTE:
             if len(items) > 0:
                 learning_data = items[0]
             else:
-                success, learning_data = self.repo.get_pov_by_id(pov_id)
+                success, learning_data = self.repo.get_pov_by_id(pov_id, resize_width=self.resize_width)
                 if not success:
                     raise Exception("No POV with id {}".format(pov_id))
 
@@ -256,7 +275,7 @@ class MTE:
         self.vc_like_engine.learn(learning_data)
 
         # Learn SIFT data
-        self.sift_engine.learn(learning_data)
+        self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
 
         # Learn ML data
         self.ml_validator.learn(learning_data)
@@ -265,5 +284,31 @@ class MTE:
         return learning_data
 
 if __name__ == "__main__":
-    mte = MTE()
+    def convert_to_float(frac_str):
+        try:
+            return float(frac_str)
+        except ValueError:
+            num, denom = frac_str.split('/')
+            try:
+                leading, num = num.split(' ')
+                whole = float(leading)
+            except ValueError:
+                whole = 0
+            frac = float(num) / float(denom)
+            return whole - frac if whole < 0 else whole + frac
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
+        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
+    ap.add_argument("-c", "--crop", required=False, default="1/6",\
+        help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
+    ap.add_argument("-w", "--width", required=False, default=640, type=int,\
+        help="Width of the input image (640 or 320). Default: 640")
+    args = vars(ap.parse_args())
+
+    print(MTEAlgo[args["algo"]])
+    print(convert_to_float(args["crop"]))
+    print(args["width"])
+
+    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
     mte.listen_images()

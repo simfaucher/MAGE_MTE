@@ -49,7 +49,7 @@ class MLValidation:
             image_class.id = 0
             image_class.name = "Reference"
 
-            h, w = learning_data.image_640.shape[:2]
+            h, w = learning_data.resized_image.shape[:2]
 
             for sight in learning_data.ml_data.sights:
                 pt_tl = Point2D()
@@ -60,7 +60,7 @@ class MLValidation:
                 pt_br.x = pt_tl.x + sight.width
                 pt_br.y = pt_tl.y + sight.height
 
-                sight_image = learning_data.image_640[pt_tl.y: pt_br.y, pt_tl.x: pt_br.x]
+                sight_image = learning_data.resized_image[pt_tl.y: pt_br.y, pt_tl.x: pt_br.x]
                 # cv2.imshow("Sight", sight_image)
 
                 for j, roi in enumerate(sight.roi):

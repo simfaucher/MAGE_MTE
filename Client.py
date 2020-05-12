@@ -115,8 +115,13 @@ class ACD:
             if self.mode == MTEMode.FRAMING:
                 reply, reply_image = self.sender.send_image_reqrep_image(json.dumps(data), image)
                 reply = json.loads(reply)
-                stacked_images = np.hstack((image_640, reply_image))
-                cv2.imshow("Reply image framing", stacked_images)
+
+                if image_640.shape[1] == reply_image.shape[1]:
+                    stacked_images = np.hstack((image_640, reply_image))
+                    cv2.imshow("Reply image framing", stacked_images)
+                else:
+                    cv2.imshow("Reply image framing", reply_image)
+
                 if CAPTURE_DEMO and reply["framing"]["success"]:
                     out.write(stacked_images)
             else:

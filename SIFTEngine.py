@@ -33,9 +33,9 @@ class SIFTEngine:
     def __init__(self):
         self.sift = cv2.xfeatures2d.SIFT_create()
 
-    def learn(self, learning_data, crop_image=True):
+    def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref = self.compute_sift(learning_data.image_640, crop_image)
+            kp, des, image_ref = self.compute_sift(learning_data.resized_image, crop_image, crop_margin)
 
             learning_data.sift_data = SiftData(kp, des, image_ref)
     
@@ -108,16 +108,16 @@ class SIFTEngine:
         else:
             return H
 
-    def crop_image(self, image):
+    def crop_image(self, image, crop_margin):
         h, w = image.shape[:2]
-        croped = image[int(h*CROP_SIZE_VER/2): int(h*(1-CROP_SIZE_VER/2)), \
-            int(w*CROP_SIZE_HOR/2): int(w*(1-CROP_SIZE_HOR/2))]
+        croped = image[int(h*crop_margin): int(h*(1-crop_margin)), \
+            int(w*crop_margin): int(w*(1-crop_margin))]
 
         return croped
 
-    def compute_sift(self, image, crop_image=True):
+    def compute_sift(self, image, crop_image, crop_margin=1/6):
         if crop_image:
-            img = self.crop_image(image)
+            img = self.crop_image(image, crop_margin)
         else:
             img = image
 
@@ -126,10 +126,10 @@ class SIFTEngine:
         return kp, des, img
 
 
-    def apply_sift(self, image, sift_data, crop_image=True, debug=False):
+    def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False):
         h, w = image.shape[:2]
 
-        kp_img, des_img, image = self.compute_sift(image, crop_image)
+        kp_img, des_img, image = self.compute_sift(image, crop_image, crop_margin)
 
         flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
 

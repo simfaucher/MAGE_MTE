@@ -50,7 +50,7 @@
                     "name": "Color",
                     "filter": "posterisation",
                     "feature_type": "composite_profile",
-                    "tolerance": 12000,
+                    "tolerance": 100000,
                     "width": 420,
                     "height": 240,
                     "x": 0,
