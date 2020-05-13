@@ -6,7 +6,11 @@ import json
 import numpy as np
 import cv2
 
+from Domain.MTEAlgo import MTEAlgo
 from Domain.SiftData import SiftData
+from skimage.feature import match_descriptors
+from skimage.measure import ransac
+from skimage.transform import ProjectiveTransform
 
 CROP_SIZE_HOR = 1/3
 CROP_SIZE_VER = 1/3
@@ -17,6 +21,7 @@ INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
+RANSACMAX=4000
 
 class SIFTEngine:
     # HOMOGRAPHY_MIN_SCALE = 0.75
@@ -35,11 +40,11 @@ class SIFTEngine:
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref = self.compute_sift(learning_data.resized_image, crop_image, crop_margin)
+            kp, des, image_ref,kp_base_ransac = self.compute_sift(learning_data.resized_image, crop_image, crop_margin)
 
-            learning_data.sift_data = SiftData(kp, des, image_ref)
-    
-    def recognition(self, image, learning_data):
+            learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
+
+    def recognition(self, image, learning_data,modeAlgo):
         scale_x = 1
         scale_y = 1
         skew_x = 0
@@ -48,7 +53,7 @@ class SIFTEngine:
         t_y = 0
 
         sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
-            learning_data.sift_data, debug=True)
+            learning_data.sift_data, debug=True,mode=modeAlgo)
         homography_success = False
 
         if sift_success:
@@ -94,8 +99,12 @@ class SIFTEngine:
 
         return sift_success and homography_success, \
             max(scale_x, scale_y), max(skew_x, skew_y), (t_x, t_y), \
-            warped_image
-            
+            warped_image, \
+            len(good_matches), \
+            len(kp_img), \
+            t_x+t_y, \
+            skew_x+skew_y
+
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
         if dst_to_src:
@@ -115,6 +124,7 @@ class SIFTEngine:
 
         return croped
 
+    # Update : add keypointForRansac
     def compute_sift(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img = self.crop_image(image, crop_margin)
@@ -122,30 +132,52 @@ class SIFTEngine:
             img = image
 
         kp, des = self.sift.detectAndCompute(img, None)
+        keypointForRansac = kp
 
-        return kp, des, img
+        return kp, des, img,keypointForRansac
 
 
-    def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False):
+    def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False,mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
-        kp_img, des_img, image = self.compute_sift(image, crop_image, crop_margin)
+        kp_img, des_img, image,kp_base = self.compute_sift(image, crop_image, crop_margin)
 
-        flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
+        if mode == MTEAlgo.SIFT_KNN:
+            flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
 
-        matches = flann.knnMatch(des_img, sift_data.des, k=2)
+            matches = flann.knnMatch(des_img, sift_data.des, k=2)
 
-        # Need to draw only good matches, so create a mask
-        good_matches = []
+            # Need to draw only good matches, so create a mask
+            good_matches = []
 
-        # ratio test as per Lowe's paper
-        for i, pair in enumerate(matches):
-            try:
-                m, n = pair
-                if m.distance < FLANN_THRESH*n.distance:
-                    good_matches.append(m)
-            except ValueError:
-                pass
+            # ratio test as per Lowe's paper
+            for i, pair in enumerate(matches):
+                try:
+                    m, n = pair
+                    if m.distance < FLANN_THRESH*n.distance:
+                        good_matches.append(m)
+                except ValueError:
+                    pass
+        elif mode == MTEAlgo.SIFT_RANSAC:
+            matches = match_descriptors(des_img, sift_data.des, cross_check=True)
+            left=[kp_base[loop].pt[:] for loop in matches[:,0]]
+            keypoints_left = np.asarray(left)
+            right=[sift_data.kp_base[loop].pt[:] for loop in matches[:,1]]
+            keypoints_right = np.asarray(right)
+            np.random.seed(0)
+            model, inliers = ransac(
+                (keypoints_left, keypoints_right),
+                ProjectiveTransform, min_samples=4,
+                residual_threshold=4, max_trials=RANSACMAX
+            )
+            n_inliers = np.sum(inliers)
+            # print(inliers)
+            inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
+            inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
+            good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
+        else:
+            print("Bravo tu est mauvais !!! :) ")
+
 
         # Add crop
         # if crop_image:
@@ -160,9 +192,12 @@ class SIFTEngine:
         dst_pts = []
         src_pts = []
         if success:
-            dst_pts = np.float32([kp_img[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-            src_pts = np.float32([sift_data.kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
+            if mode == MTEAlgo.SIFT_KNN:
+                dst_pts = np.float32([kp_img[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                src_pts = np.float32([sift_data.kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+            elif mode == MTEAlgo.SIFT_RANSAC:
+                dst_pts = np.float32([loop.pt for loop in inlier_keypoints_left]).reshape(-1, 1, 2)
+                src_pts = np.float32([loop.pt for loop in inlier_keypoints_right]).reshape(-1, 1, 2)
         #     matches_mask = None
         #     debug_img = image.copy()
 
