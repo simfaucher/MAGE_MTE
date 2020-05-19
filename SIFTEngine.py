@@ -95,7 +95,6 @@ class SIFTEngine:
         return sift_success and homography_success, \
             max(scale_x, scale_y), max(skew_x, skew_y), (t_x, t_y), \
             warped_image
-            
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
         if dst_to_src:

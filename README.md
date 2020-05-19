@@ -53,17 +53,22 @@ conda activate mte-env
 
 You should see `(mte-env)` at the beginning of the current shell line.
 
-Navigate to the folder where the programs are and run the server :
+Navigate to the folder where the programs are and run the server:
 ```shell
 python Server.py
 ```
 
-Run the client in another terminal with the Anaconda environment `(mte-env)` activated :
+You can see how to parametrate the server by launching instead:
+```shell
+python Server.py --help
+```
+
+Run the client in another terminal with the Anaconda environment `(mte-env)` activated:
 ```shell
 python Client.py
 ```
 
-Note: If you want to deactivate the environment to go back to your regular shell, just type :
+Note: If you want to deactivate the environment to go back to your regular shell, just type:
 
 ```shell
 conda deactivate

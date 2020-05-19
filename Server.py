@@ -298,17 +298,17 @@ if __name__ == "__main__":
             return whole - frac if whole < 0 else whole + frac
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
-        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
+    # ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
+    #     help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=640, type=int,\
         help="Width of the input image (640 or 320). Default: 640")
     args = vars(ap.parse_args())
 
-    print(MTEAlgo[args["algo"]])
-    print(convert_to_float(args["crop"]))
-    print(args["width"])
+    # print(MTEAlgo[args["algo"]])
+    # print(convert_to_float(args["crop"]))
+    # print(args["width"])
 
-    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
+    mte = MTE(mte_algo=MTEAlgo["SIFT_KNN"], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
     mte.listen_images()
