@@ -174,7 +174,11 @@ class MTE:
 
             # cv2.imshow("VC-like engine", transformed)
         else:
-            success, scale, skew, translation, transformed = self.sift_engine.recognition(image, learning_data)
+            success, scales, skews, translation, transformed, nb_matches = self.sift_engine.recognition(image, learning_data)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
 
         # ML validation
         ml_success = False
@@ -227,6 +231,25 @@ class MTE:
 
 
         cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+            (255, 255, 255), 2)
+        if self.mte_algo != MTEAlgo.VC_LIKE:
+            cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+        if success:
+            if self.mte_algo != MTEAlgo.VC_LIKE:
+                cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+            cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
             (255, 255, 255), 2)
 
         cv2.imshow("Transformed", transformed)
