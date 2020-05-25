@@ -181,6 +181,8 @@ class MTE:
                 self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
+            
+            frameId = frameId + 1 
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
