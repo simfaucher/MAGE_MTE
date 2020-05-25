@@ -80,7 +80,7 @@ class MTE:
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine = SIFTEngine()
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= (resize_width/16)*9)
+            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + (resize_width/16)*9)
         else:
             self.vc_like_engine = VCLikeEngine()
 
