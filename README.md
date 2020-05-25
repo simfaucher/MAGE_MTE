@@ -46,6 +46,7 @@ Install the dependencies for D2Net
 conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
 conda install h5py imageio imagesize matplotlib numpy scipy tqdm
 conda install pillow
+conda install scikit-image
 ```
 
 ## Running the programs
