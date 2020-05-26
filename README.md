@@ -40,7 +40,13 @@ python -m pip install imutils==0.5.3
 conda install pyzmq
 python -m pip install pytz==2019.3
 ```
+Install the dependencies for D2Net inside the virtual environment:
 
+```shell
+conda install pytorch torchvision cudatoolkit=10.0 -c pytorch
+conda install h5py imageio imagesize matplotlib numpy scipy tqdm
+conda install scikit-image
+```
 
 ## Running the programs
 

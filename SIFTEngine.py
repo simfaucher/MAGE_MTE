@@ -182,6 +182,10 @@ class SIFTEngine:
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
+<<<<<<< HEAD
+=======
+        
+>>>>>>> 66b739eb4d2674da3e217faac32e0d2e37474397
 
 
         # Add crop
