@@ -146,6 +146,7 @@ framing/
 framing16/
 framing25/
 framing33/
+allFrame/
 *.csv
 *.png
 *.ods
