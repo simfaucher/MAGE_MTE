@@ -175,11 +175,11 @@ class D2NetEngine:
             img = image
 
         # Setting up input image to use it in the CNN
-        if len(image.shape) == 2:
-            image = image[:, :, np.newaxis]
-            image = np.repeat(image, 3, -1)
+        if len(img.shape) == 2:
+            img = img[:, :, np.newaxis]
+            img = np.repeat(image, 3, -1)
 
-        resized_image = image
+        resized_image = img
         if max(resized_image.shape) > self.max_edge:
             scale_percent = self.max_edge / max(resized_image.shape)
             width = int(resized_image.shape[1] * scale_percent)
