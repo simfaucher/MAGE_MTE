@@ -142,6 +142,6 @@ demo*
 mte.db
 
 # Results and videos
-videoForBenchmark/
+
 *.csv
 *.png
