@@ -41,7 +41,7 @@ from D2NetEngine import D2NetEngine
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
-VID='Approche'
+VID=''
 DETECTEUR='D2TierLowRes'
 MATCH='Gpu'
 
@@ -79,18 +79,26 @@ class MTE:
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine = SIFTEngine()
+            if self.mte_algo == MTEAlgo.SIFT_KNN:
+                VID = "SIFT_KNN"
+            else:
+                VID = "SIFT_RANSAC"
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= (resize_width/16)*9)
+            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + (resize_width/16)*9)
+            if self.mte_algo == MTEAlgo.D2NET_KNN:
+                VID = "D2NET_KNN"
+            else:
+                VID = "D2NET_RANSAC"
         else:
             self.vc_like_engine = VCLikeEngine()
 
 
         #csvWriter
-        self.csvFile = open('video'+VID+DETECTEUR+MATCH+'.csv','w')
+        self.csvFile = open(VID+'16%.csv','w')
         metrics=['Temps','Nombre de points interet','Nombre de match',
                 'Coefficient de translation','Coefficient de rotation',
                 'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','CropRef=False','max_edge=600 & max_sum_edges=1080']
+                'Distance ROI 2','Distance ROI 3','CropRef=False','max_edge=',resize_width,' & max_sum_edges=',resize_width + (resize_width/16)*9]
         self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
         self.writer.writeheader()
 
@@ -114,12 +122,16 @@ class MTE:
                 continue
 
             # Resize image if necessary
-            if image.shape[1] != self.resize_width:
-                image = imutils.resize(image, width=self.resize_width)
+            # if image.shape[1] != self.resize_width:
+            #     image = imutils.resize(image, width=self.resize_width)
+            imageForLearning = image
+            scale_percent = 16 # percent of original size
+            width = int(image.shape[1] * scale_percent / 100)
+            height = int(image.shape[0] * scale_percent / 100)
+            dim = (width, height)
+            image = cv2.resize(imageForLearning,dim, interpolation = cv2.INTER_AREA)
 
-            # if i==19 || i==70 || i== 98 or fram:
-            # if frameId == 19 or frameId == 70 or frameId == 98 or frameId == 115:
-            #     cv2.imwrite("frame{}".format(frameId)+".png",image)
+            # cv2.imwrite("allFrame/{}".format(frameId)+".png",image)
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -134,7 +146,7 @@ class MTE:
                                     'Nombre de points interet': nb_kp})
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
-                learning_id = self.learning(image)
+                learning_id = self.learning(imageForLearning)
 
                 ret_data["learning"] = {
                     "id": learning_id
@@ -150,6 +162,9 @@ class MTE:
                     # if (frameId == 177) or (frameId == 167) :
                     #     print("test")
                     #     cv2.imwrite("frameDistanceWp{}".format(frameId)+".png",warpedImg)
+                    cv2.imwrite("framing/warped{}".format(frameId)+".png",warpedImg)
+                    cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
+                    cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
                     self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
                                     'Nombre de points interet': nb_kp,
                                     'Nombre de match' : nb_match,
@@ -181,6 +196,8 @@ class MTE:
                 self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
+
+            frameId = frameId + 1
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée

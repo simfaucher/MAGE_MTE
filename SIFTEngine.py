@@ -40,7 +40,7 @@ class SIFTEngine:
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref,kp_base_ransac = self.compute_sift(learning_data.resized_image, crop_image, crop_margin)
+            kp, des, image_ref,kp_base_ransac = self.compute_sift(learning_data.full_image, crop_image, crop_margin)
 
             learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
 
@@ -127,12 +127,19 @@ class SIFTEngine:
     # Update : add keypointForRansac
     def compute_sift(self, image, crop_image, crop_margin=1/6):
         if crop_image:
-            img = self.crop_image(image, crop_margin)
+            img1 = self.crop_image(image, crop_margin)
+            scale_percent = 16 # percent of original size
+            width = int(img1.shape[1] * scale_percent / 100)
+            height = int(img1.shape[0] * scale_percent / 100)
+            dim = (width, height)
+            img = cv2.resize(img1,dim, interpolation = cv2.INTER_AREA)
+            cv2.imwrite("Ref rescale sift {}%.png".format(scale_percent),img)
         else:
             img = image
 
         kp, des = self.sift.detectAndCompute(img, None)
         keypointForRansac = kp
+        # print(kp[0].pt)
 
         return kp, des, img,keypointForRansac
 
@@ -175,8 +182,6 @@ class SIFTEngine:
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
-        else:
-            print("Bravo tu est mauvais !!! :) ")
 
 
         # Add crop

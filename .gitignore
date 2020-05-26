@@ -140,3 +140,11 @@ images/
 videos/
 demo*
 mte.db
+
+# Results and videos
+framing/
+framing16/
+framing25/
+framing33/
+*.csv
+*.png

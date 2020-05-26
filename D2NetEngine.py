@@ -81,10 +81,12 @@ class D2NetEngine:
             use_cuda=use_cuda
         )
         print('==> Chargement terminer.')
+        print('==> Pret pour client.')
+        self.cpt = 0
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref,kp_base_ransac = self.compute_d2(learning_data.resized_image, crop_image, crop_margin)
+            kp, des, image_ref,kp_base_ransac = self.compute_d2(learning_data.full_image, crop_image, crop_margin)
 
             learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
 
@@ -165,21 +167,35 @@ class D2NetEngine:
         h, w = image.shape[:2]
         croped = image[int(h*crop_margin): int(h*(1-crop_margin)), \
             int(w*crop_margin): int(w*(1-crop_margin))]
+        # color = [0, 0, 0]
+        # top = int(h*crop_margin)
+        # bot = int(h*crop_margin)
+        # left =  int(w*crop_margin)
+        # right = int(w*crop_margin)
+        # top = 0
+        # left = 0
+        # croped = cv2.copyMakeBorder(image,top , bot,left , right, cv2.BORDER_CONSTANT,value=color)
 
         return croped
 
     def compute_d2(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img = self.crop_image(image, crop_margin)
+            scale_percent = 16 # percent of original size
+            width = int(img.shape[1] * scale_percent / 100)
+            height = int(img.shape[0] * scale_percent / 100)
+            dim = (width, height)
+            img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
+            cv2.imwrite("Ref rescale d2 {}%.png".format(scale_percent),img)
         else:
             img = image
 
         # Setting up input image to use it in the CNN
-        if len(image.shape) == 2:
-            image = image[:, :, np.newaxis]
-            image = np.repeat(image, 3, -1)
+        if len(img.shape) == 2:
+            img = img[:, :, np.newaxis]
+            img = np.repeat(image, 3, -1)
 
-        resized_image = image
+        resized_image = img
         if max(resized_image.shape) > self.max_edge:
             scale_percent = self.max_edge / max(resized_image.shape)
             width = int(resized_image.shape[1] * scale_percent)
@@ -193,8 +209,8 @@ class D2NetEngine:
             dim = (width, height)
             resized_image = cv2.resize(resized_image,dim)
 
-        fact_i = image.shape[0] / resized_image.shape[0]
-        fact_j = image.shape[1] / resized_image.shape[1]
+        fact_i = img.shape[0] / resized_image.shape[0]
+        fact_j = img.shape[1] / resized_image.shape[1]
 
         input_image = preprocess_image(
             resized_image,
@@ -219,6 +235,10 @@ class D2NetEngine:
                     scales=[1]
                 )
 
+        # Input image coordinates
+        keypoints[:, 0] *= fact_i
+        keypoints[:, 1] *= fact_j
+
         # We zip the data in order to sort them by scores
         z = zip(scores, keypoints, descriptors)
         # We sort them by using the dimension 0
@@ -234,16 +254,13 @@ class D2NetEngine:
         descriptors = tempDesc[np.size(tempDesc,0) - int(np.size(tempDesc,0)*D2REDUCTION):np.size(tempDesc,0),:]
         keypoints = tempKeyp[np.size(tempKeyp,0) - int(np.size(tempKeyp,0)*D2REDUCTION):np.size(tempKeyp,0),:]
 
-        # Input image coordinates
-        keypoints[:, 0] *= fact_i
-        keypoints[:, 1] *= fact_j
-
         # i, j -> u, v
         keypoints = keypoints[:, [1, 0, 2]]
 
         kp=[]
         for i in range(keypoints.shape[0]):
              kp += [cv2.KeyPoint(keypoints[i][0], keypoints[i][1], 1)]
+        # print(kp[0].pt)
 
         return kp, descriptors, img,keypoints
 
@@ -308,16 +325,17 @@ class D2NetEngine:
                 dst_pts = np.float32([kp_img[m[0]].pt for m in good_matches]).reshape(-1, 1, 2)
                 src_pts = np.float32([sift_data.kp[m[1]].pt for m in good_matches]).reshape(-1, 1, 2)
 
-        #     matches_mask = None
-        #     debug_img = image.copy()
+        matches_mask = None
+        debug_img = image.copy()
 
-        # DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
-        #                 singlePointColor=(255, 0, 0), \
-        #                 matchesMask=matches_mask, \
-        #                 flags=0)
+        DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
+                        singlePointColor=(255, 0, 0), \
+                        matchesMask=matches_mask, \
+                        flags=0)
 
-        # matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
-        # cv2.imshow("Matching result", matching_result)
+        matching_result = cv2.drawMatches(debug_img, kp_img, sift_data.ref, sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        cv2.imwrite("framing/matching {}.png".format(self.cpt), matching_result)
+        self.cpt += 1
 
         if debug:
             return success, src_pts, dst_pts, kp_img, des_img, good_matches, image
