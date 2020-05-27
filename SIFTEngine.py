@@ -128,12 +128,12 @@ class SIFTEngine:
     def compute_sift(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img1 = self.crop_image(image, crop_margin)
-            scale_percent = 16 # percent of original size
+            scale_percent = 100 # percent of original size
             width = int(img1.shape[1] * scale_percent / 100)
             height = int(img1.shape[0] * scale_percent / 100)
             dim = (width, height)
             img = cv2.resize(img1,dim, interpolation = cv2.INTER_AREA)
-            cv2.imwrite("Ref rescale sift {}%.png".format(scale_percent),img)
+            # cv2.imwrite("Ref rescale sift {}%.png".format(scale_percent),img)
         else:
             img = image
 
@@ -182,11 +182,6 @@ class SIFTEngine:
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
-<<<<<<< HEAD
-=======
-        
->>>>>>> 66b739eb4d2674da3e217faac32e0d2e37474397
-
 
         # Add crop
         # if crop_image:
@@ -214,8 +209,10 @@ class SIFTEngine:
         #                 singlePointColor=(255, 0, 0), \
         #                 matchesMask=matches_mask, \
         #                 flags=0)
-
-        # matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        # if mode == MTEAlgo.SIFT_KNN:
+        #     matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        # else:
+        #     matching_result = cv2.drawMatches(debug_img, inlier_keypoints_left, sift_data.ref, inlier_keypoints_right, good_matches, None, **DRAW_PARAMS)
         # cv2.imshow("Matching result", matching_result)
 
         if debug:

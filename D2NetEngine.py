@@ -181,12 +181,12 @@ class D2NetEngine:
     def compute_d2(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img = self.crop_image(image, crop_margin)
-            scale_percent = 16 # percent of original size
+            scale_percent = 100 # percent of original size
             width = int(img.shape[1] * scale_percent / 100)
             height = int(img.shape[0] * scale_percent / 100)
             dim = (width, height)
             img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
-            cv2.imwrite("Ref rescale d2 {}%.png".format(scale_percent),img)
+            # cv2.imwrite("Ref rescale d2 {}%.png".format(scale_percent),img)
         else:
             img = image
 
@@ -295,7 +295,7 @@ class D2NetEngine:
                 residual_threshold=4, max_trials=RANSACMAX
             )
             n_inliers = np.sum(inliers)
-            # print(inliers)
+            print(keypoints_left[inliers])
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
@@ -325,16 +325,19 @@ class D2NetEngine:
                 dst_pts = np.float32([kp_img[m[0]].pt for m in good_matches]).reshape(-1, 1, 2)
                 src_pts = np.float32([sift_data.kp[m[1]].pt for m in good_matches]).reshape(-1, 1, 2)
 
-        matches_mask = None
-        debug_img = image.copy()
-
-        DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
-                        singlePointColor=(255, 0, 0), \
-                        matchesMask=matches_mask, \
-                        flags=0)
-
-        matching_result = cv2.drawMatches(debug_img, kp_img, sift_data.ref, sift_data.kp, good_matches, None, **DRAW_PARAMS)
-        cv2.imwrite("framing/matching {}.png".format(self.cpt), matching_result)
+        # matches_mask = None
+        # debug_img = image.copy()
+        #
+        # DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
+        #                 singlePointColor=(255, 0, 0), \
+        #                 matchesMask=matches_mask, \
+        #                 flags=0)
+        # if mode == MTEAlgo.D2NET_KNN:
+        #     matching_result = cv2.drawMatches(debug_img, kp_img, sift_data.ref, sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        # else:
+        #     matching_result = cv2.drawMatches(debug_img, inlier_keypoints_left, sift_data.ref, inlier_keypoints_right, good_matches, None, **DRAW_PARAMS)
+        #
+        # cv2.imwrite("framing/matching {}.png".format(self.cpt), matching_result)
         self.cpt += 1
 
         if debug:

@@ -199,8 +199,6 @@ class MTE:
 
             frameId = frameId + 1
 
-            frameId = frameId + 1
-
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
