@@ -14,6 +14,7 @@ from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
 import argparse
+import csv
 
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
@@ -36,9 +37,13 @@ from ML.BoxLearner import BoxLearner
 from MLValidation import MLValidation
 from VCLikeEngine import VCLikeEngine
 from SIFTEngine import SIFTEngine
+from D2NetEngine import D2NetEngine
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
+VID='Approche'
+DETECTEUR='D2TierLowRes'
+MATCH='Gpu'
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -72,12 +77,29 @@ class MTE:
         self.crop_margin = crop_margin
         self.resize_width = resize_width
 
-        self.sift_engine = SIFTEngine()
-        self.vc_like_engine = VCLikeEngine()
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            self.vc_like_engine = VCLikeEngine()
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + (resize_width/16)*9)
+        else:
+            self.sift_engine = SIFTEngine()
+
+
+        #csvWriter
+        self.csvFile = open('video'+VID+DETECTEUR+MATCH+'.csv','w')
+        metrics=['Temps','Nombre de points interet','Nombre de match',
+                'Coefficient de translation','Coefficient de rotation',
+                'Distance D VisionCheck','Distance ROI 1',
+                'Distance ROI 2','Distance ROI 3','CropRef=False','max_edge=600 & max_sum_edges=1080']
+        self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
+        self.writer.writeheader()
 
     def listen_images(self):
+        frameId = 0
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
+            #Fonction bloquante on peut donc lancer le timer juste aprèsc
+            startFrameComputing = time.time()
 
             data = json.loads(msg)
 
@@ -95,6 +117,10 @@ class MTE:
             if image.shape[1] != self.resize_width:
                 image = imutils.resize(image, width=self.resize_width)
 
+            # if i==19 || i==70 || i== 98 or fram:
+            # if frameId == 19 or frameId == 70 or frameId == 98 or frameId == 115:
+            #     cv2.imwrite("frame{}".format(frameId)+".png",image)
+
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
                 print("MODE prelearning")
@@ -104,6 +130,8 @@ class MTE:
                 ret_data["prelearning"] = {
                     "nb_kp": nb_kp
                 }
+                self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                                    'Nombre de points interet': nb_kp})
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
                 learning_id = self.learning(image)
@@ -114,11 +142,29 @@ class MTE:
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
-                success, recog_ret_data = self.recognition(pov_id, image)
+                success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, image)
 
                 ret_data["recognition"] = recog_ret_data
                 ret_data["recognition"]["success"] = success
-            # elif mode == MTEMode.FRAMING:
+                if success :
+                    # if (frameId == 177) or (frameId == 167) :
+                    #     print("test")
+                    #     cv2.imwrite("frameDistanceWp{}".format(frameId)+".png",warpedImg)
+                    self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                                    'Nombre de points interet': nb_kp,
+                                    'Nombre de match' : nb_match,
+                                    'Coefficient de translation' : sumTranslation,
+                                    'Coefficient de rotation' : sumSkew,
+                                    'Distance D VisionCheck' : sumD,
+                                    'Distance ROI 1' : distRoi[0],
+                                    'Distance ROI 2' : distRoi[1],
+                                    'Distance ROI 3' : distRoi[2]})
+                else :
+                    self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                                    'Nombre de points interet': nb_kp,
+                                    'Nombre de match' : nb_match,
+                                    'Coefficient de translation' : sumTranslation,
+                                    'Coefficient de rotation' : sumSkew})
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -135,11 +181,16 @@ class MTE:
                 self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
+            
+            frameId = frameId + 1 
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
-        if SIFT_ENGINE_MODE:
-            kp, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            kp, _, _,_ = self.sift_engine.compute_sift(image, crop_image=False)
+            return len(kp)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            kp, _, _,_ = self.d2net_engine.compute_d2(image, crop_image=True)
             return len(kp)
 
         return 0
@@ -165,16 +216,23 @@ class MTE:
             },
             "success": False
         }
-
+        sum_distances = 9999
+        distances = 9999
         learning_data = self.get_learning_data(pov_id)
 
         fps = FPS().start()
+        nb_matches = 0
         if self.mte_algo == MTEAlgo.VC_LIKE:
             success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
-
             # cv2.imshow("VC-like engine", transformed)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
         else:
-            success, scales, skews, translation, transformed, nb_matches = self.sift_engine.recognition(image, learning_data)
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
@@ -184,8 +242,6 @@ class MTE:
         ml_success = False
         if success:
             ml_success, sum_distances, distances = self.ml_validator.validate(learning_data, transformed)
-            #TODO: Nahor, sum_distances correspond au score "D" décrit par Frank
-            #TODO: Nahor, distances est une liste contenant les distances D de chaque ROI
 
         fps.update()
         fps.stop()
@@ -257,14 +313,15 @@ class MTE:
 
         ret_data["success"] = success and ml_success
 
-        return success, ret_data
+        return success, ret_data, nb_kp, nb_matches, sum(translation),\
+        sum(skews), sum_distances, distances, transformed
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             learning_data = self.get_learning_data(pov_id)
 
-            sift_success, src_pts, dst_pts, _ = self.sift_engine.apply_sift(image, learning_data.sift_data)
+            sift_success, src_pts, dst_pts, _ = self.sift_engine.apply_sift(image, learning_data.sift_data,self.mte_algo)
 
             if sift_success:
                 h, w = image.shape[:2]
@@ -273,8 +330,20 @@ class MTE:
                 return sift_success, warped_image
             else:
                 return sift_success, image
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            learning_data = self.get_learning_data(pov_id)
+
+            d2_success, src_pts, dst_pts, _ = self.d2net_engine.apply_d2(image, learning_data.sift_data,self.mte_algo)
+
+            if d2_success:
+                h, w = image.shape[:2]
+                H = self.d2net_engine.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
+                warped_image = cv2.warpPerspective(image, H, (w, h))
+                return d2_success, warped_image
+            else:
+                return d2_success, image
         else:
-            #TODO: à faire
+            #TODO VCL
             return False, image
 
     def get_learning_data(self, pov_id):
@@ -294,11 +363,15 @@ class MTE:
 
         self.last_learning_data = learning_data
 
-        # Learn VC-like engine data
-        self.vc_like_engine.learn(learning_data)
-
-        # Learn SIFT data
-        self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        # Update : we only use 1 engine at a time
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            # Learn SIFT data
+            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        else:
+            # Learn VC-like engine data
+            self.vc_like_engine.learn(learning_data)
 
         # Learn ML data
         self.ml_validator.learn(learning_data)
@@ -321,8 +394,8 @@ if __name__ == "__main__":
             return whole - frac if whole < 0 else whole + frac
 
     ap = argparse.ArgumentParser()
-    # ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
-    #     help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
+    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
+        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=640, type=int,\
@@ -333,5 +406,5 @@ if __name__ == "__main__":
     # print(convert_to_float(args["crop"]))
     # print(args["width"])
 
-    mte = MTE(mte_algo=MTEAlgo["SIFT_KNN"], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
+    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
     mte.listen_images()
