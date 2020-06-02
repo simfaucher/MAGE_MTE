@@ -46,7 +46,7 @@ INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 
-RANSACMAX = 4000
+
 MIN_MATCH_COUNT = 7
 
 D2REDUCTION = 1/3
@@ -64,13 +64,14 @@ class D2NetEngine:
     HOMOGRAPHY_MIN_TRANS = 0
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self,max_edge,max_sum_edges):
+    def __init__(self,max_edge,max_sum_edges,maxRansac,width,height):
         #Init d2net
         model_file="d2models/d2_tf_no_phototourism.pth"
         self.max_edge=max_edge
         self.max_sum_edges=max_sum_edges
-        # self.max_edge=380
-        # self.max_sum_edges=640
+        self.ransacmax = maxRansac
+        self.resized_width = width
+        self.resized_height = height
         self.preprocessing="caffe"
         self.multiscale=False
         use_relu=True
@@ -167,26 +168,18 @@ class D2NetEngine:
         h, w = image.shape[:2]
         croped = image[int(h*crop_margin): int(h*(1-crop_margin)), \
             int(w*crop_margin): int(w*(1-crop_margin))]
-        # color = [0, 0, 0]
-        # top = int(h*crop_margin)
-        # bot = int(h*crop_margin)
-        # left =  int(w*crop_margin)
-        # right = int(w*crop_margin)
-        # top = 0
-        # left = 0
-        # croped = cv2.copyMakeBorder(image,top , bot,left , right, cv2.BORDER_CONSTANT,value=color)
 
         return croped
 
     def compute_d2(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img = self.crop_image(image, crop_margin)
-            scale_percent = 100 # percent of original size
-            width = int(img.shape[1] * scale_percent / 100)
-            height = int(img.shape[0] * scale_percent / 100)
-            dim = (width, height)
+            # scale_percent = 25 # percent of original size
+            # width = int(img.shape[1] * scale_percent / 100)
+            # height = int(img.shape[0] * scale_percent / 100)
+            # dim = (width, height)
+            dim = (self.resized_width, self.resized_height)
             img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
-            # cv2.imwrite("Ref rescale d2 {}%.png".format(scale_percent),img)
         else:
             img = image
 
@@ -292,7 +285,7 @@ class D2NetEngine:
             model, inliers = ransac(
                 (keypoints_left, keypoints_right),
                 ProjectiveTransform, min_samples=4,
-                residual_threshold=4, max_trials=RANSACMAX
+                residual_threshold=4, max_trials=self.ransacmax
             )
             n_inliers = np.sum(inliers)
             print(keypoints_left[inliers])

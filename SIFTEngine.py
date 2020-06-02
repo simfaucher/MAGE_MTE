@@ -21,7 +21,6 @@ INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
-RANSACMAX=4000
 
 class SIFTEngine:
     # HOMOGRAPHY_MIN_SCALE = 0.75
@@ -35,8 +34,11 @@ class SIFTEngine:
     HOMOGRAPHY_MIN_TRANS = 0
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self):
+    def __init__(self,maxRansac,width,height):
         self.sift = cv2.xfeatures2d.SIFT_create()
+        self.ransacmax = maxRansac
+        self.resized_width = width
+        self.resized_height = height
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
@@ -128,10 +130,7 @@ class SIFTEngine:
     def compute_sift(self, image, crop_image, crop_margin=1/6):
         if crop_image:
             img1 = self.crop_image(image, crop_margin)
-            scale_percent = 100 # percent of original size
-            width = int(img1.shape[1] * scale_percent / 100)
-            height = int(img1.shape[0] * scale_percent / 100)
-            dim = (width, height)
+            dim = (self.resized_width, self.resized_height)
             img = cv2.resize(img1,dim, interpolation = cv2.INTER_AREA)
             # cv2.imwrite("Ref rescale sift {}%.png".format(scale_percent),img)
         else:
@@ -175,7 +174,7 @@ class SIFTEngine:
             model, inliers = ransac(
                 (keypoints_left, keypoints_right),
                 ProjectiveTransform, min_samples=4,
-                residual_threshold=4, max_trials=RANSACMAX
+                residual_threshold=4, max_trials=self.ransacmax
             )
             n_inliers = np.sum(inliers)
             # print(inliers)
