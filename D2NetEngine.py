@@ -181,7 +181,8 @@ class D2NetEngine:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
         else:
-            img = image
+            dim = (self.resized_width, self.resized_height)
+            img = cv2.resize(image,dim, interpolation = cv2.INTER_AREA)
 
         # Setting up input image to use it in the CNN
         if len(img.shape) == 2:

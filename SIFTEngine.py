@@ -132,9 +132,10 @@ class SIFTEngine:
             img1 = self.crop_image(image, crop_margin)
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(img1,dim, interpolation = cv2.INTER_AREA)
-            # cv2.imwrite("Ref rescale sift {}%.png".format(scale_percent),img)
+            # cv2.imwrite("Ref rescale sift {}%.png".format(dim),img)
         else:
-            img = image
+            dim = (self.resized_width, self.resized_height)
+            img = cv2.resize(image,dim, interpolation = cv2.INTER_AREA)
 
         kp, des = self.sift.detectAndCompute(img, None)
         keypointForRansac = kp

@@ -202,7 +202,7 @@ class MTE:
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            kp, _, _,_ = self.sift_engine.compute_sift(image, crop_image=True)
+            kp, _, _,_ = self.sift_engine.compute_sift(image, crop_image=False)
             return len(kp)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             kp, _, _,_ = self.d2net_engine.compute_d2(image, crop_image=True)
@@ -353,7 +353,7 @@ class MTE:
         # Update : we only use 1 engine at a time
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             # Learn SIFT data
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+            self.sift_engine.learn(learning_data, crop_image=False, crop_margin=self.crop_margin)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
         else:
