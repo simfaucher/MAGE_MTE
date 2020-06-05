@@ -75,14 +75,13 @@ class D2NetEngine:
         self.preprocessing="caffe"
         self.multiscale=False
         use_relu=True
-        print('==> Chargement du modele D2Net.')
+        print('Loading D2Net model...')
         self.d2model = D2Net(
             model_file=model_file,
             use_relu=use_relu,
             use_cuda=use_cuda
         )
-        print('==> Chargement terminer.')
-        print('==> Pret pour client.')
+        print('Loading done, ready for client.')
         self.cpt = 0
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
