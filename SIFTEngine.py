@@ -43,7 +43,7 @@ class SIFTEngine:
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
             kp, des, image_ref,kp_base_ransac = self.compute_sift(learning_data.full_image, crop_image, crop_margin)
-
+            # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width,self.resized_height),image_ref)
             learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
 
     def recognition(self, image, learning_data,modeAlgo):
@@ -128,14 +128,12 @@ class SIFTEngine:
 
     # Update : add keypointForRansac
     def compute_sift(self, image, crop_image, crop_margin=1/6):
+        img = image
         if crop_image:
-            img1 = self.crop_image(image, crop_margin)
-            dim = (self.resized_width, self.resized_height)
-            img = cv2.resize(img1,dim, interpolation = cv2.INTER_AREA)
-            # cv2.imwrite("Ref rescale sift {}%.png".format(dim),img)
-        else:
-            dim = (self.resized_width, self.resized_height)
-            img = cv2.resize(image,dim, interpolation = cv2.INTER_AREA)
+            img = self.crop_image(image, crop_margin)
+
+        dim = (self.resized_width, self.resized_height)
+        img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
 
         kp, des = self.sift.detectAndCompute(img, None)
         keypointForRansac = kp

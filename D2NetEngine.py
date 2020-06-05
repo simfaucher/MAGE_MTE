@@ -172,17 +172,12 @@ class D2NetEngine:
         return croped
 
     def compute_d2(self, image, crop_image, crop_margin=1/6):
+        imgCrop=image
         if crop_image:
-            img = self.crop_image(image, crop_margin)
-            # scale_percent = 25 # percent of original size
-            # width = int(img.shape[1] * scale_percent / 100)
-            # height = int(img.shape[0] * scale_percent / 100)
-            # dim = (width, height)
-            dim = (self.resized_width, self.resized_height)
-            img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
-        else:
-            dim = (self.resized_width, self.resized_height)
-            img = cv2.resize(image,dim, interpolation = cv2.INTER_AREA)
+            imgCrop = self.crop_image(image, crop_margin)
+            
+        dim = (self.resized_width, self.resized_height)
+        img = cv2.resize(imgCrop,dim, interpolation = cv2.INTER_AREA)
 
         # Setting up input image to use it in the CNN
         if len(img.shape) == 2:
