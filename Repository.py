@@ -1,4 +1,5 @@
 import os
+import os.path
 import time
 import sqlite3
 import cv2
@@ -7,11 +8,17 @@ import imutils
 from Domain.LearningData import LearningData
 
 IMAGES_FOLDER = "images/"
+DB_NAME = "mte.db"
 
 class Repository:
     def __init__(self):
-        self.conn = sqlite3.connect('mte.db')
+        self.conn = sqlite3.connect(DB_NAME)
         self.cursor = self.conn.cursor()
+
+        # Check if the table exists
+        self.cursor.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='students' ''')
+        if self.cursor.fetchone()[0] < 1:
+            self.create_tables()
 
         if not os.path.exists(IMAGES_FOLDER):
             os.makedirs(IMAGES_FOLDER)
