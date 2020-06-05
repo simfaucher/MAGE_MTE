@@ -92,7 +92,8 @@ class ACD:
             if not success:
                 break
 
-            image_640 = imutils.resize(full_image, width=640)
+            # image_640 = imutils.resize(full_image, width=640)
+            image_640 = full_image
 
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')

@@ -46,7 +46,7 @@ INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
 
-RANSACMAX = 4000
+
 MIN_MATCH_COUNT = 7
 
 D2REDUCTION = 1/3
@@ -64,13 +64,14 @@ class D2NetEngine:
     HOMOGRAPHY_MIN_TRANS = 0
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self,max_edge,max_sum_edges):
+    def __init__(self,max_edge,max_sum_edges,maxRansac,width,height):
         #Init d2net
         model_file="d2models/d2_tf_no_phototourism.pth"
         self.max_edge=max_edge
         self.max_sum_edges=max_sum_edges
-        # self.max_edge=380
-        # self.max_sum_edges=640
+        self.ransacmax = maxRansac
+        self.resized_width = width
+        self.resized_height = height
         self.preprocessing="caffe"
         self.multiscale=False
         use_relu=True
@@ -81,10 +82,12 @@ class D2NetEngine:
             use_cuda=use_cuda
         )
         print('==> Chargement terminer.')
+        print('==> Pret pour client.')
+        self.cpt = 0
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref,kp_base_ransac = self.compute_d2(learning_data.resized_image, crop_image, crop_margin)
+            kp, des, image_ref,kp_base_ransac = self.compute_d2(learning_data.full_image, crop_image, crop_margin)
 
             learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
 
@@ -165,10 +168,12 @@ class D2NetEngine:
         return croped
 
     def compute_d2(self, image, crop_image, crop_margin=1/6):
+        imgCrop=image
         if crop_image:
-            img = self.crop_image(image, crop_margin)
-        else:
-            img = image
+            imgCrop = self.crop_image(image, crop_margin)
+            
+        dim = (self.resized_width, self.resized_height)
+        img = cv2.resize(imgCrop,dim, interpolation = cv2.INTER_AREA)
 
         # Setting up input image to use it in the CNN
         if len(img.shape) == 2:
@@ -189,8 +194,8 @@ class D2NetEngine:
             dim = (width, height)
             resized_image = cv2.resize(resized_image,dim)
 
-        fact_i = image.shape[0] / resized_image.shape[0]
-        fact_j = image.shape[1] / resized_image.shape[1]
+        fact_i = img.shape[0] / resized_image.shape[0]
+        fact_j = img.shape[1] / resized_image.shape[1]
 
         input_image = preprocess_image(
             resized_image,
@@ -215,6 +220,10 @@ class D2NetEngine:
                     scales=[1]
                 )
 
+        # Input image coordinates
+        keypoints[:, 0] *= fact_i
+        keypoints[:, 1] *= fact_j
+
         # We zip the data in order to sort them by scores
         z = zip(scores, keypoints, descriptors)
         # We sort them by using the dimension 0
@@ -230,16 +239,13 @@ class D2NetEngine:
         descriptors = tempDesc[np.size(tempDesc,0) - int(np.size(tempDesc,0)*D2REDUCTION):np.size(tempDesc,0),:]
         keypoints = tempKeyp[np.size(tempKeyp,0) - int(np.size(tempKeyp,0)*D2REDUCTION):np.size(tempKeyp,0),:]
 
-        # Input image coordinates
-        keypoints[:, 0] *= fact_i
-        keypoints[:, 1] *= fact_j
-
         # i, j -> u, v
         keypoints = keypoints[:, [1, 0, 2]]
 
         kp=[]
         for i in range(keypoints.shape[0]):
              kp += [cv2.KeyPoint(keypoints[i][0], keypoints[i][1], 1)]
+        # print(kp[0].pt)
 
         return kp, descriptors, img,keypoints
 
@@ -271,10 +277,10 @@ class D2NetEngine:
             model, inliers = ransac(
                 (keypoints_left, keypoints_right),
                 ProjectiveTransform, min_samples=4,
-                residual_threshold=4, max_trials=RANSACMAX
+                residual_threshold=4, max_trials=self.ransacmax
             )
             n_inliers = np.sum(inliers)
-            # print(inliers)
+            print(keypoints_left[inliers])
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
@@ -304,16 +310,20 @@ class D2NetEngine:
                 dst_pts = np.float32([kp_img[m[0]].pt for m in good_matches]).reshape(-1, 1, 2)
                 src_pts = np.float32([sift_data.kp[m[1]].pt for m in good_matches]).reshape(-1, 1, 2)
 
-        #     matches_mask = None
-        #     debug_img = image.copy()
-
+        # matches_mask = None
+        # debug_img = image.copy()
+        #
         # DRAW_PARAMS = dict(matchColor=(0, 255, 0), \
         #                 singlePointColor=(255, 0, 0), \
         #                 matchesMask=matches_mask, \
         #                 flags=0)
-
-        # matching_result = cv2.drawMatches(debug_img, kp_img, learning_data.sift_data.ref, learning_data.sift_data.kp, good_matches, None, **DRAW_PARAMS)
-        # cv2.imshow("Matching result", matching_result)
+        # if mode == MTEAlgo.D2NET_KNN:
+        #     matching_result = cv2.drawMatches(debug_img, kp_img, sift_data.ref, sift_data.kp, good_matches, None, **DRAW_PARAMS)
+        # else:
+        #     matching_result = cv2.drawMatches(debug_img, inlier_keypoints_left, sift_data.ref, inlier_keypoints_right, good_matches, None, **DRAW_PARAMS)
+        #
+        # cv2.imwrite("framing/matching {}.png".format(self.cpt), matching_result)
+        self.cpt += 1
 
         if debug:
             return success, src_pts, dst_pts, kp_img, des_img, good_matches, image

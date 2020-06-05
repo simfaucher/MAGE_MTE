@@ -143,5 +143,11 @@ mte.db
 
 # Results and videos
 videoForBenchmark/
+framing/
+framing16/
+framing25/
+framing33/
+allFrame/
 *.csv
 *.png
+*.ods

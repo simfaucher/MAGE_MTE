@@ -41,7 +41,6 @@ from D2NetEngine import D2NetEngine
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
-VID='Approche'
 DETECTEUR='D2TierLowRes'
 MATCH='Gpu'
 
@@ -53,7 +52,7 @@ VC_LIKE_ENGINE_MODE = False
 SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
 
 class MTE:
-    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640):
+    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640,ransacount=300):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3000
@@ -76,21 +75,24 @@ class MTE:
         self.mte_algo = mte_algo
         self.crop_margin = crop_margin
         self.resize_width = resize_width
+        self.resize_height = int((resize_width/16)*9)
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            self.vc_like_engine = VCLikeEngine()
+            self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + (resize_width/16)*9)
+            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + self.resize_height,\
+                                            maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
         else:
             self.sift_engine = SIFTEngine()
 
-
+        # self.scale_percent = 100 # percent of original size
         #csvWriter
-        self.csvFile = open('video'+VID+DETECTEUR+MATCH+'.csv','w')
+        self.csvFile = open(self.mte_algo.name+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
+
         metrics=['Temps','Nombre de points interet','Nombre de match',
                 'Coefficient de translation','Coefficient de rotation',
                 'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','CropRef=False','max_edge=600 & max_sum_edges=1080']
+                'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height]
         self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
         self.writer.writeheader()
 
@@ -114,12 +116,15 @@ class MTE:
                 continue
 
             # Resize image if necessary
-            if image.shape[1] != self.resize_width:
-                image = imutils.resize(image, width=self.resize_width)
+            # if image.shape[1] != self.resize_width:
+            #     image = imutils.resize(image, width=self.resize_width)
+            imageForLearning = image
+            # width = int(image.shape[1] * self.scale_percent / 100)
+            # height = int(image.shape[0] * self.scale_percent / 100)
+            dim = (self.resize_width, self.resize_height)
+            image = cv2.resize(imageForLearning,dim, interpolation = cv2.INTER_AREA)
 
-            # if i==19 || i==70 || i== 98 or fram:
-            # if frameId == 19 or frameId == 70 or frameId == 98 or frameId == 115:
-            #     cv2.imwrite("frame{}".format(frameId)+".png",image)
+            # cv2.imwrite("allFrame/{}".format(frameId)+".png",image)
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -134,7 +139,7 @@ class MTE:
                                     'Nombre de points interet': nb_kp})
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
-                learning_id = self.learning(image)
+                learning_id = self.learning(imageForLearning)
 
                 ret_data["learning"] = {
                     "id": learning_id
@@ -143,14 +148,15 @@ class MTE:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
                 success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, image)
+                stopFrameComputing = time.time()
 
                 ret_data["recognition"] = recog_ret_data
                 ret_data["recognition"]["success"] = success
                 if success :
-                    # if (frameId == 177) or (frameId == 167) :
-                    #     print("test")
-                    #     cv2.imwrite("frameDistanceWp{}".format(frameId)+".png",warpedImg)
-                    self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                    # cv2.imwrite("framing/warped{}".format(frameId)+".png",warpedImg)
+                    # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
+                    # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
+                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                     'Nombre de points interet': nb_kp,
                                     'Nombre de match' : nb_match,
                                     'Coefficient de translation' : sumTranslation,
@@ -160,7 +166,7 @@ class MTE:
                                     'Distance ROI 2' : distRoi[1],
                                     'Distance ROI 3' : distRoi[2]})
                 else :
-                    self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                     'Nombre de points interet': nb_kp,
                                     'Nombre de match' : nb_match,
                                     'Coefficient de translation' : sumTranslation,
@@ -181,8 +187,8 @@ class MTE:
                 self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
-            
-            frameId = frameId + 1 
+
+            frameId = frameId + 1
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
@@ -366,7 +372,7 @@ class MTE:
         # Update : we only use 1 engine at a time
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             # Learn SIFT data
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+            self.sift_engine.learn(learning_data, crop_image=False, crop_margin=self.crop_margin)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
         else:
@@ -400,11 +406,13 @@ if __name__ == "__main__":
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=640, type=int,\
         help="Width of the input image (640 or 320). Default: 640")
+    ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
+        help="Number of randomize samples for Ransac evaluation. Default: 300")
     args = vars(ap.parse_args())
 
     # print(MTEAlgo[args["algo"]])
     # print(convert_to_float(args["crop"]))
     # print(args["width"])
 
-    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"])
+    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"],ransacount=args["ransacount"])
     mte.listen_images()
