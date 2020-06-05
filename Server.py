@@ -1,6 +1,7 @@
 """
     Server side to catch a camera stream from a client
 """
+print("Start script")
 
 import os
 import sys
