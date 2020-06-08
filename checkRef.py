@@ -12,6 +12,7 @@ import cv2
 import imutils
 from imutils.video import FPS
 from pykson import Pykson
+from skimage.util import random_noise
 import imagezmq
 import argparse
 import csv
@@ -42,8 +43,6 @@ from D2NetEngine import D2NetEngine
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 VID=''
-DETECTEUR='D2TierLowRes'
-MATCH='Gpu'
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -94,6 +93,7 @@ class MTE:
         else:
             self.vc_like_engine = VCLikeEngine()
 
+        # self.scale_percent = 100 # percent of original size
         #csvWriter
         self.csvFile = open(VID+str(self.resize_width)+"*"+str(self.resize_height)+'.csv','w')
 
@@ -104,64 +104,105 @@ class MTE:
         self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
         self.writer.writeheader()
 
-        #Behavior variables
-        self.numberConsecutiveValidation = 0
-        self.resolutionMax = (self.resize_width,self.resize_height)
 
-    def listen_images(self):
-        frameId = 0
-        while True:  # show streamed images until Ctrl-C
-            msg, image = self.image_hub.recv_image()
-            #Fonction bloquante on peut donc lancer le timer juste aprèsc
-            startFrameComputing = time.time()
+    #         Parameters
+    # ----------
+    # image : ndarray
+    #     Input image data. Will be converted to float.
+    # mode : str
+    #     One of the following strings, selecting the type of noise to add:
+    #
+    #     'gauss'     Gaussian-distributed additive noise.
+    #     'poisson'   Poisson-distributed noise generated from the data.
+    #     's&p'       Replaces random pixels with 0 or 1.
+    #     'speckle'   Multiplicative noise using out = image + n*image,where
+    #                 n,is uniform noise with specified mean & variance.
+    def noisy(self,noise_typ,image):
+        if noise_typ == "gauss":
+            row,col,ch= image.shape
+            mean = 0
+            #var = 0.1
+            #sigma = var**0.5
+            gauss = np.random.normal(mean,1,(row,col,ch))
+            gauss = gauss.reshape(row,col,ch)
+            noisy = image + gauss
+            return noisy
+        elif noise_typ == "s&p":
+            row,col,ch = image.shape
+            s_vs_p = 0.5
+            amount = 0.004
+            out = image
+            # Salt mode
+            num_salt = np.ceil(amount * image.size * s_vs_p)
+            coords = [np.random.randint(0, i - 1, int(num_salt))
+                      for i in image.shape]
+            out[coords] = 1
 
-            data = json.loads(msg)
+            # Pepper mode
+            num_pepper = np.ceil(amount* image.size * (1. - s_vs_p))
+            coords = [np.random.randint(0, i - 1, int(num_pepper))
+                      for i in image.shape]
+            out[coords] = 0
+            return out
+        elif noise_typ == "poisson":
+            vals = len(np.unique(image))
+            vals = 2 ** np.ceil(np.log2(vals))
+            noisy = np.random.poisson(image * vals) / float(vals)
+            return noisy
+        elif noise_typ =="speckle":
+            row,col,ch = image.shape
+            gauss = np.random.randn(row,col,ch)
+            gauss = gauss.reshape(row,col,ch)
+            noisy = image + image * gauss
+            return noisy
 
-            ret_data = {}
+    def checkReference(self):
+        imageRef = cv2.imread('videoForBenchmark/flou/reference.png')
 
-            if "error" in data and data["error"]:
-                if CAPTURE_DEMO and self.out is not None:
-                    print("No connection")
-                    self.out.release()
-                    self.out = None
-                    cv2.destroyWindow("Matching result")
-                continue
+        kernel_size = 2
+        #blurred = skimage.filters.gaussian(
+        #    image, sigma=(sigma, sigma), truncate=3.5, multichannel=True)
+        #https://datacarpentry.org/image-processing/06-blurring/
+        
+        # Bruit de mouvement.
+        # kernel_v = np.zeros((kernel_size, kernel_size))
+        # kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
+        # kernel_v /= kernel_size
+        # imageFlou = cv2.filter2D(imageRef, -1, kernel_v)
+        #######################
+        # imageFlou = self.noisy("gauss",imageRef).astype('uint8')
+        ########################
+        # imageFlou = random_noise(imageRef, mode='gaussian', var=kernel_size**2)
+        imageFlou = random_noise(imageRef, mode='speckle',var=kernel_size)
+        imageFlou = (255*imageFlou).astype(np.uint8)
 
-            imageForLearning = image
-            dim = (self.resize_width, self.resize_height)
-            image = cv2.resize(imageForLearning,dim, interpolation = cv2.INTER_AREA)
 
-            mode = MTEMode(data["mode"])
-            if mode == MTEMode.PRELEARNING:
-                print("MODE prelearning")
-                nb_kp = self.prelearning(image)
-                # save_ref = "save_ref" in data and data["save_ref"]
-                # ret_data["prelearning_pts"] = self.get_rectangle(0, image, force_new_ref=save_ref)
-                ret_data["prelearning"] = {
-                    "nb_kp": nb_kp
-                }
-                self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp})
-            elif mode == MTEMode.LEARNING:
-                print("MODE learning")
-                learning_id = self.learning(imageForLearning)
+        dim = (self.resize_width, self.resize_height)
+        imageReduite = cv2.resize(imageFlou,dim, interpolation = cv2.INTER_AREA)
+        cv2.imwrite("videoForBenchmark/flou/z_refReduiteFlouté{}".format(kernel_size)+".png",imageReduite)
 
-                ret_data["learning"] = {
-                    "id": learning_id
-                }
-            elif mode == MTEMode.RECOGNITION:
-                pov_id = data["pov_id"]
-                # print("MODE recognition")
-                success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, image)
-                stopFrameComputing = time.time()
+        ret_data = {}
 
-                ret_data["recognition"] = recog_ret_data
-                ret_data["recognition"]["success"] = success
-                if success :
-                    # cv2.imwrite("framing/homograhpeiFlou{}".format(frameId)+".png",warpedImg)
-                    # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
-                    # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
-                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+        startFrameComputing = time.time()
+
+        learning_id = self.learning(imageRef)
+
+        data = {
+            "mode": MTEMode.RECOGNITION,
+            "pov_id": learning_id
+        }
+        pov_id = data["pov_id"]
+        # print("MODE recognition")
+        success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, imageReduite)
+        stopFrameComputing = time.time()
+
+        ret_data["recognition"] = recog_ret_data
+        ret_data["recognition"]["success"] = success
+        if success :
+            cv2.imwrite("videoForBenchmark/flou/z_homographieFlou{}".format(kernel_size)+".png",warpedImg)
+            # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
+            # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
+            self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                     'Nombre de points interet': nb_kp,
                                     'Nombre de match' : nb_match,
                                     'Coefficient de translation' : sumTranslation,
@@ -170,68 +211,17 @@ class MTE:
                                     'Distance ROI 1' : distRoi[0],
                                     'Distance ROI 2' : distRoi[1],
                                     'Distance ROI 3' : distRoi[2]})
-                else :
-                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+            return True
+        else :
+            cv2.imwrite("videoForBenchmark/flou/z_failled{}".format(kernel_size)+".png",warpedImg)
+            self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                     'Nombre de points interet': nb_kp,
                                     'Nombre de match' : nb_match,
                                     'Coefficient de translation' : sumTranslation,
                                     'Coefficient de rotation' : sumSkew})
-            else:
-                pov_id = data["pov_id"]
-                print("MODE framing")
-                success, warped_image = self.framing(pov_id, image)
+            print("Cette image de référence n'est pas valide")
+            return False
 
-                ret_data["framing"] = {
-                    "success": success
-                }
-
-                # cv2.imshow("Warped image", warped_image)
-                # cv2.waitKey(1)
-
-            if mode == MTEMode.FRAMING:
-                self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
-            else:
-                self.image_hub.send_reply(json.dumps(ret_data).encode())
-
-            frameId = frameId + 1
-
-    #This function return a code that will inform the client what to do
-    # TODO : create dommain/behavior.py
-    def behavior(self,warped,shapeValue,sketchValue,colorValue):
-        if warped.shape[0] < 780:
-            thresholdShape = 2500
-            thresholdSketch = 870
-            thresholdColor = 9580
-            errorFactor=1.5
-        else:
-            thresholdShape = 2500
-            thresholdSketch = 870
-            thresholdColor = 9580
-            errorFactor=2
-
-        #Used to reduce dimension
-        reduceShape = shapeValue < thresholdShape * errorFactor
-        reduceSketch = sketchValue < thresholdSketch* errorFactor
-        reduceColor = colorValue < thresholdColor * errorFactor
-
-        #Used to maintain actual dimension
-        correctShape = shapeValue < thresholdShape
-        correctSketch = sketchValue < thresholdSketch
-        correctColor = colorValue < thresholdColor
-
-        if reduceShape+reduceSketch+reduceColor >= 2:
-            self.numberConsecutiveValidation = 0
-            return "Reduction"
-        if correctShape+correctSketch+correctColor = 3:
-            self.numberConsecutiveValidation += 1
-        elif correctShape+correctSketch+correctColor >= 1:
-            self.numberConsecutiveValidation -= 1
-        else
-            if warped.shape[:2] = self.resolutionMax:
-                return "perte cible"
-            else:
-                self.numberConsecutiveValidation -= 1
-                return "Augmentation"
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
@@ -430,4 +420,4 @@ if __name__ == "__main__":
     print(args["width"])
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"],ransacount=args["ransacount"])
-    mte.listen_images()
+    mte.checkReference()
