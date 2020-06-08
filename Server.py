@@ -41,7 +41,6 @@ from D2NetEngine import D2NetEngine
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
-VID=''
 DETECTEUR='D2TierLowRes'
 MATCH='Gpu'
 
@@ -53,7 +52,7 @@ VC_LIKE_ENGINE_MODE = False
 SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
 
 class MTE:
-    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640,ransacount=300):
+    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640, ransacount=300):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3000
@@ -78,24 +77,14 @@ class MTE:
         self.resize_width = resize_width
         self.resize_height = int((resize_width/16)*9)
 
-        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
-            if self.mte_algo == MTEAlgo.SIFT_KNN:
-                VID = "SiftKnn"
-            else:
-                VID = "SiftRansac"
-        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + self.resize_height,\
                                             maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
-            if self.mte_algo == MTEAlgo.D2NET_KNN:
-                VID = "D2netKnn"
-            else:
-                VID = "D2netRansac"
         else:
-            self.vc_like_engine = VCLikeEngine()
+            self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
 
         #csvWriter
-        self.csvFile = open(VID+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
+        self.csvFile = open(self.mte_algo.name+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
 
         metrics=['Temps','Nombre de points interet','Nombre de match',
                 'Coefficient de translation','Coefficient de rotation',
@@ -270,13 +259,22 @@ class MTE:
         learning_data = self.get_learning_data(pov_id)
 
         fps = FPS().start()
+        nb_matches = 0
         if self.mte_algo == MTEAlgo.VC_LIKE:
             success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
             # cv2.imshow("VC-like engine", transformed)
-        elif self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            success, scale, skew, translation, transformed,nb_match, nb_kp,sumTranslation, sumSkew = self.sift_engine.recognition(image, learning_data,self.mte_algo)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
         else:
-            success, scale, skew, translation, transformed,nb_match, nb_kp,sumTranslation, sumSkew = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
 
         # ML validation
         ml_success = False
@@ -328,14 +326,33 @@ class MTE:
 
         cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
             (255, 255, 255), 2)
+        if self.mte_algo != MTEAlgo.VC_LIKE:
+            cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+        if success:
+            if self.mte_algo != MTEAlgo.VC_LIKE:
+                cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+            cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+            (255, 255, 255), 2)
 
         cv2.imshow("Transformed", transformed)
         cv2.waitKey(1)
 
         ret_data["success"] = success and ml_success
 
-        return success, ret_data,nb_kp, nb_match, sumTranslation,\
-        sumSkew, sum_distances,distances,transformed
+        return success, ret_data, nb_kp, nb_matches, sum(translation),\
+        sum(skews), sum_distances, distances, transformed
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
@@ -425,9 +442,9 @@ if __name__ == "__main__":
         help="Number of randomize samples for Ransac evaluation. Default: 300")
     args = vars(ap.parse_args())
 
-    print(MTEAlgo[args["algo"]])
-    print(convert_to_float(args["crop"]))
-    print(args["width"])
+    # print(MTEAlgo[args["algo"]])
+    # print(convert_to_float(args["crop"]))
+    # print(args["width"])
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"],ransacount=args["ransacount"])
     mte.listen_images()

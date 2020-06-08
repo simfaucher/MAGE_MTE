@@ -16,7 +16,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -28,8 +28,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -59,16 +59,6 @@ MODE_VIDEO = not MODE_CAMERA
 # T3.3
 # VIDEO_PATH = "videos/T3.3/T3.3-rotated.mp4"
 # LEARNING_IMAGE_PATH = "videos/T3.3/vlcsnap-2020-02-28-11h42m56s577.png"
-
-
-#Folder for the benchmark video
-VIDEO_FOLDER = "videoForBenchmark/Approche"
-# VIDEO_FOLDER = "videoForBenchmark/Metre"
-# VIDEO_FOLDER = "videoForBenchmark/Magnetron"
-# VIDEO_FOLDER = "videoForBenchmark/Robustesse"
-
-VIDEO_PATH = VIDEO_FOLDER+"/video.mp4"
-LEARNING_IMAGE_PATH = VIDEO_FOLDER+"/reference.png"
 
 class ACD:
     def __init__(self):

@@ -100,13 +100,8 @@ class SIFTEngine:
             warped_image = image.copy()
 
         return sift_success and homography_success, \
-            max(scale_x, scale_y), max(skew_x, skew_y), (t_x, t_y), \
-            warped_image, \
-            len(good_matches), \
-            len(kp_img), \
-            t_x+t_y, \
-            skew_x+skew_y
-
+            (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
+            warped_image, len(good_matches), len(kp_img)
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
         if dst_to_src:

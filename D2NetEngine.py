@@ -75,14 +75,13 @@ class D2NetEngine:
         self.preprocessing="caffe"
         self.multiscale=False
         use_relu=True
-        print('==> Chargement du modele D2Net.')
+        print('Loading D2Net model...')
         self.d2model = D2Net(
             model_file=model_file,
             use_relu=use_relu,
             use_cuda=use_cuda
         )
-        print('==> Chargement terminer.')
-        print('==> Pret pour client.')
+        print('Loading done, ready for client.')
         self.cpt = 0
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
@@ -145,12 +144,8 @@ class D2NetEngine:
             warped_image = image.copy()
 
         return d2succes and homography_success, \
-            max(scale_x, scale_y), max(skew_x, skew_y), (t_x, t_y), \
-            warped_image, \
-            len(good_matches), \
-            len(kp_img), \
-            t_x+t_y, \
-            skew_x+skew_y
+            (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
+            warped_image, len(good_matches), len(kp_img)
 
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
