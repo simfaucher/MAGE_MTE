@@ -211,12 +211,12 @@ class MTE:
         if reduceShape+reduceSketch+reduceColor >= 2:
             self.numberConsecutiveValidation = 0
             return "Reduction"
-        if correctShape+correctSketch+correctColor = 3:
+        if correctShape+correctSketch+correctColor == 3:
             self.numberConsecutiveValidation += 1
         elif correctShape+correctSketch+correctColor >= 1:
             self.numberConsecutiveValidation -= 1
-        else
-            if warped.shape[:2] = self.resolutionMax:
+        else:
+            if warped.shape[:2] == self.resolutionMax:
                 return "perte cible"
             else:
                 self.numberConsecutiveValidation -= 1

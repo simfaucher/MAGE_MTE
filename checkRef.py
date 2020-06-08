@@ -163,7 +163,7 @@ class MTE:
         #blurred = skimage.filters.gaussian(
         #    image, sigma=(sigma, sigma), truncate=3.5, multichannel=True)
         #https://datacarpentry.org/image-processing/06-blurring/
-        
+
         # Bruit de mouvement.
         # kernel_v = np.zeros((kernel_size, kernel_size))
         # kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
