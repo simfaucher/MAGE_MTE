@@ -81,21 +81,21 @@ class MTE:
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
             if self.mte_algo == MTEAlgo.SIFT_KNN:
-                VID = "SIFT_KNN"
+                VID = "SiftKnn"
             else:
-                VID = "SIFT_RANSAC" + str(ransacount) + "&"
+                VID = "SiftRansac"
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + self.resize_height,\
                                             maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
             if self.mte_algo == MTEAlgo.D2NET_KNN:
-                VID = "D2NET_KNN"
+                VID = "D2netKnn"
             else:
-                VID = "D2NET_RANSAC" + str(ransacount) + "&"
+                VID = "D2netRansac"
         else:
             self.vc_like_engine = VCLikeEngine()
 
         #csvWriter
-        self.csvFile = open(VID+str(self.resize_width)+"*"+str(self.resize_height)+'.csv','w')
+        self.csvFile = open(VID+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
 
         metrics=['Temps','Nombre de points interet','Nombre de match',
                 'Coefficient de translation','Coefficient de rotation',
