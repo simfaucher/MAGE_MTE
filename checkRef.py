@@ -13,9 +13,11 @@ import imutils
 from imutils.video import FPS
 from pykson import Pykson
 from skimage.util import random_noise
+import skimage
 import imagezmq
 import argparse
 import csv
+import shutil
 
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
@@ -100,128 +102,160 @@ class MTE:
         metrics=['Temps','Nombre de points interet','Nombre de match',
                 'Coefficient de translation','Coefficient de rotation',
                 'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height]
+                'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height,'type de flou']
         self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
         self.writer.writeheader()
 
-
-    #         Parameters
-    # ----------
-    # image : ndarray
-    #     Input image data. Will be converted to float.
-    # mode : str
-    #     One of the following strings, selecting the type of noise to add:
-    #
-    #     'gauss'     Gaussian-distributed additive noise.
-    #     'poisson'   Poisson-distributed noise generated from the data.
-    #     's&p'       Replaces random pixels with 0 or 1.
-    #     'speckle'   Multiplicative noise using out = image + n*image,where
-    #                 n,is uniform noise with specified mean & variance.
-    def noisy(self,noise_typ,image):
-        if noise_typ == "gauss":
-            row,col,ch= image.shape
-            mean = 0
-            #var = 0.1
-            #sigma = var**0.5
-            gauss = np.random.normal(mean,1,(row,col,ch))
-            gauss = gauss.reshape(row,col,ch)
-            noisy = image + gauss
-            return noisy
-        elif noise_typ == "s&p":
-            row,col,ch = image.shape
-            s_vs_p = 0.5
-            amount = 0.004
-            out = image
-            # Salt mode
-            num_salt = np.ceil(amount * image.size * s_vs_p)
-            coords = [np.random.randint(0, i - 1, int(num_salt))
-                      for i in image.shape]
-            out[coords] = 1
-
-            # Pepper mode
-            num_pepper = np.ceil(amount* image.size * (1. - s_vs_p))
-            coords = [np.random.randint(0, i - 1, int(num_pepper))
-                      for i in image.shape]
-            out[coords] = 0
-            return out
-        elif noise_typ == "poisson":
-            vals = len(np.unique(image))
-            vals = 2 ** np.ceil(np.log2(vals))
-            noisy = np.random.poisson(image * vals) / float(vals)
-            return noisy
-        elif noise_typ =="speckle":
-            row,col,ch = image.shape
-            gauss = np.random.randn(row,col,ch)
-            gauss = gauss.reshape(row,col,ch)
-            noisy = image + image * gauss
-            return noisy
-
     def checkReference(self):
-        imageRef = cv2.imread('videoForBenchmark/flou/reference.png')
+        kernel_size = 30
+        sigma = 5
+        kernel = 31
+        for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
+            checkout = 0
+            filename = "videoForBenchmark/benchmark Validation capture/"+file
+            image_ref = cv2.imread(filename)
+            try:
+                os.mkdir(filename[:-4])
+            except FileExistsError:
+                shutil.rmtree(filename[:-4])
+                os.mkdir(filename[:-4])
+                print("Suppression du dossier existant")
 
-        kernel_size = 2
-        #blurred = skimage.filters.gaussian(
-        #    image, sigma=(sigma, sigma), truncate=3.5, multichannel=True)
-        #https://datacarpentry.org/image-processing/06-blurring/
+            # Bruit gaussien
+            image_gaussian_blur=cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
 
-        # Bruit de mouvement.
-        # kernel_v = np.zeros((kernel_size, kernel_size))
-        # kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
-        # kernel_v /= kernel_size
-        # imageFlou = cv2.filter2D(imageRef, -1, kernel_v)
-        #######################
-        # imageFlou = self.noisy("gauss",imageRef).astype('uint8')
-        ########################
-        # imageFlou = random_noise(imageRef, mode='gaussian', var=kernel_size**2)
-        imageFlou = random_noise(imageRef, mode='speckle',var=kernel_size)
-        imageFlou = (255*imageFlou).astype(np.uint8)
+            # Bruit de mouvement vertical.
+            kernel_v = np.zeros((kernel_size, kernel_size))
+            kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
+            kernel_v /= kernel_size
+            image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
 
+            # Bruit de mouvement horizontal.
+            kernel_h = np.zeros((kernel_size, kernel_size))
+            kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
+            kernel_h /= kernel_size
+            image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
 
-        dim = (self.resize_width, self.resize_height)
-        imageReduite = cv2.resize(imageFlou,dim, interpolation = cv2.INTER_AREA)
-        cv2.imwrite("videoForBenchmark/flou/z_refReduiteFlouté{}".format(kernel_size)+".png",imageReduite)
+            # Recup point d'interet image de base
+            image_ref_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref, None)
+            kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref.png",kp_image_ref)
 
-        ret_data = {}
+            # Reduction de dimension
+            dim = (self.resize_width, self.resize_height)
+            image_ref_reduite = cv2.resize(image_ref,dim, interpolation = cv2.INTER_AREA)
+            image_ref_reduite_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
+            kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",kp_image_ref_reduite)
 
-        startFrameComputing = time.time()
+            # Ecriture des resultats pour chaque image dans un dossier
+            csvFile = open(filename[:-4]+'/value.csv','w')
+            metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
+                    'Coefficient de translation','Coefficient de rotation',
+                    'Distance D VisionCheck','Distance ROI 1',
+                    'Distance ROI 2','Distance ROI 3','np kp ref origine =',len(image_ref_kp),"np kp ref reduit=",len(kp_image_ref_reduite),'width=',self.resize_width,'height=',self.resize_height,'type de flou']
+            writer = csv.DictWriter(csvFile, fieldnames=metrics)
+            writer.writeheader()
 
-        learning_id = self.learning(imageRef)
+            ret_data = {}
+            learning_id = self.learning(image_ref)
+            data = {
+                "mode": MTEMode.RECOGNITION,
+                "pov_id": learning_id
+            }
+            pov_id = data["pov_id"]
 
-        data = {
-            "mode": MTEMode.RECOGNITION,
-            "pov_id": learning_id
-        }
-        pov_id = data["pov_id"]
-        # print("MODE recognition")
-        success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, imageReduite)
-        stopFrameComputing = time.time()
+            # Gaussien
+            startFrameComputing = time.time()
+            gaussian_redux = cv2.resize(image_gaussian_blur,dim, interpolation = cv2.INTER_AREA)
+            success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, gaussian_redux)
+            stopFrameComputing = time.time()
 
-        ret_data["recognition"] = recog_ret_data
-        ret_data["recognition"]["success"] = success
-        if success :
-            cv2.imwrite("videoForBenchmark/flou/z_homographieFlou{}".format(kernel_size)+".png",warpedImg)
-            # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
-            # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
-            self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp,
-                                    'Nombre de match' : nb_match,
-                                    'Coefficient de translation' : sumTranslation,
-                                    'Coefficient de rotation' : sumSkew,
-                                    'Distance D VisionCheck' : sumD,
-                                    'Distance ROI 1' : distRoi[0],
-                                    'Distance ROI 2' : distRoi[1],
-                                    'Distance ROI 3' : distRoi[2]})
-            return True
-        else :
-            cv2.imwrite("videoForBenchmark/flou/z_failled{}".format(kernel_size)+".png",warpedImg)
-            self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp,
-                                    'Nombre de match' : nb_match,
-                                    'Coefficient de translation' : sumTranslation,
-                                    'Coefficient de rotation' : sumSkew})
-            print("Cette image de référence n'est pas valide")
-            return False
+            if success :
+                checkout += 1
+                cv2.imwrite(filename[:-4]+"/homographieGaussienne.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : True,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'Distance D VisionCheck' : sumD,
+                                        'Distance ROI 1' : distRoi[0],
+                                        'Distance ROI 2' : distRoi[1],
+                                        'Distance ROI 3' : distRoi[2],
+                                        'type de flou' : "gaussien"})
+            else :
+                cv2.imwrite(filename[:-4]+"/echecGaussienne.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : False,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'type de flou' : "gaussien"})
+            ################# Flou vertical  #############################
+            startFrameComputing = time.time()
+            vertical_redux = cv2.resize(image_vertical_motion_blur,dim, interpolation = cv2.INTER_AREA)
+            success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, vertical_redux)
+            stopFrameComputing = time.time()
 
+            if success :
+                checkout += 1
+                cv2.imwrite(filename[:-4]+"/homographieVerticale.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : True,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'Distance D VisionCheck' : sumD,
+                                        'Distance ROI 1' : distRoi[0],
+                                        'Distance ROI 2' : distRoi[1],
+                                        'Distance ROI 3' : distRoi[2],
+                                        'type de flou' : "gaussien"})
+            else :
+                cv2.imwrite(filename[:-4]+"/echecVerticale.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : False,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'type de flou' : "gaussien"})
+            ################# Flou horizontal  #############################
+            startFrameComputing = time.time()
+            horizontal_redux = cv2.resize(image_horizontal_motion_blur,dim, interpolation = cv2.INTER_AREA)
+            success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, horizontal_redux)
+            stopFrameComputing = time.time()
+
+            if success :
+                checkout += 1
+                cv2.imwrite(filename[:-4]+"/homographieHorizontale.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : True,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'Distance D VisionCheck' : sumD,
+                                        'Distance ROI 1' : distRoi[0],
+                                        'Distance ROI 2' : distRoi[1],
+                                        'Distance ROI 3' : distRoi[2],
+                                        'type de flou' : "gaussien"})
+            else :
+                cv2.imwrite(filename[:-4]+"/echecHorizontale.png",warpedImg)
+                writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                                        'Validité' : False,
+                                        'Nombre de points interet': nb_kp,
+                                        'Nombre de match' : nb_match,
+                                        'Coefficient de translation' : sumTranslation,
+                                        'Coefficient de rotation' : sumSkew,
+                                        'type de flou' : "gaussien"})
+            if checkout == 3:
+                print(file + " est valide pour référence")
+            else:
+                print(file + " est invalide pour référence")
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
@@ -260,13 +294,22 @@ class MTE:
         learning_data = self.get_learning_data(pov_id)
 
         fps = FPS().start()
+        nb_matches = 0
         if self.mte_algo == MTEAlgo.VC_LIKE:
             success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
             # cv2.imshow("VC-like engine", transformed)
-        elif self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            success, scale, skew, translation, transformed,nb_match, nb_kp,sumTranslation, sumSkew = self.sift_engine.recognition(image, learning_data,self.mte_algo)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
         else:
-            success, scale, skew, translation, transformed,nb_match, nb_kp,sumTranslation, sumSkew = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
+            scale_x, scale_y = scales
+            skew_x, skew_y = skews
+            scale = max(scale_x, scale_y)
+            skew = max(skew_x, skew_y)
 
         # ML validation
         ml_success = False
@@ -318,14 +361,33 @@ class MTE:
 
         cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
             (255, 255, 255), 2)
+        if self.mte_algo != MTEAlgo.VC_LIKE:
+            cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+        if success:
+            if self.mte_algo != MTEAlgo.VC_LIKE:
+                cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+            cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+            (255, 255, 255), 2)
 
         cv2.imshow("Transformed", transformed)
         cv2.waitKey(1)
 
         ret_data["success"] = success and ml_success
 
-        return success, ret_data,nb_kp, nb_match, sumTranslation,\
-        sumSkew, sum_distances,distances,transformed
+        return success, ret_data, nb_kp, nb_matches, sum(translation),\
+        sum(skews), sum_distances, distances, transformed
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image

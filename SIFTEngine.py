@@ -92,12 +92,25 @@ class SIFTEngine:
                 # Framing
                 H = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
                 warped_image = cv2.warpPerspective(image, H, (w, h))
+                # on recup les kp en float + reshape pour passer le perspectiveTransform
+                pos = []
+                for i in range(len(kp_img)):
+                     pos += [[kp_img[i].pt[0],kp_img[i].pt[1]]]
+                pos = np.asarray(pos)
+                pts = np.float32(pos).reshape(-1,1,2)
+                new_pos = cv2.perspectiveTransform(pts,H)
+
+                new_kp = []
+                for i in range(new_pos.shape[0]):
+                     new_kp += [cv2.KeyPoint(new_pos[i][0][0], new_pos[i][0][1], 1)]
+                warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             else:
                 print("SIFT deformé")
                 warped_image = image.copy()
         else:
             warped_image = image.copy()
+            warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         return sift_success and homography_success, \
             (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
