@@ -107,12 +107,22 @@ class MTE:
         self.writer.writeheader()
 
     def checkReference(self):
-        kernel_size = 30
+        kernel_size = 20
         sigma = 5
         kernel = 31
+        
+        kernel_v = np.zeros((kernel_size, kernel_size))
+        kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
+        kernel_v /= kernel_size
+
+        kernel_h = np.zeros((kernel_size, kernel_size))
+        kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
+        kernel_h /= kernel_size
+
         for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
             checkout = 0
             filename = "videoForBenchmark/benchmark Validation capture/"+file
+            print("Computing "+file)
             image_ref = cv2.imread(filename)
             try:
                 os.mkdir(filename[:-4])
@@ -125,27 +135,25 @@ class MTE:
             image_gaussian_blur=cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
 
             # Bruit de mouvement vertical.
-            kernel_v = np.zeros((kernel_size, kernel_size))
-            kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
-            kernel_v /= kernel_size
             image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
 
             # Bruit de mouvement horizontal.
-            kernel_h = np.zeros((kernel_size, kernel_size))
-            kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
-            kernel_h /= kernel_size
             image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
 
             # Recup point d'interet image de base
             image_ref_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref, None)
-            kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            for i in range (len(image_ref_kp)):
+                image_ref_kp[i].size = 2
+            kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imwrite(filename[:-4]+"/image_ref.png",kp_image_ref)
 
             # Reduction de dimension
             dim = (self.resize_width, self.resize_height)
             image_ref_reduite = cv2.resize(image_ref,dim, interpolation = cv2.INTER_AREA)
             image_ref_reduite_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
-            kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            for i in range (len(image_ref_reduite_kp)):
+                image_ref_reduite_kp[i].size = 1
+            kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",kp_image_ref_reduite)
 
             # Ecriture des resultats pour chaque image dans un dossier
@@ -173,7 +181,7 @@ class MTE:
 
             if success :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieGaussienne.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/homographieGaussiennek{}s{}.png".format(kernel,sigma),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : True,
                                         'Nombre de points interet': nb_kp,
@@ -186,7 +194,7 @@ class MTE:
                                         'Distance ROI 3' : distRoi[2],
                                         'type de flou' : "gaussien"})
             else :
-                cv2.imwrite(filename[:-4]+"/echecGaussienne.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/echecGaussiennek{}s{}.png".format(kernel,sigma),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : False,
                                         'Nombre de points interet': nb_kp,
@@ -202,7 +210,7 @@ class MTE:
 
             if success :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieVerticale.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/homographieVerticale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : True,
                                         'Nombre de points interet': nb_kp,
@@ -215,7 +223,7 @@ class MTE:
                                         'Distance ROI 3' : distRoi[2],
                                         'type de flou' : "gaussien"})
             else :
-                cv2.imwrite(filename[:-4]+"/echecVerticale.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : False,
                                         'Nombre de points interet': nb_kp,
@@ -231,7 +239,7 @@ class MTE:
 
             if success :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieHorizontale.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/homographieHorizontale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : True,
                                         'Nombre de points interet': nb_kp,
@@ -244,7 +252,7 @@ class MTE:
                                         'Distance ROI 3' : distRoi[2],
                                         'type de flou' : "gaussien"})
             else :
-                cv2.imwrite(filename[:-4]+"/echecHorizontale.png",warpedImg)
+                cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
                                         'Validité' : False,
                                         'Nombre de points interet': nb_kp,

@@ -103,14 +103,14 @@ class SIFTEngine:
                 new_kp = []
                 for i in range(new_pos.shape[0]):
                      new_kp += [cv2.KeyPoint(new_pos[i][0][0], new_pos[i][0][1], 1)]
-                warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             else:
                 print("SIFT deformé")
                 warped_image = image.copy()
         else:
             warped_image = image.copy()
-            warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         return sift_success and homography_success, \
             (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
