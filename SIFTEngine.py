@@ -110,6 +110,8 @@ class SIFTEngine:
                 warped_image = image.copy()
         else:
             warped_image = image.copy()
+            for i in range (len(kp_img)):
+                kp_img[i].size = 1
             warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         return sift_success and homography_success, \

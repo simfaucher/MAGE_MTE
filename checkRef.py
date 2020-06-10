@@ -107,10 +107,10 @@ class MTE:
         self.writer.writeheader()
 
     def checkReference(self):
-        kernel_size = 20
+        kernel_size = 25
         sigma = 5
         kernel = 31
-        
+
         kernel_v = np.zeros((kernel_size, kernel_size))
         kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
         kernel_v /= kernel_size
@@ -120,6 +120,8 @@ class MTE:
         kernel_h /= kernel_size
 
         for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
+            if not file.endswith(".jpg"):
+                continue
             checkout = 0
             filename = "videoForBenchmark/benchmark Validation capture/"+file
             print("Computing "+file)
@@ -221,7 +223,7 @@ class MTE:
                                         'Distance ROI 1' : distRoi[0],
                                         'Distance ROI 2' : distRoi[1],
                                         'Distance ROI 3' : distRoi[2],
-                                        'type de flou' : "gaussien"})
+                                        'type de flou' : "vertical"})
             else :
                 cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
@@ -230,7 +232,7 @@ class MTE:
                                         'Nombre de match' : nb_match,
                                         'Coefficient de translation' : sumTranslation,
                                         'Coefficient de rotation' : sumSkew,
-                                        'type de flou' : "gaussien"})
+                                        'type de flou' : "vertical"})
             ################# Flou horizontal  #############################
             startFrameComputing = time.time()
             horizontal_redux = cv2.resize(image_horizontal_motion_blur,dim, interpolation = cv2.INTER_AREA)
@@ -250,7 +252,7 @@ class MTE:
                                         'Distance ROI 1' : distRoi[0],
                                         'Distance ROI 2' : distRoi[1],
                                         'Distance ROI 3' : distRoi[2],
-                                        'type de flou' : "gaussien"})
+                                        'type de flou' : "horizontal"})
             else :
                 cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),warpedImg)
                 writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
@@ -259,7 +261,7 @@ class MTE:
                                         'Nombre de match' : nb_match,
                                         'Coefficient de translation' : sumTranslation,
                                         'Coefficient de rotation' : sumSkew,
-                                        'type de flou' : "gaussien"})
+                                        'type de flou' : "horizontal"})
             if checkout == 3:
                 print(file + " est valide pour référence")
             else:
