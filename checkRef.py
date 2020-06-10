@@ -119,6 +119,22 @@ class MTE:
         kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
         kernel_h /= kernel_size
 
+        csv_file_gaus = open('gauss.csv','w')
+        metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
+                'Coefficient de translation','Coefficient de rotation',
+                'Distance D VisionCheck','Distance ROI 1',
+                'Distance ROI 2','Distance ROI 3','width=',self.resize_width,'height=',self.resize_height,'type de flou']
+        writer_gaus = csv.DictWriter(csv_file_gaus, fieldnames=metrics)
+        writer_gaus.writeheader()
+
+        csv_file_mvth = open('horizontal.csv','w')
+        writer_mvh = csv.DictWriter(csv_file_mvth, fieldnames=metrics)
+        writer_mvh.writeheader()
+
+        csv_file_mvtv = open('vertical.csv','w')
+        writer_mvv = csv.DictWriter(csv_file_mvtv, fieldnames=metrics)
+        writer_mvv.writeheader()
+
         for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
             if not file.endswith(".jpg"):
                 continue
@@ -163,7 +179,7 @@ class MTE:
             metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
                     'Coefficient de translation','Coefficient de rotation',
                     'Distance D VisionCheck','Distance ROI 1',
-                    'Distance ROI 2','Distance ROI 3','np kp ref origine =',len(image_ref_kp),"np kp ref reduit=",len(kp_image_ref_reduite),'width=',self.resize_width,'height=',self.resize_height,'type de flou']
+                    'Distance ROI 2','Distance ROI 3','np kp ref origine =',len(image_ref_kp),"np kp ref reduit=",len(image_ref_reduite_kp),'width=',self.resize_width,'height=',self.resize_height,'type de flou']
             writer = csv.DictWriter(csvFile, fieldnames=metrics)
             writer.writeheader()
 
@@ -185,6 +201,9 @@ class MTE:
             self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
                 success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
                 dist_roi[0],dist_roi[1],dist_roi[2],"gaussien")
+            self.fillWriter(writer_gaus,stopFrameComputing-startFrameComputing,\
+                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
+                dist_roi[0],dist_roi[1],dist_roi[2],"gaussien")
 
             ################# Flou vertical  #############################
             startFrameComputing = time.time()
@@ -202,6 +221,9 @@ class MTE:
             self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
                 success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
                 dist_roi[0],dist_roi[1],dist_roi[2],"vertical")
+            self.fillWriter(writer_mvv,stopFrameComputing-startFrameComputing,\
+                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
+                dist_roi[0],dist_roi[1],dist_roi[2],"vertical")
             ################# Flou horizontal  #############################
             startFrameComputing = time.time()
             horizontal_redux = cv2.resize(image_horizontal_motion_blur,dim, interpolation = cv2.INTER_AREA)
@@ -216,6 +238,9 @@ class MTE:
                 sum_distances=0
                 cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),warped_img)
             self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
+                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
+                dist_roi[0],dist_roi[1],dist_roi[2],"horizontal")
+            self.fillWriter(writer_mvh,stopFrameComputing-startFrameComputing,\
                 success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
                 dist_roi[0],dist_roi[1],dist_roi[2],"horizontal")
 
