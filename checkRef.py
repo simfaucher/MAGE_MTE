@@ -86,6 +86,9 @@ class MTE:
         else:
             self.vc_like_engine = VCLikeEngine()
 
+    ### This function creates and initialize a writer
+    ### In : name -> String being the name of the csv files that will be created, can be a path
+    ### Out : Writer object pointing to name.csv
     def initWriter(self, name):
         result_csv = open(name+'.csv','w')
         metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
@@ -97,6 +100,12 @@ class MTE:
         writer.writeheader()
         return writer
 
+    ### This function fill a csv files with the data set as input
+    ### In :    writer -> Object pointing to the csv file
+    ###         results -> array containing the results of the recognition
+    ###         blur -> string to associate a blur with a recognition
+    ###         nb_kp_ref -> int for the number of keypoints in the potential reference at full size
+    ###         nb_kp_ref_red -> int for the number of keypoints in the potential reference at redux size
     def fillWriter(self, writer, results, blur, nb_kp_ref, nb_kp_ref_red):
         if results["success"]:
             writer.writerow({   'Temps' : results["timer"],
@@ -123,9 +132,11 @@ class MTE:
                                 'nb kp ref origine' : nb_kp_ref,
                                 'nb kp ref reduit' : nb_kp_ref_red})
 
+    ### Iniatialize learning datas with the reference and avoid the DB's use
+    ### In :    image_ref_reduite -> int array of the reduced reference
+    ###         image_ref -> int array of the reference at full size
     def fakeInitForReference(self, image_ref_reduite, image_ref):
         learning_data = LearningData(-1,"0",image_ref_reduite,image_ref)
-        self.last_learning_data = learning_data
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
@@ -134,7 +145,11 @@ class MTE:
         else:
             self.vc_like_engine.learn(learning_data)
         self.ml_validator.learn(learning_data)
+        self.last_learning_data = learning_data
 
+    ### Test the recognition between the input and the image learned with fakeInitForReference
+    ### In :    blurred_image -> int array of the blurred reference
+    ### Out :   results -> array containing the results of the recognition
     def testFilter(self, blurred_image):
         start_frame_computing = time.time()
         dim = (self.resize_width, self.resize_height)
@@ -153,6 +168,9 @@ class MTE:
                     'warped_img' : warped_img}
         return results
 
+    ### Check if the images in a folder are valid for MTE
+    ### In  :
+    ### Out :
     def checkReference(self):
         kernel_size = 25
         sigma = 5
@@ -199,8 +217,8 @@ class MTE:
             image_ref_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref, None)
             for i in range (len(image_ref_kp)):
                 image_ref_kp[i].size = 2
-            kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imwrite(filename[:-4]+"/image_ref.png",kp_image_ref)
+            draw_kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref.png",draw_kp_image_ref)
 
             # Resize reference and compute keypoints
             dim = (self.resize_width, self.resize_height)
@@ -208,8 +226,8 @@ class MTE:
             image_ref_reduite_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
             for i in range (len(image_ref_reduite_kp)):
                 image_ref_reduite_kp[i].size = 1
-            kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",kp_image_ref_reduite)
+            draw_kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",draw_kp_image_ref_reduite)
             lenght_kp_image_ref = len(kp_image_ref)
             lenght_kp_image_ref_red = len(kp_image_ref_reduite)
 
@@ -255,9 +273,18 @@ class MTE:
             self.fillWriter(writer_mvh, results, "horizontal", lenght_kp_image_ref, lenght_kp_image_ref_red)
 
             if checkout == 3:
+                self.saveReferenceData(image_ref,image_ref_kp,image_ref_reduite,image_ref_reduite_kp)
                 print(file + " est valide pour référence")
             else:
                 print(file + " est invalide pour référence")
+
+    def saveReferenceData(self, image_full, kp_full, image_redux, kp_redux):
+        dim = (640, 360)
+        image_ref_half_redux = cv2.resize(image_full,dim, interpolation = cv2.INTER_AREA)
+        image_ref_half_redux_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
+        for i in range (len(image_ref_half_redux_kp)):
+            image_ref_half_redux_kp[i].size = 1
+        ## TODO : save kp_full, image_ref_half_redux_kp and kp_redux
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
