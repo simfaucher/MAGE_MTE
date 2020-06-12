@@ -45,6 +45,7 @@ from D2NetEngine import D2NetEngine
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 VID=''
+DEBUG = True
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -78,33 +79,79 @@ class MTE:
         self.crop_margin = crop_margin
         self.resize_width = resize_width
         self.resize_height = int((resize_width/16)*9)
+        self.ref = None
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
         else:
             self.vc_like_engine = VCLikeEngine()
 
-    def fillWriter(self,writer,tm,val,nb_kp,nb_match,sum_trans,sum_skew,sum_d,d1,d2,d3,blur):
-        if val:
-            writer.writerow({   'Temps' : tm ,
-                                'Validité' : val,
-                                'Nombre de points interet': nb_kp,
-                                'Nombre de match' : nb_match,
-                                'Coefficient de translation' : sum_trans,
-                                'Coefficient de rotation' : sum_skew,
-                                'Distance D VisionCheck' : sum_d,
-                                'Distance ROI 1' : d1,
-                                'Distance ROI 2' : d2,
-                                'Distance ROI 3' : d3,
-                                'type de flou' : blur})
+    def initWriter(self, name):
+        result_csv = open(name+'.csv','w')
+        metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
+                'Coefficient de translation','Coefficient de rotation',
+                'Distance D VisionCheck','Distance ROI 1',
+                'Distance ROI 2','Distance ROI 3','width=',self.resize_width,'height=',self.resize_height,'type de flou',
+                'nb kp ref origine','nb kp ref reduit']
+        writer = csv.DictWriter(result_csv, fieldnames=metrics)
+        writer.writeheader()
+        return writer
+
+    def fillWriter(self, writer, results, blur, nb_kp_ref, nb_kp_ref_red):
+        if results["success"]:
+            writer.writerow({   'Temps' : results["timer"],
+                                'Validité' : results["success"],
+                                'Nombre de points interet': results["nb_kp"],
+                                'Nombre de match' : results["nb_match"],
+                                'Coefficient de translation' : results["sum_translation"],
+                                'Coefficient de rotation' : results["sum_skew"],
+                                'Distance D VisionCheck' : results["sum_distances"],
+                                'Distance ROI 1' : results["dist_roi"][0],
+                                'Distance ROI 2' : results["dist_roi"][1],
+                                'Distance ROI 3' : results["dist_roi"][2],
+                                'type de flou' : blur,
+                                'nb kp ref origine' : nb_kp_ref,
+                                'nb kp ref reduit' : nb_kp_ref_red})
         else:
-            writer.writerow({   'Temps' : tm ,
-                                'Validité' : val,
-                                'Nombre de points interet': nb_kp,
-                                'Nombre de match' : nb_match,
-                                'Coefficient de translation' : sum_trans,
-                                'Coefficient de rotation' : sum_skew,
-                                'type de flou' : blur})
+            writer.writerow({   'Temps' : results["timer"],
+                                'Validité' : results["success"],
+                                'Nombre de points interet': results["nb_kp"],
+                                'Nombre de match' : results["nb_match"],
+                                'Coefficient de translation' : results["sum_translation"],
+                                'Coefficient de rotation' : results["sum_skew"],
+                                'type de flou' : blur,
+                                'nb kp ref origine' : nb_kp_ref,
+                                'nb kp ref reduit' : nb_kp_ref_red})
+
+    def fakeInitForReference(self, image_ref_reduite, image_ref):
+        learning_data = LearningData(-1,"0",image_ref_reduite,image_ref)
+        self.last_learning_data = learning_data
+
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        else:
+            self.vc_like_engine.learn(learning_data)
+        self.ml_validator.learn(learning_data)
+
+    def testFilter(self, blurred_image):
+        start_frame_computing = time.time()
+        dim = (self.resize_width, self.resize_height)
+        gaussian_redux = cv2.resize(blurred_image,dim, interpolation = cv2.INTER_AREA)
+        success, recog_ret_data,nb_kp, nb_match, sum_translation, sum_skew, sum_distances, dist_roi, warped_img = self.recognition(-1, gaussian_redux)
+        stop_frame_computing = time.time()
+        results = { 'success' : success,
+                    'timer' : stop_frame_computing-start_frame_computing,
+                    'recog_ret_data' : recog_ret_data,
+                    'nb_kp' : nb_kp,
+                    'nb_match' : nb_match,
+                    'sum_translation' : sum_translation,
+                    'sum_skew' : sum_skew,
+                    'sum_distances' : sum_distances,
+                    'dist_roi' : dist_roi,
+                    'warped_img' : warped_img}
+        return results
 
     def checkReference(self):
         kernel_size = 25
@@ -119,53 +166,43 @@ class MTE:
         kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
         kernel_h /= kernel_size
 
-        csv_file_gaus = open('gauss.csv','w')
-        metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
-                'Coefficient de translation','Coefficient de rotation',
-                'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','width=',self.resize_width,'height=',self.resize_height,'type de flou']
-        writer_gaus = csv.DictWriter(csv_file_gaus, fieldnames=metrics)
-        writer_gaus.writeheader()
-
-        csv_file_mvth = open('horizontal.csv','w')
-        writer_mvh = csv.DictWriter(csv_file_mvth, fieldnames=metrics)
-        writer_mvh.writeheader()
-
-        csv_file_mvtv = open('vertical.csv','w')
-        writer_mvv = csv.DictWriter(csv_file_mvtv, fieldnames=metrics)
-        writer_mvv.writeheader()
+        writer_gaus = self.initWriter('gauss')
+        writer_mvh = self.initWriter('horizontal')
+        writer_mvv = self.initWriter('vertical')
 
         for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
             if not file.endswith(".jpg"):
                 continue
             checkout = 0
             filename = "videoForBenchmark/benchmark Validation capture/"+file
-            print("Computing "+file)
+            if DEBUG:
+                print("Computing "+file)
             image_ref = cv2.imread(filename)
             try:
                 os.mkdir(filename[:-4])
             except FileExistsError:
                 shutil.rmtree(filename[:-4])
                 os.mkdir(filename[:-4])
-                print("Suppression du dossier existant")
+                if DEBUG:
+                    print("Suppression du dossier existant")
 
-            # Bruit gaussien
+            # Gaussian noise
             image_gaussian_blur=cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
 
-            # Bruit de mouvement vertical.
+            # Vertical motion blur.
             image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
 
-            # Bruit de mouvement horizontal.
+            # Horizontal motion blur.
             image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
 
-            # Recup point d'interet image de base
+            # Compute keypoints for reference
             image_ref_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref, None)
             for i in range (len(image_ref_kp)):
                 image_ref_kp[i].size = 2
             kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imwrite(filename[:-4]+"/image_ref.png",kp_image_ref)
 
-            # Reduction de dimension
+            # Resize reference and compute keypoints
             dim = (self.resize_width, self.resize_height)
             image_ref_reduite = cv2.resize(image_ref,dim, interpolation = cv2.INTER_AREA)
             image_ref_reduite_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
@@ -173,76 +210,49 @@ class MTE:
                 image_ref_reduite_kp[i].size = 1
             kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",kp_image_ref_reduite)
+            lenght_kp_image_ref = len(kp_image_ref)
+            lenght_kp_image_ref_red = len(kp_image_ref_reduite)
 
-            # Ecriture des resultats pour chaque image dans un dossier
-            csvFile = open(filename[:-4]+'/value.csv','w')
-            metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
-                    'Coefficient de translation','Coefficient de rotation',
-                    'Distance D VisionCheck','Distance ROI 1',
-                    'Distance ROI 2','Distance ROI 3','np kp ref origine =',len(image_ref_kp),"np kp ref reduit=",len(image_ref_reduite_kp),'width=',self.resize_width,'height=',self.resize_height,'type de flou']
-            writer = csv.DictWriter(csvFile, fieldnames=metrics)
-            writer.writeheader()
+            # A writer for each image in his folder
+            writer_for_image = self.initWriter(filename[:-4]+'/value')
 
-            ret_data = {}
+            self.fakeInitForReference(image_ref_reduite,image_ref)
 
-            # Gaussien
-            startFrameComputing = time.time()
-            gaussian_redux = cv2.resize(image_gaussian_blur,dim, interpolation = cv2.INTER_AREA)
-            success, recog_ret_data,nb_kp, nb_match, sum_translation, sum_skew, sum_distances,dist_roi,warped_img = self.recognition(image_ref, gaussian_redux)
-            stopFrameComputing = time.time()
-
-            if success :
+            results = self.testFilter(image_gaussian_blur)
+            if results["success"] :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieGaussiennek{}s{}.png".format(kernel,sigma),warped_img)
+                cv2.imwrite(filename[:-4]+"/homographieGaussiennek{}s{}.png".format(kernel,sigma),results["warped_img"])
             else :
-                cv2.imwrite(filename[:-4]+"/echecGaussiennek{}s{}.png".format(kernel,sigma),warped_img)
-                dist_roi=[0,0,0]
-                sum_distances=0
-            self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"gaussien")
-            self.fillWriter(writer_gaus,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"gaussien")
+                cv2.imwrite(filename[:-4]+"/echecGaussiennek{}s{}.png".format(kernel,sigma),results["warped_img"])
+                # results["dist_roi"] = [0,0,0]
+                results["sum_distances"] = 0
+            self.fillWriter(writer_for_image, results, "gaussien", lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fillWriter(writer_gaus, results, "gaussien", lenght_kp_image_ref, lenght_kp_image_ref_red)
 
             ################# Flou vertical  #############################
-            startFrameComputing = time.time()
-            vertical_redux = cv2.resize(image_vertical_motion_blur,dim, interpolation = cv2.INTER_AREA)
-            success, recog_ret_data,nb_kp, nb_match, sum_translation, sum_skew, sum_distances,dist_roi,warped_img = self.recognition(image_ref, vertical_redux)
-            stopFrameComputing = time.time()
+            results = self.testFilter(image_vertical_motion_blur)
 
-            if success :
+            if results["success"] :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieVerticale{}.png".format(kernel_size),warped_img)
+                cv2.imwrite(filename[:-4]+"/homographieVerticale{}.png".format(kernel_size),results["warped_img"])
             else :
-                dist_roi=[0,0,0]
+                # dist_roi=[0,0,0]
                 sum_distances=0
-                cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".format(kernel_size),warped_img)
-            self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"vertical")
-            self.fillWriter(writer_mvv,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"vertical")
+                cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".format(kernel_size),results["warped_img"])
+            self.fillWriter(writer_for_image, results, "vertical", lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fillWriter(writer_mvv, results, "vertical", lenght_kp_image_ref, lenght_kp_image_ref_red)
             ################# Flou horizontal  #############################
-            startFrameComputing = time.time()
-            horizontal_redux = cv2.resize(image_horizontal_motion_blur,dim, interpolation = cv2.INTER_AREA)
-            success, recog_ret_data,nb_kp, nb_match, sum_translation, sum_skew, sum_distances,dist_roi,warped_img = self.recognition(image_ref, horizontal_redux)
-            stopFrameComputing = time.time()
+            results = self.testFilter(image_horizontal_motion_blur)
 
-            if success :
+            if results["success"] :
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieHorizontale{}.png".format(kernel_size),warped_img)
+                cv2.imwrite(filename[:-4]+"/homographieHorizontale{}.png".format(kernel_size),results["warped_img"])
             else :
-                dist_roi=[0,0,0]
+                # dist_roi=[0,0,0]
                 sum_distances=0
-                cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),warped_img)
-            self.fillWriter(writer,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"horizontal")
-            self.fillWriter(writer_mvh,stopFrameComputing-startFrameComputing,\
-                success,nb_kp,nb_match,sum_translation,sum_skew,sum_distances,\
-                dist_roi[0],dist_roi[1],dist_roi[2],"horizontal")
+                cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),results["warped_img"])
+            self.fillWriter(writer_for_image, results, "horizontal", lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fillWriter(writer_mvh, results, "horizontal", lenght_kp_image_ref, lenght_kp_image_ref_red)
 
             if checkout == 3:
                 print(file + " est valide pour référence")
@@ -270,7 +280,7 @@ class MTE:
 
         return learning_id
 
-    def recognition(self, ref, image):
+    def recognition(self, pov_id, image):
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto
         ret_data = {
             "scale": "OK",
@@ -283,19 +293,7 @@ class MTE:
         }
         sum_distances = 9999
         distances = 9999
-        dim = (self.resize_width, self.resize_height)
-        image_ref_reduite = cv2.resize(ref,dim, interpolation = cv2.INTER_AREA)
-        learning_data = LearningData(0,"0",image_ref_reduite,ref)
-
-        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            # Learn SIFT data
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
-        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
-        else:
-            # Learn VC-like engine data
-            self.vc_like_engine.learn(learning_data)
-        self.ml_validator.learn(learning_data)
+        learning_data = self.get_learning_data(pov_id)
 
         fps = FPS().start()
         nb_matches = 0
