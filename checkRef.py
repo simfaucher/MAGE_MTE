@@ -82,20 +82,21 @@ class MTE:
         self.ref = None
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
+            self.sift_engine = SIFTEngine(maxRansac=ransacount, width=self.resize_width, height=self.resize_height)
         else:
             self.vc_like_engine = VCLikeEngine()
 
     ### This function creates and initialize a writer
     ### In : name -> String being the name of the csv files that will be created, can be a path
     ### Out : Writer object pointing to name.csv
-    def initWriter(self, name):
-        result_csv = open(name+'.csv','w')
-        metrics=['Temps','Validité','Nombre de points interet','Nombre de match',
-                'Coefficient de translation','Coefficient de rotation',
-                'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','width=',self.resize_width,'height=',self.resize_height,'type de flou',
-                'nb kp ref origine','nb kp ref reduit']
+    def init_writer(self, name):
+        result_csv = open(name+'.csv', 'w')
+        metrics = ['Temps', 'Validité', 'Nombre de points interet', 'Nombre de match',
+                   'Coefficient de translation', 'Coefficient de rotation',
+                   'Distance D VisionCheck', 'Distance ROI 1',
+                   'Distance ROI 2', 'Distance ROI 3', 'width=',
+                   self.resize_width, 'height=', self.resize_height, 'type de flou',
+                   'nb kp ref origine', 'nb kp ref reduit']
         writer = csv.DictWriter(result_csv, fieldnames=metrics)
         writer.writeheader()
         return writer
@@ -106,37 +107,37 @@ class MTE:
     ###         blur -> string to associate a blur with a recognition
     ###         nb_kp_ref -> int for the number of keypoints in the potential reference at full size
     ###         nb_kp_ref_red -> int for the number of keypoints in the potential reference at redux size
-    def fillWriter(self, writer, results, blur, nb_kp_ref, nb_kp_ref_red):
+    def fill_writer(self, writer, results, blur, nb_kp_ref, nb_kp_ref_red):
         if results["success"]:
-            writer.writerow({   'Temps' : results["timer"],
-                                'Validité' : results["success"],
-                                'Nombre de points interet': results["nb_kp"],
-                                'Nombre de match' : results["nb_match"],
-                                'Coefficient de translation' : results["sum_translation"],
-                                'Coefficient de rotation' : results["sum_skew"],
-                                'Distance D VisionCheck' : results["sum_distances"],
-                                'Distance ROI 1' : results["dist_roi"][0],
-                                'Distance ROI 2' : results["dist_roi"][1],
-                                'Distance ROI 3' : results["dist_roi"][2],
-                                'type de flou' : blur,
-                                'nb kp ref origine' : nb_kp_ref,
-                                'nb kp ref reduit' : nb_kp_ref_red})
+            writer.writerow({'Temps' : results["timer"],
+                             'Validité' : results["success"],
+                             'Nombre de points interet': results["nb_kp"],
+                             'Nombre de match' : results["nb_match"],
+                             'Coefficient de translation' : results["sum_translation"],
+                             'Coefficient de rotation' : results["sum_skew"],
+                             'Distance D VisionCheck' : results["sum_distances"],
+                             'Distance ROI 1' : results["dist_roi"][0],
+                             'Distance ROI 2' : results["dist_roi"][1],
+                             'Distance ROI 3' : results["dist_roi"][2],
+                             'type de flou' : blur,
+                             'nb kp ref origine' : nb_kp_ref,
+                             'nb kp ref reduit' : nb_kp_ref_red})
         else:
-            writer.writerow({   'Temps' : results["timer"],
-                                'Validité' : results["success"],
-                                'Nombre de points interet': results["nb_kp"],
-                                'Nombre de match' : results["nb_match"],
-                                'Coefficient de translation' : results["sum_translation"],
-                                'Coefficient de rotation' : results["sum_skew"],
-                                'type de flou' : blur,
-                                'nb kp ref origine' : nb_kp_ref,
-                                'nb kp ref reduit' : nb_kp_ref_red})
+            writer.writerow({'Temps' : results["timer"],
+                             'Validité' : results["success"],
+                             'Nombre de points interet': results["nb_kp"],
+                             'Nombre de match' : results["nb_match"],
+                             'Coefficient de translation' : results["sum_translation"],
+                             'Coefficient de rotation' : results["sum_skew"],
+                             'type de flou' : blur,
+                             'nb kp ref origine' : nb_kp_ref,
+                             'nb kp ref reduit' : nb_kp_ref_red})
 
     ### Iniatialize learning datas with the reference and avoid the DB's use
     ### In :    image_ref_reduite -> int array of the reduced reference
     ###         image_ref -> int array of the reference at full size
-    def fakeInitForReference(self, image_ref_reduite, image_ref):
-        learning_data = LearningData(-1,"0",image_ref_reduite,image_ref)
+    def fake_init_for_reference(self, image_ref_reduite, image_ref):
+        learning_data = LearningData(-1, "0", image_ref_reduite, image_ref)
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
@@ -150,28 +151,29 @@ class MTE:
     ### Test the recognition between the input and the image learned with fakeInitForReference
     ### In :    blurred_image -> int array of the blurred reference
     ### Out :   results -> array containing the results of the recognition
-    def testFilter(self, blurred_image):
+    def test_filter(self, blurred_image):
         start_frame_computing = time.time()
         dim = (self.resize_width, self.resize_height)
-        gaussian_redux = cv2.resize(blurred_image,dim, interpolation = cv2.INTER_AREA)
-        success, recog_ret_data,nb_kp, nb_match, sum_translation, sum_skew, sum_distances, dist_roi, warped_img = self.recognition(-1, gaussian_redux)
+        gaussian_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
+        success, recog_ret_data, nb_kp, nb_match, sum_translation, \
+            sum_skew, sum_distances, dist_roi, warped_img = self.recognition(-1, gaussian_redux)
         stop_frame_computing = time.time()
-        results = { 'success' : success,
-                    'timer' : stop_frame_computing-start_frame_computing,
-                    'recog_ret_data' : recog_ret_data,
-                    'nb_kp' : nb_kp,
-                    'nb_match' : nb_match,
-                    'sum_translation' : sum_translation,
-                    'sum_skew' : sum_skew,
-                    'sum_distances' : sum_distances,
-                    'dist_roi' : dist_roi,
-                    'warped_img' : warped_img}
+        results = {'success' : success,
+                   'timer' : stop_frame_computing-start_frame_computing,
+                   'recog_ret_data' : recog_ret_data,
+                   'nb_kp' : nb_kp,
+                   'nb_match' : nb_match,
+                   'sum_translation' : sum_translation,
+                   'sum_skew' : sum_skew,
+                   'sum_distances' : sum_distances,
+                   'dist_roi' : dist_roi,
+                   'warped_img' : warped_img}
         return results
 
     ### Check if the images in a folder are valid for MTE
     ### In  :
     ### Out :
-    def checkReference(self):
+    def check_reference(self):
         kernel_size = 25
         sigma = 5
         kernel = 31
@@ -184,9 +186,9 @@ class MTE:
         kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
         kernel_h /= kernel_size
 
-        writer_gaus = self.initWriter('gauss')
-        writer_mvh = self.initWriter('horizontal')
-        writer_mvv = self.initWriter('vertical')
+        writer_gaus = self.init_writer('gauss')
+        writer_mvh = self.init_writer('horizontal')
+        writer_mvv = self.init_writer('vertical')
 
         for file in os.listdir("videoForBenchmark/benchmark Validation capture/"):
             if not file.endswith(".jpg"):
@@ -205,7 +207,7 @@ class MTE:
                     print("Suppression du dossier existant")
 
             # Gaussian noise
-            image_gaussian_blur=cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
+            image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
 
             # Vertical motion blur.
             image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
@@ -214,75 +216,88 @@ class MTE:
             image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
 
             # Compute keypoints for reference
-            image_ref_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref, None)
-            for i in range (len(image_ref_kp)):
+            image_ref_kp, _ = self.sift_engine.sift.detectAndCompute(image_ref, None)
+            for i in range(len(image_ref_kp)):
                 image_ref_kp[i].size = 2
-            draw_kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imwrite(filename[:-4]+"/image_ref.png",draw_kp_image_ref)
+            draw_kp_image_ref = cv2.drawKeypoints(image_ref, image_ref_kp, \
+                np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref.png", draw_kp_image_ref)
 
             # Resize reference and compute keypoints
             dim = (self.resize_width, self.resize_height)
-            image_ref_reduite = cv2.resize(image_ref,dim, interpolation = cv2.INTER_AREA)
-            image_ref_reduite_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
-            for i in range (len(image_ref_reduite_kp)):
+            image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+            image_ref_reduite_kp, _ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
+            for i in range(len(image_ref_reduite_kp)):
                 image_ref_reduite_kp[i].size = 1
-            draw_kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imwrite(filename[:-4]+"/image_ref_reduite.png",draw_kp_image_ref_reduite)
-            lenght_kp_image_ref = len(kp_image_ref)
-            lenght_kp_image_ref_red = len(kp_image_ref_reduite)
+            draw_kp_image_ref_reduite = cv2.drawKeypoints(image_ref_reduite, image_ref_reduite_kp, \
+                np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imwrite(filename[:-4]+"/image_ref_reduite.png", draw_kp_image_ref_reduite)
+            lenght_kp_image_ref = len(image_ref_kp)
+            lenght_kp_image_ref_red = len(image_ref_reduite_kp)
 
             # A writer for each image in his folder
-            writer_for_image = self.initWriter(filename[:-4]+'/value')
+            writer_for_image = self.init_writer(filename[:-4]+'/value')
 
-            self.fakeInitForReference(image_ref_reduite,image_ref)
+            self.fake_init_for_reference(image_ref_reduite, image_ref)
 
-            results = self.testFilter(image_gaussian_blur)
-            if results["success"] :
+            results = self.test_filter(image_gaussian_blur)
+            if results["success"]:
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieGaussiennek{}s{}.png".format(kernel,sigma),results["warped_img"])
-            else :
-                cv2.imwrite(filename[:-4]+"/echecGaussiennek{}s{}.png".format(kernel,sigma),results["warped_img"])
+                cv2.imwrite(filename[:-4]+"/homographieGaussiennek{}s{}.png".\
+                    format(kernel, sigma), results["warped_img"])
+            else:
+                cv2.imwrite(filename[:-4]+"/echecGaussiennek{}s{}.png".\
+                    format(kernel, sigma), results["warped_img"])
                 # results["dist_roi"] = [0,0,0]
                 results["sum_distances"] = 0
-            self.fillWriter(writer_for_image, results, "gaussien", lenght_kp_image_ref, lenght_kp_image_ref_red)
-            self.fillWriter(writer_gaus, results, "gaussien", lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fill_writer(writer_for_image, results, "gaussien", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fill_writer(writer_gaus, results, "gaussien", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
 
             ################# Flou vertical  #############################
-            results = self.testFilter(image_vertical_motion_blur)
+            results = self.test_filter(image_vertical_motion_blur)
 
-            if results["success"] :
+            if results["success"]:
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieVerticale{}.png".format(kernel_size),results["warped_img"])
-            else :
+                cv2.imwrite(filename[:-4]+"/homographieVerticale{}.png".\
+                    format(kernel_size), results["warped_img"])
+            else:
                 # dist_roi=[0,0,0]
-                sum_distances=0
-                cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".format(kernel_size),results["warped_img"])
-            self.fillWriter(writer_for_image, results, "vertical", lenght_kp_image_ref, lenght_kp_image_ref_red)
-            self.fillWriter(writer_mvv, results, "vertical", lenght_kp_image_ref, lenght_kp_image_ref_red)
+                cv2.imwrite(filename[:-4]+"/echecVerticale{}.png".\
+                    format(kernel_size), results["warped_img"])
+            self.fill_writer(writer_for_image, results, "vertical", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fill_writer(writer_mvv, results, "vertical", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
             ################# Flou horizontal  #############################
-            results = self.testFilter(image_horizontal_motion_blur)
+            results = self.test_filter(image_horizontal_motion_blur)
 
-            if results["success"] :
+            if results["success"]:
                 checkout += 1
-                cv2.imwrite(filename[:-4]+"/homographieHorizontale{}.png".format(kernel_size),results["warped_img"])
-            else :
+                cv2.imwrite(filename[:-4]+"/homographieHorizontale{}.png".\
+                    format(kernel_size), results["warped_img"])
+            else:
                 # dist_roi=[0,0,0]
-                sum_distances=0
-                cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".format(kernel_size),results["warped_img"])
-            self.fillWriter(writer_for_image, results, "horizontal", lenght_kp_image_ref, lenght_kp_image_ref_red)
-            self.fillWriter(writer_mvh, results, "horizontal", lenght_kp_image_ref, lenght_kp_image_ref_red)
+                cv2.imwrite(filename[:-4]+"/echecHorizontale{}.png".\
+                    format(kernel_size), results["warped_img"])
+            self.fill_writer(writer_for_image, results, "horizontal", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
+            self.fill_writer(writer_mvh, results, "horizontal", \
+                lenght_kp_image_ref, lenght_kp_image_ref_red)
 
             if checkout == 3:
-                self.saveReferenceData(image_ref,image_ref_kp,image_ref_reduite,image_ref_reduite_kp)
+                self.save_reference_data(image_ref, image_ref_kp, \
+                    image_ref_reduite, image_ref_reduite_kp)
                 print(file + " est valide pour référence")
             else:
                 print(file + " est invalide pour référence")
 
-    def saveReferenceData(self, image_full, kp_full, image_redux, kp_redux):
+    def save_reference_data(self, image_full, kp_full, image_redux, kp_redux):
         dim = (640, 360)
-        image_ref_half_redux = cv2.resize(image_full,dim, interpolation = cv2.INTER_AREA)
-        image_ref_half_redux_kp,_ = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
-        for i in range (len(image_ref_half_redux_kp)):
+        image_ref_half_redux = cv2.resize(image_full, dim, interpolation=cv2.INTER_AREA)
+        image_ref_half_redux_kp, _ = self.sift_engine.sift.detectAndCompute(image_redux, None)
+        for i in range(len(image_ref_half_redux_kp)):
             image_ref_half_redux_kp[i].size = 1
         ## TODO : save kp_full, image_ref_half_redux_kp and kp_redux
 
@@ -328,7 +343,7 @@ class MTE:
             success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
@@ -511,4 +526,4 @@ if __name__ == "__main__":
     print(args["width"])
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"],ransacount=args["ransacount"])
-    mte.checkReference()
+    mte.check_reference()

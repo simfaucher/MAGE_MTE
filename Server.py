@@ -74,28 +74,32 @@ class MTE:
         # Motion tracking engines
         self.mte_algo = mte_algo
         self.crop_margin = crop_margin
+        self.validation_width = 380
+        self.validation_height = int((self.validation_width/16)*9)
         self.resize_width = resize_width
         self.resize_height = int((resize_width/16)*9)
 
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine = D2NetEngine(max_edge=resize_width,max_sum_edges= resize_width + self.resize_height,\
-                                            maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
+            self.d2net_engine = D2NetEngine(max_edge=resize_width, \
+                                            max_sum_edges= resize_width + self.resize_height,\
+                                            maxRansac = ransacount,width = self.resize_width, \
+                                            height = self.resize_height)
         else:
             self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
 
         #csvWriter
-        self.csvFile = open(self.mte_algo.name+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
+        # self.csvFile = open(self.mte_algo.name+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
 
-        metrics=['Temps','Nombre de points interet','Nombre de match',
-                'Coefficient de translation','Coefficient de rotation',
-                'Distance D VisionCheck','Distance ROI 1',
-                'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height]
-        self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
-        self.writer.writeheader()
+        # metrics=['Temps','Nombre de points interet','Nombre de match',
+        #         'Coefficient de translation','Coefficient de rotation',
+        #         'Distance D VisionCheck','Distance ROI 1',
+        #         'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height]
+        # self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
+        # self.writer.writeheader()
 
         #Behavior variables
         self.numberConsecutiveValidation = 0
-        self.resolutionMax = (self.resize_width,self.resize_height)
+        self.resolutionMax = (self.resize_width, self.resize_height)
 
     def listen_images(self):
         frameId = 0
@@ -118,7 +122,7 @@ class MTE:
 
             imageForLearning = image
             dim = (self.resize_width, self.resize_height)
-            image = cv2.resize(imageForLearning,dim, interpolation = cv2.INTER_AREA)
+            image = cv2.resize(imageForLearning, dim, interpolation=cv2.INTER_AREA)
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -129,42 +133,41 @@ class MTE:
                 ret_data["prelearning"] = {
                     "nb_kp": nb_kp
                 }
-                self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp})
+                # self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
+                #                     'Nombre de points interet': nb_kp})
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
-                learning_id = self.learning(imageForLearning)
+                learning_data = self.learning(imageForLearning)
 
-                ret_data["learning"] = {
-                    "id": learning_id
-                }
+                ret_data["learning"] = learning_data
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
-                success, recog_ret_data,nb_kp, nb_match, sumTranslation, sumSkew, sumD,distRoi,warpedImg = self.recognition(pov_id, image)
+                success, recog_ret_data, nb_kp, nb_match, sumTranslation, sumSkew, sumD, distRoi, warpedImg = self.recognition(pov_id, image)
                 stopFrameComputing = time.time()
 
                 ret_data["recognition"] = recog_ret_data
                 ret_data["recognition"]["success"] = success
                 if success :
+                    print("Success homographie frame {}".format(frameId))
                     # cv2.imwrite("framing/homograhpeiFlou{}".format(frameId)+".png",warpedImg)
                     # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
                     # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
-                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp,
-                                    'Nombre de match' : nb_match,
-                                    'Coefficient de translation' : sumTranslation,
-                                    'Coefficient de rotation' : sumSkew,
-                                    'Distance D VisionCheck' : sumD,
-                                    'Distance ROI 1' : distRoi[0],
-                                    'Distance ROI 2' : distRoi[1],
-                                    'Distance ROI 3' : distRoi[2]})
-                else :
-                    self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                                    'Nombre de points interet': nb_kp,
-                                    'Nombre de match' : nb_match,
-                                    'Coefficient de translation' : sumTranslation,
-                                    'Coefficient de rotation' : sumSkew})
+                #     self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                #                     'Nombre de points interet': nb_kp,
+                #                     'Nombre de match' : nb_match,
+                #                     'Coefficient de translation' : sumTranslation,
+                #                     'Coefficient de rotation' : sumSkew,
+                #                     'Distance D VisionCheck' : sumD,
+                #                     'Distance ROI 1' : distRoi[0],
+                #                     'Distance ROI 2' : distRoi[1],
+                #                     'Distance ROI 3' : distRoi[2]})
+                # else :
+                #     self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
+                #                     'Nombre de points interet': nb_kp,
+                #                     'Nombre de match' : nb_match,
+                #                     'Coefficient de translation' : sumTranslation,
+                #                     'Coefficient de rotation' : sumSkew})
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -183,6 +186,113 @@ class MTE:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
             frameId = frameId + 1
+
+    ### Iniatialize learning datas with the reference and avoid the DB's use
+    ### In :    image_ref_reduite -> int array of the reduced reference
+    ###         image_ref -> int array of the reference at full size
+    def fake_init_for_reference(self, image_ref_reduite, image_ref):
+        learning_data = LearningData(-1, "0", image_ref_reduite, image_ref)
+
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        else:
+            self.vc_like_engine.learn(learning_data)
+        self.ml_validator.learn(learning_data)
+        self.last_learning_data = learning_data
+
+    ### Test the recognition between the input and the image learned with fakeInitForReference
+    ### In :    blurred_image -> int array of the blurred reference
+    ### Out :   results -> array containing the results of the recognition
+    def test_filter(self, blurred_image):
+        start_frame_computing = time.time()
+        dim = (self.validation_width, self.validation_height)
+        gaussian_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
+        success, recog_ret_data, nb_kp, nb_match, sum_translation, \
+            sum_skew, sum_distances, dist_roi, warped_img = self.recognition(-1, gaussian_redux)
+        stop_frame_computing = time.time()
+        results = {'success' : success,
+                   'timer' : stop_frame_computing-start_frame_computing,
+                   'recog_ret_data' : recog_ret_data,
+                   'nb_kp' : nb_kp,
+                   'nb_match' : nb_match,
+                   'sum_translation' : sum_translation,
+                   'sum_skew' : sum_skew,
+                   'sum_distances' : sum_distances,
+                   'dist_roi' : dist_roi,
+                   'warped_img' : warped_img}
+        return results
+
+    ### Check if the images in a folder are valid for MTE
+    ### In  : image_ref -> int array of the potential reference
+    ### Out : validation_value -> dictionnary indicating the success or failure of the image
+    ### as well as the keypoints and theirs descriptors for severals dimensions of the image
+    def check_reference(self, image_ref):
+        kernel_size = 25
+        sigma = 5
+        kernel = 31
+
+        kernel_v = np.zeros((kernel_size, kernel_size))
+        kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
+        kernel_v /= kernel_size
+
+        kernel_h = np.zeros((kernel_size, kernel_size))
+        kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
+        kernel_h /= kernel_size
+
+        # Compute keypoints for reference
+        image_ref_kp, image_ref_desc = self.sift_engine.sift.detectAndCompute(image_ref, None)
+        for i in range(len(image_ref_kp)):
+            image_ref_kp[i].size = 2
+
+        # Resize reference and compute keypoints
+        dim = (self.validation_width, self.validation_height)
+        image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+        image_ref_reduite_kp, image_ref_reduite_desc = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
+        for i in range(len(image_ref_reduite_kp)):
+            image_ref_reduite_kp[i].size = 1
+
+        self.fake_init_for_reference(image_ref_reduite, image_ref)
+        validation_value = {'success' : False}
+
+        # Gaussian noise
+        image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
+        results = self.test_filter(image_gaussian_blur)
+        if not results["success"]:
+            return validation_value
+
+        # Vertical motion blur.
+        image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
+        results = self.test_filter(image_vertical_motion_blur)
+
+        if not results["success"]:
+            return validation_value
+
+        # Horizontal motion blur.
+        image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
+        results = self.test_filter(image_horizontal_motion_blur)
+
+        if not results["success"]:
+            return validation_value
+
+        # The intermediary resolution
+        dim = (640, 360)
+        image_ref_half_redux = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+        image_ref_half_redux_kp, image_ref_half_redux_desc = self.sift_engine.sift.detectAndCompute(image_ref_half_redux, None)
+        for i in range(len(image_ref_half_redux_kp)):
+            image_ref_half_redux_kp[i].size = 1
+        # All 3 noises are valid
+        #TODO cpoy
+        validation_value = {'success' : True,
+                            'full' : {'kp' : image_ref_kp, 
+                                      'desc' : image_ref_desc},
+                            'redux_kp' : image_ref_reduite_kp,
+                            'redux_desc' : image_ref_reduite_desc,
+                            'half_redux_kp' : image_ref_half_redux_kp,
+                            'half_redux_desc' : image_ref_half_redux_desc}
+
+        return validation_value
 
     #This function return a code that will inform the client what to do
     # TODO : create dommain/behavior.py
@@ -234,14 +344,24 @@ class MTE:
         return 0
 
     def learning(self, full_image):
-        # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
-        learning_id = self.repo.save_new_pov(full_image)
+        tmp_width = self.sift_engine.resized_width
+        tmp_height = self.sift_engine.resized_height
+        self.sift_engine.resized_width = self.validation_width
+        self.sift_engine.resized_height = self.validation_height
 
-        success, learning_data = self.repo.get_pov_by_id(learning_id, resize_width=self.resize_width)
-        if success:
-            self.learning_db.append(learning_data)
+        validation = self.check_reference(full_image)
+        if validation["success"]:
+            # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
+            validation["learning_id"] = self.repo.save_new_pov(full_image)
 
-        return learning_id
+            validation["success"], validation["learning_data"] = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.resize_width)
+            if validation["success"]:
+                self.learning_db.append(validation["learning_data"])                
+
+        self.sift_engine.resized_width = tmp_width
+        self.sift_engine.resized_height = tmp_height
+
+        return validation
 
     def recognition(self, pov_id, image):
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto
@@ -417,6 +537,16 @@ class MTE:
         # cv2.waitKey(0)
         return learning_data
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1', 'oui', 'o', 'vrai', 'v'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0', 'non', 'faux'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 if __name__ == "__main__":
     def convert_to_float(frac_str):
         try:
@@ -440,11 +570,18 @@ if __name__ == "__main__":
         help="Width of the input image (640 or 320). Default: 640")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
+    ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
+        const=True, default=False,\
+        help="Activate the verification mode if set to True. Default: False")
     args = vars(ap.parse_args())
 
     # print(MTEAlgo[args["algo"]])
     # print(convert_to_float(args["crop"]))
     # print(args["width"])
 
-    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"],ransacount=args["ransacount"])
-    mte.listen_images()
+    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"], ransacount=args["ransacount"])
+    if not args["verification"]:
+        mte.listen_images()
+    else:
+        mte.check_reference()
+
