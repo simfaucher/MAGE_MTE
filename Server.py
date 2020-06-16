@@ -22,6 +22,10 @@ from Domain.LearningData import LearningData
 from Domain.SiftData import SiftData
 from Domain.MLData import MLData
 from Repository import Repository
+from Domain.MTEResponse import MTEResponse
+from Domain.MTEThreshold import MTEThreshold
+from Domain.RecognitionData import RecognitionData
+from Domain.ResponseData import ResponseData
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
 from ML.Domain.Image import Image
@@ -87,26 +91,17 @@ class MTE:
         else:
             self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
 
-        #csvWriter
-        # self.csvFile = open(self.mte_algo.name+str(self.resize_width)+"x"+str(self.resize_height)+'.csv','w')
+        self.threshold_380 = MTEThreshold(260, 45, 2900, 900, 10000, 4000, 11000)
+        self.threshold_640 = MTEThreshold(750, 70, 2700, 1050, 12000, 5000, 15000)
+        self.threshold_1728 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
-        # metrics=['Temps','Nombre de points interet','Nombre de match',
-        #         'Coefficient de translation','Coefficient de rotation',
-        #         'Distance D VisionCheck','Distance ROI 1',
-        #         'Distance ROI 2','Distance ROI 3','CropRef=False','width=',self.resize_width,'height=',self.resize_height]
-        # self.writer = csv.DictWriter(self.csvFile, fieldnames=metrics)
-        # self.writer.writeheader()
-
-        #Behavior variables
-        self.numberConsecutiveValidation = 0
-        self.resolutionMax = (self.resize_width, self.resize_height)
+        self.rollback = 0
+        self.validation = 0
+        
 
     def listen_images(self):
-        frameId = 0
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
-            #Fonction bloquante on peut donc lancer le timer juste aprèsc
-            startFrameComputing = time.time()
 
             data = json.loads(msg)
 
@@ -120,9 +115,7 @@ class MTE:
                     cv2.destroyWindow("Matching result")
                 continue
 
-            imageForLearning = image
-            dim = (self.resize_width, self.resize_height)
-            image = cv2.resize(imageForLearning, dim, interpolation=cv2.INTER_AREA)
+            image_for_learning = image
 
             mode = MTEMode(data["mode"])
             if mode == MTEMode.PRELEARNING:
@@ -133,41 +126,24 @@ class MTE:
                 ret_data["prelearning"] = {
                     "nb_kp": nb_kp
                 }
-                # self.writer.writerow({'Temps' : time.time()-startFrameComputing ,
-                #                     'Nombre de points interet': nb_kp})
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
-                learning_data = self.learning(imageForLearning)
+                learning_data = self.learning(image_for_learning)
 
                 ret_data["learning"] = learning_data
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
-                success, recog_ret_data, nb_kp, nb_match, sumTranslation, sumSkew, sumD, distRoi, warpedImg = self.recognition(pov_id, image)
-                stopFrameComputing = time.time()
+                results = RecognitionData(*self.recognition(pov_id, image))
 
-                ret_data["recognition"] = recog_ret_data
-                ret_data["recognition"]["success"] = success
-                if success :
-                    print("Success homographie frame {}".format(frameId))
-                    # cv2.imwrite("framing/homograhpeiFlou{}".format(frameId)+".png",warpedImg)
-                    # cv2.imwrite("framing/resized{}".format(frameId)+".png",image)
-                    # cv2.imwrite("framing/init{}".format(frameId)+".png",imageForLearning)
-                #     self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                #                     'Nombre de points interet': nb_kp,
-                #                     'Nombre de match' : nb_match,
-                #                     'Coefficient de translation' : sumTranslation,
-                #                     'Coefficient de rotation' : sumSkew,
-                #                     'Distance D VisionCheck' : sumD,
-                #                     'Distance ROI 1' : distRoi[0],
-                #                     'Distance ROI 2' : distRoi[1],
-                #                     'Distance ROI 3' : distRoi[2]})
-                # else :
-                #     self.writer.writerow({'Temps' : stopFrameComputing-startFrameComputing ,
-                #                     'Nombre de points interet': nb_kp,
-                #                     'Nombre de match' : nb_match,
-                #                     'Coefficient de translation' : sumTranslation,
-                #                     'Coefficient de rotation' : sumSkew})
+                ret_data["recognition"] = results.recog_ret_data
+                ret_data["recognition"]["success"] = results.success
+                if image.shape[0] == 380:
+                    response_for_client = self.behaviour_380(results)
+                elif image.shape[0] == 640:
+                    self.behaviour_640(image, results)
+                else:
+                    self.behaviour_1728(image, results)
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -185,7 +161,79 @@ class MTE:
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
-            frameId = frameId + 1
+    def compute_direction(self,translation,size):
+        #size, t_x, t_y peuvent etre récup avec le self
+        return "H G"
+
+    def red_380(self):
+        size = 380
+        self.rollback += 1
+        if self.rollback >= 5:
+            self.rollback = 0
+            size = 640
+        return ResponseData(size, MTEResponse.RED, None, None, None, None, None)
+
+    def orange_380(self, results):
+        if self.validation > 0:
+            self.validation -= 1
+        if not results.success:
+            return ResponseData(380, MTEResponse.ORANGE, None, None, None, None, None)
+        return ResponseData(380, MTEResponse.ORANGE,\
+                            results.translations[0], results.translations[1], \
+                            self.compute_direction(results.translations, 380), \
+                            results.scales[0], results.scales[1])
+
+    def behaviour_380(self, results):
+        response = MTEResponse.RED
+        # If not enough keypoints
+        if results.nb_kp < self.threshold_380.nb_kp:
+            response_for_client = self.red_380()
+        # If not enough matches
+        elif results.nb_match < self.threshold_380.nb_match:
+            # If homography doesn't even start
+            if results.nb_match < 30:
+                response_for_client = self.red_380()
+            else:
+                response_for_client = self.orange_380(results)
+        else:
+            response = MTEResponse.GREEN
+            # If not centered with target
+            if not results.success:
+                self.validation = 0
+                response_for_client = ResponseData(380, response,\
+                                     results.translations[0], results.translations[1], \
+                                     self.compute_direction(results.translations, 380), \
+                                     results.scales[0], results.scales[1])
+            else:
+                dist_kirsh = results.dist_roi[0] < self.threshold_380.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_380.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_380.mean_color
+                # If 0 or 1 mean valid
+                if dist_kirsh+dist_canny+dist_color < 2:
+                    response_for_client = self.orange_380(results)
+                else:
+                    dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
+                    # If 0 aberration
+                    if dist_kirsh+dist_color == 2:
+                        self.validation += 1
+                        self.rollback = 0
+                    else:
+                        response = MTEResponse.ORANGE
+                    response_for_client = ResponseData(380, response,\
+                                     results.translations[0], results.translations[1], \
+                                     self.compute_direction(results.translations, 380), \
+                                     results.scales[0], results.scales[1])
+
+        if response_for_client.response == MTEResponse.GREEN:
+            self.rollback = 0
+        return response_for_client
+
+    def behaviour_640(self, image, results):
+        return True
+    
+    def behaviour_1728(self, image, results):
+        return True
 
     ### Iniatialize learning datas with the reference and avoid the DB's use
     ### In :    image_ref_reduite -> int array of the reduced reference
@@ -204,24 +252,12 @@ class MTE:
 
     ### Test the recognition between the input and the image learned with fakeInitForReference
     ### In :    blurred_image -> int array of the blurred reference
-    ### Out :   results -> array containing the results of the recognition
+    ### Out :   results -> RecognitionData containing the recognition's results
     def test_filter(self, blurred_image):
-        start_frame_computing = time.time()
         dim = (self.validation_width, self.validation_height)
         gaussian_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
-        success, recog_ret_data, nb_kp, nb_match, sum_translation, \
-            sum_skew, sum_distances, dist_roi, warped_img = self.recognition(-1, gaussian_redux)
-        stop_frame_computing = time.time()
-        results = {'success' : success,
-                   'timer' : stop_frame_computing-start_frame_computing,
-                   'recog_ret_data' : recog_ret_data,
-                   'nb_kp' : nb_kp,
-                   'nb_match' : nb_match,
-                   'sum_translation' : sum_translation,
-                   'sum_skew' : sum_skew,
-                   'sum_distances' : sum_distances,
-                   'dist_roi' : dist_roi,
-                   'warped_img' : warped_img}
+        results = RecognitionData(*self.recognition(-1, gaussian_redux))
+        
         return results
 
     ### Check if the images in a folder are valid for MTE
@@ -259,21 +295,21 @@ class MTE:
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
-        if not results["success"]:
+        if not results.success:
             return validation_value
 
         # Vertical motion blur.
         image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
         results = self.test_filter(image_vertical_motion_blur)
 
-        if not results["success"]:
+        if not results.success:
             return validation_value
 
         # Horizontal motion blur.
         image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
         results = self.test_filter(image_horizontal_motion_blur)
 
-        if not results["success"]:
+        if not results.success:
             return validation_value
 
         # The intermediary resolution
@@ -283,54 +319,19 @@ class MTE:
         for i in range(len(image_ref_half_redux_kp)):
             image_ref_half_redux_kp[i].size = 1
         # All 3 noises are valid
-        #TODO cpoy
         validation_value = {'success' : True,
                             'full' : {'kp' : image_ref_kp, 
-                                      'desc' : image_ref_desc},
-                            'redux_kp' : image_ref_reduite_kp,
-                            'redux_desc' : image_ref_reduite_desc,
-                            'half_redux_kp' : image_ref_half_redux_kp,
-                            'half_redux_desc' : image_ref_half_redux_desc}
+                                      'desc' : image_ref_desc
+                                      },
+                            'redux' : {'kp' : image_ref_reduite_kp,
+                                       'desc' : image_ref_reduite_desc
+                                       },
+                            'half_redux' : {'kp' : image_ref_half_redux_kp,
+                                            'desc' : image_ref_half_redux_desc
+                                            }
+        }
 
         return validation_value
-
-    #This function return a code that will inform the client what to do
-    # TODO : create dommain/behavior.py
-    def behavior(self,warped,shapeValue,sketchValue,colorValue):
-        if warped.shape[0] < 780:
-            thresholdShape = 2500
-            thresholdSketch = 870
-            thresholdColor = 9580
-            errorFactor=1.5
-        else:
-            thresholdShape = 2500
-            thresholdSketch = 870
-            thresholdColor = 9580
-            errorFactor=2
-
-        #Used to reduce dimension
-        reduceShape = shapeValue < thresholdShape * errorFactor
-        reduceSketch = sketchValue < thresholdSketch* errorFactor
-        reduceColor = colorValue < thresholdColor * errorFactor
-
-        #Used to maintain actual dimension
-        correctShape = shapeValue < thresholdShape
-        correctSketch = sketchValue < thresholdSketch
-        correctColor = colorValue < thresholdColor
-
-        if reduceShape+reduceSketch+reduceColor >= 2:
-            self.numberConsecutiveValidation = 0
-            return "Reduction"
-        if correctShape+correctSketch+correctColor == 3:
-            self.numberConsecutiveValidation += 1
-        elif correctShape+correctSketch+correctColor >= 1:
-            self.numberConsecutiveValidation -= 1
-        else:
-            if warped.shape[:2] == self.resolutionMax:
-                return "perte cible"
-            else:
-                self.numberConsecutiveValidation -= 1
-                return "Augmentation"
 
     def prelearning(self, image):
         # Renvoyer le nombre d'amers sur l'image envoyée
@@ -472,7 +473,7 @@ class MTE:
         ret_data["success"] = success and ml_success
 
         return success, ret_data, nb_kp, nb_matches, sum(translation),\
-        sum(skews), sum_distances, distances, transformed
+        sum(skews), sum_distances, distances, transformed, scales, translation
 
     def framing(self, pov_id, image):
         # Recadrage avec SIFT et renvoi de l'image
@@ -566,8 +567,8 @@ if __name__ == "__main__":
         help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
-    ap.add_argument("-w", "--width", required=False, default=640, type=int,\
-        help="Width of the input image (640 or 320). Default: 640")
+    ap.add_argument("-w", "--width", required=False, default=380, type=int,\
+        help="Width of the input image (640 or 320). Default: 380")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
     ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
