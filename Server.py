@@ -45,8 +45,6 @@ from D2NetEngine import D2NetEngine
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
-DETECTEUR='D2TierLowRes'
-MATCH='Gpu'
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -97,6 +95,8 @@ class MTE:
 
         self.rollback = 0
         self.validation = 0
+        self.devicetype = "CPU"
+        self.resolution_change_allowed = 3
         
 
     def listen_images(self):
@@ -141,9 +141,9 @@ class MTE:
                 if image.shape[0] == 380:
                     response_for_client = self.behaviour_380(results)
                 elif image.shape[0] == 640:
-                    self.behaviour_640(image, results)
+                    self.behaviour_640(results)
                 else:
-                    self.behaviour_1728(image, results)
+                    self.behaviour_1728(results)
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -173,14 +173,24 @@ class MTE:
             size = 640
         return ResponseData(size, MTEResponse.RED, None, None, None, None, None)
 
-    def orange_380(self, results):
+    # def orange_380(self, results):
+    #     if self.validation > 0:
+    #         self.validation -= 1
+    #     if not results.success:
+    #         return ResponseData(380, MTEResponse.ORANGE, None, None, None, None, None)
+    #     return ResponseData(380, MTEResponse.ORANGE,\
+    #                         results.translations[0], results.translations[1], \
+    #                         self.compute_direction(results.translations, 380), \
+    #                         results.scales[0], results.scales[1])
+    def orange_behaviour(self, results, size):
         if self.validation > 0:
             self.validation -= 1
-        if not results.success:
-            return ResponseData(380, MTEResponse.ORANGE, None, None, None, None, None)
-        return ResponseData(380, MTEResponse.ORANGE,\
+        if size == 640 and self.rollback > 0:
+            self.rollback -= 1
+
+        return ResponseData(size, MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
-                            self.compute_direction(results.translations, 380), \
+                            self.compute_direction(results.translations, size), \
                             results.scales[0], results.scales[1])
 
     def behaviour_380(self, results):
@@ -194,7 +204,7 @@ class MTE:
             if results.nb_match < 30:
                 response_for_client = self.red_380()
             else:
-                response_for_client = self.orange_380(results)
+                response_for_client = self.orange_behaviour(results, 380)
         else:
             response = MTEResponse.GREEN
             # If not centered with target
@@ -210,7 +220,7 @@ class MTE:
                 dist_color = results.dist_roi[2] < self.threshold_380.mean_color
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
-                    response_for_client = self.orange_380(results)
+                    response_for_client = self.orange_behaviour(results, 380)
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
                     dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
@@ -229,10 +239,73 @@ class MTE:
             self.rollback = 0
         return response_for_client
 
-    def behaviour_640(self, image, results):
-        return True
-    
-    def behaviour_1728(self, image, results):
+    def red_640(self):
+        size = 640
+        msg = MTEResponse.RED
+        if self.devicetype == "CPU":
+            msg = MTEResponse.TARGET_LOST
+        else:
+            self.rollback += 1
+            if self.rollback >= 5:
+                size = 1728
+                self.rollback = 0
+        return ResponseData(size, msg, None, None, None, None, None)
+
+    def green_640(self, results):
+        size = 640
+        if self.resolution_change_allowed > 0:
+            self.resolution_change_allowed -= 1
+            size = 380
+            self.validation = 0
+            self.rollback = 0
+        else:
+            self.validation += 1
+        return ResponseData(size, MTEResponse.GREEN,\
+                            results.translations[0], results.translations[1], \
+                            self.compute_direction(results.translations, 640), \
+                            results.scales[0], results.scales[1])
+
+    def behaviour_640(self, results):
+        if results.nb_kp < self.threshold_640.nb_kp:
+            response_for_client = self.red_640()
+        # If not enough matches
+        elif results.nb_match < self.threshold_640.nb_match:
+            # If homography doesn't even start
+            if results.nb_match < 30:
+                response_for_client = self.red_640()
+            else:
+                response_for_client = self.orange_behaviour(results, 640)
+        else:
+            response = MTEResponse.GREEN
+            # If not centered with target
+            if not results.success:
+                response_for_client = ResponseData(640, response,\
+                                     results.translations[0], results.translations[1], \
+                                     self.compute_direction(results.translations, 640), \
+                                     results.scales[0], results.scales[1])
+            else:
+                dist_kirsh = results.dist_roi[0] < self.threshold_640.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_640.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_640.mean_color
+                # If 0 or 1 mean valid
+                if dist_kirsh+dist_canny+dist_color < 2:
+                    response_for_client = self.orange_behaviour(results, 640)
+                elif dist_kirsh+dist_canny+dist_color == 3:
+                    response_for_client = self.green_640(results)
+                else:
+                    dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
+                    # If 0 aberration
+                    if dist_kirsh+dist_color == 2:
+                        response_for_client = self.green_640(results)
+                    else:
+                        response_for_client = self.orange_behaviour(results, 640)
+
+        if response_for_client.response == MTEResponse.GREEN:
+            self.rollback = 0
+        return response_for_client
+
+    def behaviour_1728(self, results):
         return True
 
     ### Iniatialize learning datas with the reference and avoid the DB's use
