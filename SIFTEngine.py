@@ -34,7 +34,7 @@ class SIFTEngine:
     HOMOGRAPHY_MIN_TRANS = 0
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self,maxRansac,width,height):
+    def __init__(self, maxRansac, width, height):
         self.sift = cv2.xfeatures2d.SIFT_create()
         self.ransacmax = maxRansac
         self.resized_width = width
@@ -42,11 +42,13 @@ class SIFTEngine:
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref,kp_base_ransac = self.compute_sift(learning_data.full_image, crop_image, crop_margin)
+            dim = (self.resized_width, self.resized_height)
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints, des, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
             # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width,self.resized_height),image_ref)
-            learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
+            learning_data.sift_data = SiftData(keypoints, des, image_ref, kp_base_ransac)
 
-    def recognition(self, image, learning_data,modeAlgo):
+    def recognition(self, image, learning_data, modeAlgo):
         scale_x = 1
         scale_y = 1
         skew_x = 0
@@ -55,7 +57,7 @@ class SIFTEngine:
         t_y = 0
 
         sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
-            learning_data.sift_data, debug=True,mode=modeAlgo)
+            learning_data.sift_data, debug=True, mode=modeAlgo)
         homography_success = False
 
         if sift_success:
@@ -141,9 +143,6 @@ class SIFTEngine:
         img = image
         if crop_image:
             img = self.crop_image(image, crop_margin)
-
-        dim = (self.resized_width, self.resized_height)
-        img = cv2.resize(img,dim, interpolation = cv2.INTER_AREA)
 
         kp, des = self.sift.detectAndCompute(img, None)
         keypointForRansac = kp

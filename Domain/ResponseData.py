@@ -1,4 +1,4 @@
-from MTEResponse import MTEResponse
+from Domain.MTEResponse import MTEResponse
 
 class ResponseData:
     def __init__(self, size:int, response: MTEResponse, translation_x: float, \
@@ -11,4 +11,13 @@ class ResponseData:
         self.direction = direction
         self.scale_h = scale_h
         self.scale_w = scale_w
-        
+    
+    def convert_to_dict(self):
+        return {"size" : self.size,\
+                "response" : self.response.name,\
+                "shift_x" : self.shift_x,\
+                "shit_y" : self.shift_y,\
+                "direction" : self.direction,\
+                "scale_h" : self.scale_h,
+                "scale_w" : self.scale_w
+                }

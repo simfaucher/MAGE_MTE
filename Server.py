@@ -83,11 +83,11 @@ class MTE:
 
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine = D2NetEngine(max_edge=resize_width, \
-                                            max_sum_edges= resize_width + self.resize_height,\
-                                            maxRansac = ransacount,width = self.resize_width, \
-                                            height = self.resize_height)
+                                            max_sum_edges=resize_width + self.resize_height,\
+                                            maxRansac=ransacount, width=self.resize_width, \
+                                            height=self.resize_height)
         else:
-            self.sift_engine = SIFTEngine(maxRansac = ransacount,width = self.resize_width,height = self.resize_height)
+            self.sift_engine = SIFTEngine(maxRansac=ransacount, width=self.validation_width, height=self.validation_height)
 
         self.threshold_380 = MTEThreshold(260, 45, 2900, 900, 10000, 4000, 11000)
         self.threshold_640 = MTEThreshold(750, 70, 2700, 1050, 12000, 5000, 15000)
@@ -129,13 +129,16 @@ class MTE:
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
                 learning_data = self.learning(image_for_learning)
+                if learning_data["success"]:
+                    ret_data["learning"] = {"id" : learning_data["learning_id"]}
 
-                ret_data["learning"] = learning_data
+                # TODO : convert keypoints type into float array if we want to save them
+                # ret_data["learning"] = learning_data
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
                 if self.devicetype == "CPU" and image.shape[0] > 640:
-                    image = cv2.resize(image, (640, 380), interpolation=cv2.INTER_AREA)
+                    image = cv2.resize(image, (640, 360), interpolation=cv2.INTER_AREA)
                 results = RecognitionData(*self.recognition(pov_id, image))
 
                 ret_data["recognition"] = results.recog_ret_data
@@ -154,7 +157,8 @@ class MTE:
                     if not is_blurred[1]:
                         response_for_client.response = MTEResponse.CAPTURE
                         self.validation = 0
-                ret_data["recognition"]["response"] = response_for_client
+                        self.rollback = 0
+                ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -235,7 +239,7 @@ class MTE:
 
     def lost_1728(self):
         msg = MTEResponse.TARGET_LOST
-        return ResponseData(msg, 1728, None, None, None, None, None)
+        return ResponseData(1728, msg, None, None, None, None, None)
 
     def behaviour_380(self, results):
         response = MTEResponse.RED
@@ -427,6 +431,7 @@ class MTE:
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
         if not results.success:
+            print("Failure gaussian blur")
             return validation_value
 
         # Vertical motion blur.
@@ -434,6 +439,7 @@ class MTE:
         results = self.test_filter(image_vertical_motion_blur)
 
         if not results.success:
+            print("Failure vertical blur")
             return validation_value
 
         # Horizontal motion blur.
@@ -441,6 +447,7 @@ class MTE:
         results = self.test_filter(image_horizontal_motion_blur)
 
         if not results.success:
+            print("Failure horizontal blur")
             return validation_value
 
         # The intermediary resolution
@@ -461,6 +468,7 @@ class MTE:
                                             'desc' : image_ref_half_redux_desc
                                             }
         }
+        print("Référence valide.")
 
         return validation_value
 
@@ -476,22 +484,14 @@ class MTE:
         return 0
 
     def learning(self, full_image):
-        tmp_width = self.sift_engine.resized_width
-        tmp_height = self.sift_engine.resized_height
-        self.sift_engine.resized_width = self.validation_width
-        self.sift_engine.resized_height = self.validation_height
-
         validation = self.check_reference(full_image)
         if validation["success"]:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 
-            validation["success"], validation["learning_data"] = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.resize_width)
+            validation["success"], validation["learning_data"] = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.validation_width)
             if validation["success"]:
                 self.learning_db.append(validation["learning_data"])                
-
-        self.sift_engine.resized_width = tmp_width
-        self.sift_engine.resized_height = tmp_height
 
         return validation
 
@@ -516,7 +516,7 @@ class MTE:
             success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data,self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
@@ -647,7 +647,7 @@ class MTE:
             if len(items) > 0:
                 learning_data = items[0]
             else:
-                success, learning_data = self.repo.get_pov_by_id(pov_id, resize_width=self.resize_width)
+                success, learning_data = self.repo.get_pov_by_id(pov_id, resize_width=self.validation_width)
                 if not success:
                     raise Exception("No POV with id {}".format(pov_id))
 

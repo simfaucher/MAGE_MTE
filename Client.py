@@ -16,7 +16,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -28,8 +28,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -60,6 +60,9 @@ LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 # VIDEO_PATH = "videos/T3.3/T3.3-rotated.mp4"
 # LEARNING_IMAGE_PATH = "videos/T3.3/vlcsnap-2020-02-28-11h42m56s577.png"
 
+VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
+LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
+
 class ACD:
     def __init__(self):
         print("Connecting...")
@@ -84,7 +87,7 @@ class ACD:
 
             if not os.path.exists(DEMO_FOLDER):
                 os.makedirs(DEMO_FOLDER)
-
+        size = 380
         while self.cap.isOpened():
             # Sending
             success, full_image = self.cap.read()
@@ -92,8 +95,8 @@ class ACD:
             if not success:
                 break
 
-            # image_640 = imutils.resize(full_image, width=640)
-            image_640 = full_image
+            image_640 = imutils.resize(full_image, width=size)
+            # image_640 = full_image
 
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
@@ -135,6 +138,7 @@ class ACD:
                 self.pov_id = reply["learning"]["id"]
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
+                size = reply["recognition"]["results"]["size"]
                 if reco_data["success"]:
                     print("Recognition OK")
                 elif "sift_success" in reco_data and reco_data["sift_success"]:
