@@ -88,7 +88,7 @@ class MTE:
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
         else:
-            self.sift_engine = SIFTEngine(maxRansac=ransacount, width=self.validation_width, height=self.validation_height)
+            self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
         self.threshold_380 = MTEThreshold(260, 45, 2900, 900, 10000, 4000, 11000)
         self.threshold_640 = MTEThreshold(750, 70, 2700, 1050, 12000, 5000, 15000)
@@ -426,16 +426,16 @@ class MTE:
         kernel_h /= kernel_size
 
         # Compute keypoints for reference
-        image_ref_kp, image_ref_desc = self.sift_engine.sift.detectAndCompute(image_ref, None)
-        for i in range(len(image_ref_kp)):
-            image_ref_kp[i].size = 2
+        # image_ref_kp, image_ref_desc = self.sift_engine.sift.detectAndCompute(image_ref, None)
+        # for i in range(len(image_ref_kp)):
+        #     image_ref_kp[i].size = 2
 
         # Resize reference and compute keypoints
         dim = (self.validation_width, self.validation_height)
         image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
-        image_ref_reduite_kp, image_ref_reduite_desc = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
-        for i in range(len(image_ref_reduite_kp)):
-            image_ref_reduite_kp[i].size = 1
+        # image_ref_reduite_kp, image_ref_reduite_desc = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
+        # for i in range(len(image_ref_reduite_kp)):
+        #     image_ref_reduite_kp[i].size = 1
 
         self.fake_init_for_reference(image_ref_reduite, image_ref)
         validation_value = {'success' : False}
@@ -464,23 +464,24 @@ class MTE:
             return validation_value
 
         # The intermediary resolution
-        dim = (640, 360)
-        image_ref_half_redux = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
-        image_ref_half_redux_kp, image_ref_half_redux_desc = self.sift_engine.sift.detectAndCompute(image_ref_half_redux, None)
-        for i in range(len(image_ref_half_redux_kp)):
-            image_ref_half_redux_kp[i].size = 1
+        # dim = (640, 360)
+        # image_ref_half_redux = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+        # image_ref_half_redux_kp, image_ref_half_redux_desc = self.sift_engine.sift.detectAndCompute(image_ref_half_redux, None)
+        # for i in range(len(image_ref_half_redux_kp)):
+        #     image_ref_half_redux_kp[i].size = 1
+        
         # All 3 noises are valid
         validation_value = {'success' : True,
-                            'flou' : False,
-                            'full' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_kp).tolist()),
-                                      'desc' : image_ref_desc.tolist()
-                                      },
-                            'redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_reduite_kp).tolist()),
-                                       'desc' : image_ref_reduite_desc.tolist()
-                                       },
-                            'half_redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_half_redux_kp).tolist()),
-                                            'desc' : image_ref_half_redux_desc.tolist()
-                                            }
+                            'flou' : False
+                            # 'full' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_kp).tolist()),
+                            #           'desc' : image_ref_desc.tolist()
+                            #           },
+                            # 'redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_reduite_kp).tolist()),
+                            #            'desc' : image_ref_reduite_desc.tolist()
+                            #            },
+                            # 'half_redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_half_redux_kp).tolist()),
+                            #                 'desc' : image_ref_half_redux_desc.tolist()
+                                            # }
         }
         print("Référence valide.")
 
@@ -499,7 +500,7 @@ class MTE:
 
     def learning(self, full_image):
         validation = self.check_reference(full_image)
-        if validation["success"]:
+        if validation["success"] and not validation["flou"]:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 

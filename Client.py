@@ -139,7 +139,6 @@ class ACD:
                 self.pov_id = reply["learning"]["id"]
                 if self.pov_id == -1:
                     print("Echec de l'apprentissage.")
-                    break
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
                 prev_size = size
@@ -158,7 +157,6 @@ class ACD:
                     print("Recognition failed")
                 if reply["recognition"]["results"]["response"] == "TARGET_LOST":
                     print("Cible perdu")
-                    break
             # elif mode == MTEMode.FRAMING:
             else:
                 pass

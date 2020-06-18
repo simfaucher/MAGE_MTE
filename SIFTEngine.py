@@ -34,19 +34,29 @@ class SIFTEngine:
     HOMOGRAPHY_MIN_TRANS = 0
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self, maxRansac, width, height):
+    def __init__(self, maxRansac):
         self.sift = cv2.xfeatures2d.SIFT_create()
         self.ransacmax = maxRansac
-        self.resized_width = width
-        self.resized_height = height
+        self.resized_width = 380
+        self.resized_height = 213
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints, des, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
+            keypoints_380, des_380, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
             # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width,self.resized_height),image_ref)
-            learning_data.sift_data = SiftData(keypoints, des, image_ref, kp_base_ransac)
+
+            dim = (640, 360)
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints_640, des_640, _, _ = self.compute_sift(img, crop_image, crop_margin)
+
+            dim = (1728, 972)
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints_1728, des_1728, _, _ = self.compute_sift(img, crop_image, crop_margin)
+
+            learning_data.sift_data = SiftData(keypoints_380, des_380, image_ref,\
+                kp_base_ransac, keypoints_640, des_640, keypoints_1728, des_1728)
 
     def recognition(self, image, learning_data, modeAlgo):
         scale_x = 1
@@ -154,7 +164,13 @@ class SIFTEngine:
     def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False,mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
-        kp_img, des_img, image,kp_base = self.compute_sift(image, crop_image, crop_margin)
+        if w == 380:
+            sift_data.switch_380()
+        elif w == 640:
+            sift_data.switch_640()
+        else:
+            sift_data.switch_1728()
+        kp_img, des_img, image, kp_base = self.compute_sift(image, crop_image, crop_margin)
 
         if mode == MTEAlgo.SIFT_KNN:
             flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
