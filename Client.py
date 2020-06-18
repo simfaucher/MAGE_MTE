@@ -95,6 +95,7 @@ class ACD:
             if not success:
                 break
 
+            # image_640 = cv2.resize(full_image, (size, int((size*9)/16)), interpolation=cv2.INTER_AREA)
             image_640 = imutils.resize(full_image, width=size)
             # image_640 = full_image
 
@@ -136,9 +137,15 @@ class ACD:
                 print("Number of keypoints: {}".format(reply["prelearning"]["nb_kp"]))
             elif self.mode == MTEMode.LEARNING:
                 self.pov_id = reply["learning"]["id"]
+                if self.pov_id == -1:
+                    print("Echec de l'apprentissage.")
+                    break
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
+                prev_size = size
                 size = reply["recognition"]["results"]["size"]
+                if not prev_size == size:
+                    print("Changement de taille {} -> {}".format(prev_size, size))
                 if reco_data["success"]:
                     print("Recognition OK")
                 elif "sift_success" in reco_data and reco_data["sift_success"]:
@@ -149,6 +156,9 @@ class ACD:
                     print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
+                if reply["recognition"]["results"]["response"] == "TARGET_LOST":
+                    print("Cible perdu")
+                    break
             # elif mode == MTEMode.FRAMING:
             else:
                 pass

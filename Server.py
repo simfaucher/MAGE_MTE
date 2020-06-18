@@ -52,6 +52,7 @@ DEMO_FOLDER = "demo/"
 
 VC_LIKE_ENGINE_MODE = False
 SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
+MIN_VALIDATION_COUNT = 5
 
 class MTE:
     def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640, ransacount=300):
@@ -97,7 +98,7 @@ class MTE:
         self.validation = 0
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
-        
+
 
     def listen_images(self):
         while True:  # show streamed images until Ctrl-C
@@ -130,35 +131,39 @@ class MTE:
                 print("MODE learning")
                 learning_data = self.learning(image_for_learning)
                 if learning_data["success"]:
-                    ret_data["learning"] = {"id" : learning_data["learning_id"]}
+                    ret_data["learning"] = {"id" : learning_data["learning_id"],
+                                            "data" : learning_data}
 
-                # TODO : convert keypoints type into float array if we want to save them
-                # ret_data["learning"] = learning_data
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
-                if self.devicetype == "CPU" and image.shape[0] > 640:
+                if self.devicetype == "CPU" and image.shape[1] > 640:
                     image = cv2.resize(image, (640, 360), interpolation=cv2.INTER_AREA)
                 results = RecognitionData(*self.recognition(pov_id, image))
 
                 ret_data["recognition"] = results.recog_ret_data
                 ret_data["recognition"]["success"] = results.success
-                if image.shape[0] == 380:
+                print(image.shape)
+                if image.shape[1] == 380:
                     response_for_client = self.behaviour_380(results)
-                elif image.shape[0] == 640:
+                elif image.shape[1] == 640:
                     response_for_client = self.behaviour_640(results)
-                else:
+                elif image.shape[1] == 1728:
                     response_for_client = self.behaviour_1728(results)
-                if self.validation > 5:
-                    self.validation = 5
-                if self.validation == 5:
+                else:
+                    print("Taille d'image non supporté")
+                    response_for_client = None
+                if self.validation > MIN_VALIDATION_COUNT:
+                    self.validation = MIN_VALIDATION_COUNT
+                if self.validation == MIN_VALIDATION_COUNT:
                     is_blurred = self.is_image_blurred(image, \
                         size=int(response_for_client.size/18), thresh=10)
                     if not is_blurred[1]:
                         response_for_client.response = MTEResponse.CAPTURE
                         self.validation = 0
                         self.rollback = 0
-                ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
+                if not response_for_client is None:
+                    ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -177,7 +182,7 @@ class MTE:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
     def is_image_blurred(self, image, size=60, thresh=10):
-        (h, w) = image.shape
+        (h, w, _) = image.shape
         (cX, cY) = (int(w / 2.0), int(h / 2.0))
         fft = np.fft.fft2(image)
         fft_shift = np.fft.fftshift(fft)
@@ -188,6 +193,7 @@ class MTE:
         mean = np.mean(magnitude)
         return (mean, mean <= thresh)
 
+    #TODO 
     def compute_direction(self,translation,size):
         #size, t_x, t_y peuvent etre récup avec le self
         return "H G"
@@ -400,6 +406,13 @@ class MTE:
     ### Out : validation_value -> dictionnary indicating the success or failure of the image
     ### as well as the keypoints and theirs descriptors for severals dimensions of the image
     def check_reference(self, image_ref):
+        size = int(image_ref.shape[1]/18)
+        blurred = self.is_image_blurred(image_ref, \
+                        size=size, thresh=10)
+        if blurred[1]:
+            return {'success' : False,
+                    'flou' : True}
+
         kernel_size = 25
         sigma = 5
         kernel = 31
@@ -458,14 +471,15 @@ class MTE:
             image_ref_half_redux_kp[i].size = 1
         # All 3 noises are valid
         validation_value = {'success' : True,
-                            'full' : {'kp' : image_ref_kp, 
-                                      'desc' : image_ref_desc
+                            'flou' : False,
+                            'full' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_kp).tolist()),
+                                      'desc' : image_ref_desc.tolist()
                                       },
-                            'redux' : {'kp' : image_ref_reduite_kp,
-                                       'desc' : image_ref_reduite_desc
+                            'redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_reduite_kp).tolist()),
+                                       'desc' : image_ref_reduite_desc.tolist()
                                        },
-                            'half_redux' : {'kp' : image_ref_half_redux_kp,
-                                            'desc' : image_ref_half_redux_desc
+                            'half_redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_half_redux_kp).tolist()),
+                                            'desc' : image_ref_half_redux_desc.tolist()
                                             }
         }
         print("Référence valide.")
@@ -489,9 +503,11 @@ class MTE:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 
-            validation["success"], validation["learning_data"] = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.validation_width)
+            validation["success"], learning_data = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.validation_width)
             if validation["success"]:
-                self.learning_db.append(validation["learning_data"])                
+                self.learning_db.append(learning_data)                
+        else:
+            validation["learning_id"] = -1
 
         return validation
 
@@ -653,6 +669,8 @@ class MTE:
 
         self.last_learning_data = learning_data
 
+        #TODO learn avec la taille d'image correspondante 
+        # pour cela retirer le resize dans sift engine learn
         # Update : we only use 1 engine at a time
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             # Learn SIFT data
