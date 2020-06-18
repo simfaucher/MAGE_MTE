@@ -5,9 +5,11 @@ pykson==0.9.4
 sklearn==0.0
 imutils==0.5.3
 pyzmq==19.0.1
-numpy==1.14.5
+numpy==1.15.1
 h5py==2.6.0
 pytz==2020.1
+scikit-image==0.17.2
+tqdm #mandatory ????
 
 -f https://download.pytorch.org/whl/torch_stable.html
 torch==1.5.0+cu101
