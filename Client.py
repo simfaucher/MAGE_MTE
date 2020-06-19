@@ -165,7 +165,7 @@ class ACD:
                 cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                 (255, 255, 255), 2)
                 if reco_data["success"] and not response["response"] == "TARGET_LOST":
-                    print(response)
+                    # print(response)
                     cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                         (255, 255, 255), 2)
                     cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
@@ -176,7 +176,7 @@ class ACD:
                         (255, 255, 255), 2)
                     x_coordinate = (full_image.shape[1]/prev_size+response["scale_h"])*response["shift_x"]
                     y_coordinate = (full_image.shape[1]/prev_size+response["scale_w"])*response["shift_y"]
-                    upper_left_conner = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                    # upper_left_conner = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
                     # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
                     point = (int(x_coordinate), int(y_coordinate))
                     remaining_size_after_crop = (full_image.shape[1]*(2/3), full_image.shape[0]*(2/3))
