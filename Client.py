@@ -179,7 +179,7 @@ class ACD:
                     upper_left_conner = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
                     # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
                     point = (int(x_coordinate), int(y_coordinate))
-                    remaining_size_after_crop = (full_image.shape[0] - full_image.shape[0]*(1/3), full_image.shape[1] - full_image.shape[1]*(1/3))
+                    remaining_size_after_crop = (full_image.shape[1]*(2/3), full_image.shape[0]*(2/3))
                     second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
                     to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
                 cv2.imshow("Targetting", to_draw)
