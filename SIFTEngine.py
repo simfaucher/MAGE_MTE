@@ -49,7 +49,8 @@ class SIFTEngine:
 
             dim = (640, 360)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_640, des_640, _, _ = self.compute_sift(img, crop_image, crop_margin)
+            keypoints_640, des_640, temp, _ = self.compute_sift(img, crop_image, crop_margin)
+            # cv2.imwrite('ref moteur {}*{}.png'.format(dim[0], dim[1]), temp)
 
             dim = (1728, 972)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)

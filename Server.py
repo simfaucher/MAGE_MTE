@@ -194,9 +194,23 @@ class MTE:
         return (mean, mean <= thresh)
 
     #TODO 
-    def compute_direction(self,translation,size):
+    def compute_direction(self, translation, size):
         #size, t_x, t_y peuvent etre récup avec le self
-        return "H G"
+        direction = ""
+        size_h = (size*9)/16
+        if translation[0] < size_h*(1/3):
+            direction += "N"
+        elif translation[0] > size_h*(2/3):
+            direction += "S"
+        else:
+            direction += "C"
+        if translation[1] < size*(1/3):
+            direction += "W"
+        elif translation[1] > size*(2/3):
+            direction += "E"
+        else:
+            direction += "C"
+        return direction
 
     def red_380(self):
         size = 380
