@@ -16,7 +16,7 @@ class ResponseData:
         return {"size" : self.size,\
                 "response" : self.response.name,\
                 "shift_x" : self.shift_x,\
-                "shit_y" : self.shift_y,\
+                "shift_y" : self.shift_y,\
                 "direction" : self.direction,\
                 "scale_h" : self.scale_h,
                 "scale_w" : self.scale_w

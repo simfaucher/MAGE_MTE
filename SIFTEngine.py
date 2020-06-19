@@ -45,7 +45,7 @@ class SIFTEngine:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_380, des_380, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
-            # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width,self.resized_height),image_ref)
+            # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width, self.resized_height), image_ref)
 
             dim = (640, 360)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)

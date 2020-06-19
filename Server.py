@@ -143,7 +143,7 @@ class MTE:
 
                 ret_data["recognition"] = results.recog_ret_data
                 ret_data["recognition"]["success"] = results.success
-                print(image.shape)
+                ret_data["recognition"]["nb_match"] = results.nb_match
                 if image.shape[1] == 380:
                     response_for_client = self.behaviour_380(results)
                 elif image.shape[1] == 640:
@@ -593,30 +593,30 @@ class MTE:
         #     self.out.write(matching_result)
 
 
-        cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-            (255, 255, 255), 2)
-        if self.mte_algo != MTEAlgo.VC_LIKE:
-            cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-        if success:
-            if self.mte_algo != MTEAlgo.VC_LIKE:
-                cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-            cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-            (255, 255, 255), 2)
+        # cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #     (255, 255, 255), 2)
+        # if self.mte_algo != MTEAlgo.VC_LIKE:
+        #     cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        # if success:
+        #     if self.mte_algo != MTEAlgo.VC_LIKE:
+        #         cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #         cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #         cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #         cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #         cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #         cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #         (255, 255, 255), 2)
+        #     cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #     (255, 255, 255), 2)
 
-        cv2.imshow("Transformed", transformed)
-        cv2.waitKey(1)
+        # cv2.imshow("Transformed", transformed)
+        # cv2.waitKey(1)
 
         ret_data["success"] = success and ml_success
 
@@ -670,8 +670,6 @@ class MTE:
 
         self.last_learning_data = learning_data
 
-        #TODO learn avec la taille d'image correspondante 
-        # pour cela retirer le resize dans sift engine learn
         # Update : we only use 1 engine at a time
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             # Learn SIFT data

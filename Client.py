@@ -142,7 +142,8 @@ class ACD:
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
                 prev_size = size
-                size = reply["recognition"]["results"]["size"]
+                response = reply["recognition"]["results"]
+                size = response["size"]
                 if not prev_size == size:
                     print("Changement de taille {} -> {}".format(prev_size, size))
                 if reco_data["success"]:
@@ -155,8 +156,34 @@ class ACD:
                     print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
-                if reply["recognition"]["results"]["response"] == "TARGET_LOST":
+                if response["response"] == "TARGET_LOST":
                     print("Cible perdu")
+
+                
+                # Display target on image
+                to_draw = full_image
+                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                (255, 255, 255), 2)
+                if reco_data["success"] and not response["response"] == "TARGET_LOST":
+                    print(response)
+                    cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 255, 255), 2)
+                    cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 255, 255), 2)
+                    cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 255, 255), 2)
+                    cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 255, 255), 2)
+                    x_coordinate = (full_image.shape[1]/prev_size+response["scale_h"])*response["shift_x"]
+                    y_coordinate = (full_image.shape[1]/prev_size+response["scale_w"])*response["shift_y"]
+                    upper_left_conner = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                    # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                    point = (int(x_coordinate), int(y_coordinate))
+                    remaining_size_after_crop = (full_image.shape[0] - full_image.shape[0]*(1/3), full_image.shape[1] - full_image.shape[1]*(1/3))
+                    second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
+                    to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
+                cv2.imshow("Targetting", to_draw)
+                cv2.waitKey(1)
             # elif mode == MTEMode.FRAMING:
             else:
                 pass
