@@ -52,12 +52,12 @@ class SIFTEngine:
             keypoints_640, des_640, temp, _ = self.compute_sift(img, crop_image, crop_margin)
             # cv2.imwrite('ref moteur {}*{}.png'.format(dim[0], dim[1]), temp)
 
-            dim = (1728, 972)
+            dim = (1730, int(1730*9/16))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_1728, des_1728, _, _ = self.compute_sift(img, crop_image, crop_margin)
+            keypoints_1730, des_1730, _, _ = self.compute_sift(img, crop_image, crop_margin)
 
             learning_data.sift_data = SiftData(keypoints_380, des_380, image_ref,\
-                kp_base_ransac, keypoints_640, des_640, keypoints_1728, des_1728)
+                kp_base_ransac, keypoints_640, des_640, keypoints_1730, des_1730)
 
     def recognition(self, image, learning_data, modeAlgo):
         scale_x = 1
@@ -170,7 +170,7 @@ class SIFTEngine:
         elif w == 640:
             sift_data.switch_640()
         else:
-            sift_data.switch_1728()
+            sift_data.switch_1730()
         kp_img, des_img, image, kp_base = self.compute_sift(image, crop_image, crop_margin)
 
         if mode == MTEAlgo.SIFT_KNN:

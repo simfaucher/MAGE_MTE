@@ -5,27 +5,27 @@
 import os
 import sys
 import time
-from copy import deepcopy
+
+import argparse
 import json
-import numpy as np
 import cv2
 import imutils
+import numpy as np
+
 from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
-import argparse
-import csv
 
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
 from Domain.LearningData import LearningData
 from Domain.SiftData import SiftData
 from Domain.MLData import MLData
-from Repository import Repository
 from Domain.MTEResponse import MTEResponse
 from Domain.MTEThreshold import MTEThreshold
 from Domain.RecognitionData import RecognitionData
 from Domain.ResponseData import ResponseData
+from Repository import Repository
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
 from ML.Domain.Image import Image
@@ -53,9 +53,16 @@ DEMO_FOLDER = "demo/"
 VC_LIKE_ENGINE_MODE = False
 SIFT_ENGINE_MODE = not VC_LIKE_ENGINE_MODE
 MIN_VALIDATION_COUNT = 5
+IS_DEMO = True
 
 class MTE:
-    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=640, ransacount=300):
+    """
+    This class initialize a server that will listen to client
+    and will compute a motion tracking for the client.
+    """
+
+    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6,\
+         resize_width=640, ransacount=300):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3000
@@ -92,7 +99,7 @@ class MTE:
 
         self.threshold_380 = MTEThreshold(260, 45, 2900, 900, 10000, 4000, 11000)
         self.threshold_640 = MTEThreshold(750, 70, 2700, 1050, 12000, 5000, 15000)
-        self.threshold_1728 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
+        self.threshold_1730 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
         self.validation = 0
@@ -101,6 +108,13 @@ class MTE:
 
 
     def listen_images(self):
+        """Receive a frame and an action from client then compute required operation
+
+        The behaviour depend of the mode send : PRELEARNING/LEARNING/RECOGNITION/FRAMING
+        This function have no proper value to return but will send a message to the client
+        containing the operations's results.
+        """
+
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
 
@@ -148,8 +162,8 @@ class MTE:
                     response_for_client = self.behaviour_380(results)
                 elif image.shape[1] == 640:
                     response_for_client = self.behaviour_640(results)
-                elif image.shape[1] == 1728:
-                    response_for_client = self.behaviour_1728(results)
+                elif image.shape[1] == 1730:
+                    response_for_client = self.behaviour_1730(results)
                 else:
                     print("Taille d'image non supporté")
                     response_for_client = None
@@ -181,21 +195,34 @@ class MTE:
             else:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
-    def is_image_blurred(self, image, size=60, thresh=10):
-        (h, w, _) = image.shape
-        (cX, cY) = (int(w / 2.0), int(h / 2.0))
+    def is_image_blurred(self, image, size=60, thresh=15):
+        """Check if an imaeg is blurred. Return a tuple (mean float,blurred bool)
+
+        Keyword arguments:
+        image -> the image to test as array
+        size -> the radius size around the center that will be used in FFTShift (default 60)
+        thresh -> the threshold value for the magnitude comparaison (default 15)
+        """
+
+        (height, width, _) = image.shape
+        (center_x, center_y) = (int(width / 2.0), int(height / 2.0))
         fft = np.fft.fft2(image)
         fft_shift = np.fft.fftshift(fft)
-        fft_shift[cY - size:cY + size, cX - size:cX + size] = 0
+        fft_shift[center_y - size:center_y + size, center_x - size:center_x + size] = 0
         fft_shift = np.fft.ifftshift(fft_shift)
         recon = np.fft.ifft2(fft_shift)
         magnitude = 20 * np.log(np.abs(recon))
         mean = np.mean(magnitude)
         return (mean, mean <= thresh)
 
-    #TODO 
     def compute_direction(self, translation, size):
-        #size, t_x, t_y peuvent etre récup avec le self
+        """Return a string representing a cardinal direction.
+
+        Keyword arguments:
+        translation -> tuple containing homographic estimations of x,y
+        size -> the width of the current image
+        """
+
         direction = ""
         size_h = (size*9)/16
         if translation[0] < size_h*(1/3):
@@ -213,6 +240,10 @@ class MTE:
         return direction
 
     def red_380(self):
+        """Critical recognition behaviour for an image (_, 380).
+        Return a ResponseData and change global variable.
+        """
+
         size = 380
         self.rollback += 1
         if self.rollback >= 5:
@@ -221,6 +252,14 @@ class MTE:
         return ResponseData(size, MTEResponse.RED, None, None, None, None, None)
 
     def orange_behaviour(self, results, size):
+        """Uncertain recognition behaviour.
+        Return a ResponseData and change global variable.
+
+        Keyword arguments:
+        results -> the RecognitionData
+        size -> the width of the image
+        """
+
         if self.validation > 0:
             self.validation -= 1
         if size == 640 and self.rollback > 0:
@@ -232,18 +271,31 @@ class MTE:
                             results.scales[0], results.scales[1])
 
     def red_640(self):
+        """Critical recognition behaviour for an image (_, 640).
+        Return a ResponseData and change global variable.
+        """
+
         size = 640
         msg = MTEResponse.RED
         if self.devicetype == "CPU":
             msg = MTEResponse.TARGET_LOST
+            if not IS_DEMO:
+                self.resolution_change_allowed = 3
         else:
             self.rollback += 1
             if self.rollback >= 5:
-                size = 1728
+                size = 1730
                 self.rollback = 0
         return ResponseData(size, msg, None, None, None, None, None)
 
     def green_640(self, results):
+        """Behaviour for an image (_, 640) when the flag turn on to be green.
+        Return a ResponseData and change global variable.
+
+        Keyword arguments:
+        results -> the RecognitionData
+        """
+
         size = 640
         if self.resolution_change_allowed > 0:
             self.resolution_change_allowed -= 1
@@ -257,11 +309,23 @@ class MTE:
                             self.compute_direction(results.translations, 640), \
                             results.scales[0], results.scales[1])
 
-    def lost_1728(self):
+    def lost_1730(self):
+        """Behaviour for a image w=1730 when the target is lost
+        Return a ResponseData.
+        """
+
         msg = MTEResponse.TARGET_LOST
-        return ResponseData(1728, msg, None, None, None, None, None)
+        return ResponseData(1730, msg, None, None, None, None, None)
 
     def behaviour_380(self, results):
+        """Global behaviour for recognition of image (_,380).
+        Based on the activity diagram.
+        Return a ResponseData.
+
+        Keyword arguments:
+        results -> the RecognitionData
+        """
+
         response = MTEResponse.RED
         # If not enough keypoints
         if results.nb_kp < self.threshold_380.nb_kp:
@@ -308,6 +372,14 @@ class MTE:
         return response_for_client
 
     def behaviour_640(self, results):
+        """Global behaviour for recognition of image (_,640).
+        Based on the activity diagram.
+        Return a ResponseData.
+
+        Keyword arguments:
+        results -> the RecognitionData
+        """
+
         if results.nb_kp < self.threshold_640.nb_kp:
             response_for_client = self.red_640()
         # If not enough matches
@@ -348,52 +420,64 @@ class MTE:
             self.rollback = 0
         return response_for_client
 
-    def behaviour_1728(self, results):
-        if results.nb_kp < self.threshold_1728.nb_kp:
-            response_for_client = self.lost_1728()
+    def behaviour_1730(self, results):
+        """Global behaviour for recognition of image (_,1730).
+        Based on the activity diagram.
+        Return a ResponseData.
+
+        Keyword arguments:
+        results -> the RecognitionData
+        """
+
+        if results.nb_kp < self.threshold_1730.nb_kp:
+            response_for_client = self.lost_1730()
         # If not enough matches
-        elif results.nb_match < self.threshold_1728.nb_match:
-            response_for_client = self.lost_1728()
+        elif results.nb_match < self.threshold_1730.nb_match:
+            response_for_client = self.lost_1730()
         else:
             response = MTEResponse.GREEN
             # If not centered with target
             if not results.success:
-                response_for_client = ResponseData(1728, response,\
+                response_for_client = ResponseData(1730, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1728), \
+                                     self.compute_direction(results.translations, 1730), \
                                      results.scales[0], results.scales[1])
             else:
-                dist_kirsh = results.dist_roi[0] < self.threshold_1728.mean_kirsh
-                dist_canny = results.dist_roi[1] < self.threshold_1728.mean_canny
-                dist_color = results.dist_roi[2] < self.threshold_1728.mean_color
+                dist_kirsh = results.dist_roi[0] < self.threshold_1730.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_1730.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_1730.mean_color
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
-                    response_for_client = self.lost_1728()
+                    response_for_client = self.lost_1730()
                 # If all means are valids
                 elif dist_kirsh+dist_canny+dist_color == 3:
                     response_for_client = ResponseData(640, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1728), \
+                                     self.compute_direction(results.translations, 1730), \
                                      results.scales[0], results.scales[1])
                 else:
-                    dist_kirsh = results.dist_roi[0] < self.threshold_1728.kirsh_aberration
-                    dist_color = results.dist_roi[2] < self.threshold_1728.color_aberration
+                    dist_kirsh = results.dist_roi[0] < self.threshold_1730.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_1730.color_aberration
                     # If 0 aberration
                     if dist_kirsh+dist_color == 2:
                         size = 640
                     else:
                         response = MTEResponse.ORANGE
-                        size = 1728
+                        size = 1730
                     response_for_client = ResponseData(size, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1728), \
+                                     self.compute_direction(results.translations, 1730), \
                                      results.scales[0], results.scales[1])
         return response_for_client
 
-    ### Iniatialize learning datas with the reference and avoid the DB's use
-    ### In :    image_ref_reduite -> int array of the reduced reference
-    ###         image_ref -> int array of the reference at full size
     def fake_init_for_reference(self, image_ref_reduite, image_ref):
+        """Iniatialize learning datas with the reference and avoid the use of database.
+
+        Keyword arguments:
+        image_ref_reduite -> int array of the reduced reference
+        image_ref -> int array of the reference at full size
+        """
+
         learning_data = LearningData(-1, "0", image_ref_reduite, image_ref)
 
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
@@ -405,21 +489,30 @@ class MTE:
         self.ml_validator.learn(learning_data)
         self.last_learning_data = learning_data
 
-    ### Test the recognition between the input and the image learned with fakeInitForReference
-    ### In :    blurred_image -> int array of the blurred reference
-    ### Out :   results -> RecognitionData containing the recognition's results
     def test_filter(self, blurred_image):
+        """Test the recognition between the input and the image learned with fakeInitForReference.
+        Return a RecognitionData
+
+        Keyword arguments:
+        blurred_image -> int array of the blurred reference
+        """
+
         dim = (self.validation_width, self.validation_height)
         gaussian_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
         results = RecognitionData(*self.recognition(-1, gaussian_redux))
-        
+
         return results
 
-    ### Check if the images in a folder are valid for MTE
-    ### In  : image_ref -> int array of the potential reference
-    ### Out : validation_value -> dictionnary indicating the success or failure of the image
-    ### as well as the keypoints and theirs descriptors for severals dimensions of the image
     def check_reference(self, image_ref):
+        """Check if the image given is valid as reference.
+        Return a dictinnary with 2 boolean:
+        succes -> is the given image valid as reference
+        flou -> is the given image blurred
+
+        Keyword arguments:
+        image_ref -> int array of the potential reference
+        """
+
         size = int(image_ref.shape[1]/18)
         blurred = self.is_image_blurred(image_ref, \
                         size=size, thresh=10)
@@ -439,17 +532,9 @@ class MTE:
         kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
         kernel_h /= kernel_size
 
-        # Compute keypoints for reference
-        # image_ref_kp, image_ref_desc = self.sift_engine.sift.detectAndCompute(image_ref, None)
-        # for i in range(len(image_ref_kp)):
-        #     image_ref_kp[i].size = 2
-
         # Resize reference and compute keypoints
         dim = (self.validation_width, self.validation_height)
         image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
-        # image_ref_reduite_kp, image_ref_reduite_desc = self.sift_engine.sift.detectAndCompute(image_ref_reduite, None)
-        # for i in range(len(image_ref_reduite_kp)):
-        #     image_ref_reduite_kp[i].size = 1
 
         self.fake_init_for_reference(image_ref_reduite, image_ref)
         validation_value = {'success' : False}
@@ -477,56 +562,66 @@ class MTE:
             print("Failure horizontal blur")
             return validation_value
 
-        # The intermediary resolution
-        # dim = (640, 360)
-        # image_ref_half_redux = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
-        # image_ref_half_redux_kp, image_ref_half_redux_desc = self.sift_engine.sift.detectAndCompute(image_ref_half_redux, None)
-        # for i in range(len(image_ref_half_redux_kp)):
-        #     image_ref_half_redux_kp[i].size = 1
-        
         # All 3 noises are valid
         validation_value = {'success' : True,
-                            'flou' : False
-                            # 'full' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_kp).tolist()),
-                            #           'desc' : image_ref_desc.tolist()
-                            #           },
-                            # 'redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_reduite_kp).tolist()),
-                            #            'desc' : image_ref_reduite_desc.tolist()
-                            #            },
-                            # 'half_redux' : {'kp' : json.dumps(cv2.KeyPoint_convert(image_ref_half_redux_kp).tolist()),
-                            #                 'desc' : image_ref_half_redux_desc.tolist()
-                                            # }
-        }
+                            'flou' : False}
         print("Référence valide.")
 
         return validation_value
 
     def prelearning(self, image):
+        """Compute the keypoints and theirs descriptors of the given image.
+        Return the number of keypoints found.
+
+        Keyword arguments:
+        image_ref -> int array of the image
+        """
+
         # Renvoyer le nombre d'amers sur l'image envoyée
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            kp, _, _,_ = self.sift_engine.compute_sift(image, crop_image=False)
-            return len(kp)
+            keypoints, _, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
+            return len(keypoints)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            kp, _, _,_ = self.d2net_engine.compute_d2(image, crop_image=True)
-            return len(kp)
+            keypoints, _, _, _ = self.d2net_engine.compute_d2(image, crop_image=True)
+            return len(keypoints)
 
         return 0
 
     def learning(self, full_image):
+        """Test if the given image can be used as reference.
+        Return a dictionnary containing :
+        success for global success
+        flou for blur
+        learning_id for the position of the image in the DB
+
+        Keyword arguments:
+        full_image -> int array of the image
+        """
+
         validation = self.check_reference(full_image)
         if validation["success"] and not validation["flou"]:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 
-            validation["success"], learning_data = self.repo.get_pov_by_id(validation["learning_id"], resize_width=self.validation_width)
+            validation["success"], learning_data = self.repo.get_pov_by_id(\
+                validation["learning_id"], resize_width=self.validation_width)
             if validation["success"]:
-                self.learning_db.append(learning_data)                
+                self.learning_db.append(learning_data)
         else:
             validation["learning_id"] = -1
 
         return validation
 
     def recognition(self, pov_id, image):
+        """Compute the homography using the running engine.
+        Computation is made between the image from the video stream and
+        the image that have been learn with its id.
+
+        Keyword arguments:
+        pov_id -> int for the position of the reference in the DB
+        image -> int array for the video stream
+        """
+
         # Récupération d'une image, SIFT puis si validé VC léger avec mires auto
         ret_data = {
             "scale": "OK",
@@ -544,16 +639,19 @@ class MTE:
         fps = FPS().start()
         nb_matches = 0
         if self.mte_algo == MTEAlgo.VC_LIKE:
-            success, scale, skew, transformed = self.vc_like_engine.find_target(image, learning_data)
+            success, scale, skew, transformed = self.vc_like_engine.\
+                find_target(image, learning_data)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, \
+                nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
             skew = max(skew_x, skew_y)
         else:
-            success, scales, skews, translation, transformed, nb_matches, nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
+            success, scales, skews, translation, transformed, nb_matches, \
+                nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
@@ -562,7 +660,8 @@ class MTE:
         # ML validation
         ml_success = False
         if success:
-            ml_success, sum_distances, distances = self.ml_validator.validate(learning_data, transformed)
+            ml_success, sum_distances, distances = self.ml_validator.\
+                validate(learning_data, transformed)
 
         fps.update()
         fps.stop()
@@ -599,35 +698,13 @@ class MTE:
         #     if self.out is None:
         #         h_matching, w_matching = matching_result.shape[:2]
 
-        #         demo_path = os.path.join(DEMO_FOLDER, 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+        #         demo_path = os.path.join(DEMO_FOLDER,\
+        #                        'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
         #         self.out = cv2.VideoWriter(demo_path, \
         #             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, \
         #             (w_matching, h_matching))
 
         #     self.out.write(matching_result)
-
-
-        # cv2.putText(transformed, "{:.2f} FPS".format(fps.fps()), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #     (255, 255, 255), 2)
-        # if self.mte_algo != MTEAlgo.VC_LIKE:
-        #     cv2.putText(transformed, "{} matches".format(nb_matches), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        # if success:
-        #     if self.mte_algo != MTEAlgo.VC_LIKE:
-        #         cv2.putText(transformed, "Rot. x: {:.2f}".format(skew_x), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #         cv2.putText(transformed, "Rot. y: {:.2f}".format(skew_y), (160, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #         cv2.putText(transformed, "Trans. x: {:.2f}".format(translation[0]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #         cv2.putText(transformed, "Trans. y: {:.2f}".format(translation[1]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #         cv2.putText(transformed, "Scale x: {:.2f}".format(scale_y), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #         cv2.putText(transformed, "Scale y: {:.2f}".format(scale_x), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #         (255, 255, 255), 2)
-        #     cv2.putText(transformed, "Dist.: {:.2f}".format(sum_distances), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #     (255, 255, 255), 2)
 
         # cv2.imshow("Transformed", transformed)
         # cv2.waitKey(1)
@@ -642,24 +719,29 @@ class MTE:
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             learning_data = self.get_learning_data(pov_id)
 
-            sift_success, src_pts, dst_pts, _ = self.sift_engine.apply_sift(image, learning_data.sift_data,self.mte_algo)
+            sift_success, src_pts, dst_pts, _ = self.sift_engine.\
+                                                    apply_sift(image, \
+                                                        learning_data.sift_data, self.mte_algo)
 
             if sift_success:
-                h, w = image.shape[:2]
-                H = self.sift_engine.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, H, (w, h))
+                height, weight = image.shape[:2]
+                homography_matrix = self.sift_engine.get_homography_matrix\
+                    (src_pts, dst_pts, dst_to_src=True)
+                warped_image = cv2.warpPerspective(image, homography_matrix, (weight, height))
                 return sift_success, warped_image
             else:
                 return sift_success, image
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             learning_data = self.get_learning_data(pov_id)
 
-            d2_success, src_pts, dst_pts, _ = self.d2net_engine.apply_d2(image, learning_data.sift_data,self.mte_algo)
+            d2_success, src_pts, dst_pts, _ = self.d2net_engine.apply_d2\
+                (image, learning_data.sift_data, self.mte_algo)
 
             if d2_success:
-                h, w = image.shape[:2]
-                H = self.d2net_engine.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, H, (w, h))
+                height, weight = image.shape[:2]
+                homography_matrix = self.d2net_engine.get_homography_matrix\
+                    (src_pts, dst_pts, dst_to_src=True)
+                warped_image = cv2.warpPerspective(image, homography_matrix, (weight, height))
                 return d2_success, warped_image
             else:
                 return d2_success, image
@@ -668,6 +750,13 @@ class MTE:
             return False, image
 
     def get_learning_data(self, pov_id):
+        """Load the data from a reference. If it's the same as the previous one
+        we do not fetch the sights. We compute keypoints and descriptors each time.
+
+        Keyword arguments:
+        pov_id -> pov_id -> int for the position of the reference in the DB
+        """
+
         learning_data = None
 
         if self.last_learning_data is not None \
@@ -678,7 +767,8 @@ class MTE:
             if len(items) > 0:
                 learning_data = items[0]
             else:
-                success, learning_data = self.repo.get_pov_by_id(pov_id, resize_width=self.validation_width)
+                success, learning_data = self.repo.get_pov_by_id\
+                    (pov_id, resize_width=self.validation_width)
                 if not success:
                     raise Exception("No POV with id {}".format(pov_id))
 
@@ -700,18 +790,22 @@ class MTE:
         # cv2.waitKey(0)
         return learning_data
 
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1', 'oui', 'o', 'vrai', 'v'):
+def str2bool(string_value):
+    """Convert a string to a bool."""
+
+    if isinstance(string_value, bool):
+        return string_value
+    if string_value.lower() in ('yes', 'true', 't', 'y', '1', 'oui', 'o', 'vrai', 'v'):
         return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0', 'non', 'faux'):
+    elif string_value.lower() in ('no', 'false', 'f', 'n', '0', 'non', 'faux'):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 if __name__ == "__main__":
     def convert_to_float(frac_str):
+        """Convert a fraction written as string to a float"""
+
         try:
             return float(frac_str)
         except ValueError:
@@ -726,25 +820,23 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
-        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC, D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
+        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC,\
+             D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=380, type=int,\
         help="Width of the input image (640 or 320). Default: 380")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
-    ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
-        const=True, default=False,\
-        help="Activate the verification mode if set to True. Default: False")
+    # ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
+    #     const=True, default=False,\
+    #     help="Activate the verification mode if set to True. Default: False")
     args = vars(ap.parse_args())
 
     # print(MTEAlgo[args["algo"]])
     # print(convert_to_float(args["crop"]))
     # print(args["width"])
 
-    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]), resize_width=args["width"], ransacount=args["ransacount"])
-    if not args["verification"]:
-        mte.listen_images()
-    else:
-        mte.check_reference()
-
+    mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
+         resize_width=args["width"], ransacount=args["ransacount"])
+    mte.listen_images()
