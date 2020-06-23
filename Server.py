@@ -656,7 +656,12 @@ class MTE:
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
             skew = max(skew_x, skew_y)
-
+        # if success:
+        #     translation = ((translation[0]*scale_x + image.shape[1]/3), (translation[1]*scale_y + image.shape[0]/3))
+        #     upper_left_conner = cv2.KeyPoint(translation[0], translation[1], 8)
+        #     to_draw = cv2.drawKeypoints(image, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        #     cv2.imshow("Server visu", to_draw)
+        #     cv2.waitKey(1)
         # ML validation
         ml_success = False
         if success:

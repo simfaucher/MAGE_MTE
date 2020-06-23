@@ -176,15 +176,44 @@ class ACD:
                         (255, 255, 255), 2)
                     cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                 (255, 255, 255), 2)
+                    cv2.putText(to_draw, "No scale", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Scale x,y", (160, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (0, 255, 255), 2)
+                    cv2.putText(to_draw, "Scale y", (300, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (0, 0, 255), 2)
                     # If we add the response scale_w for x it doesn't correspond to the real corner
-                    x_coordinate = (full_image.shape[1]/prev_size)*response["shift_x"]
-                    y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*response["shift_y"]
-                    # upper_left_conner = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                    # y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*(response["shift_y"] + image.shape[0]/3)
+                    x_coordinate = (full_image.shape[1]/prev_size) * (response["shift_x"] + image.shape[1]/3)
+                    y_coordinate = (full_image.shape[0]/prev_size) * (response["shift_y"] + image.shape[0]/3)
+                    center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                    to_draw = cv2.drawKeypoints(to_draw, [center], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+                    # upper_left_conner = cv2.KeyPoint(x_coordinate-image.shape[1]/3, y_coordinate-image.shape[0]/3, 8)
+                    upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), int(y_coordinate-full_image.shape[0]/3))
+                    lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), int(y_coordinate+full_image.shape[0]/3))
+                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (255, 0, 0))
+
+                    x_scaled = (full_image.shape[1]/prev_size+response["scale_w"]) * (response["shift_x"] + image.shape[1]/3)
+                    y_scaled = (full_image.shape[0]/prev_size+response["scale_h"]) * (response["shift_y"] + image.shape[0]/3)
+                    center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
+                    to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                    upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
+                    lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
+                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 255, 255))
+
+                    x_scaled = (full_image.shape[1]/prev_size) * (response["shift_x"] + image.shape[1]/3)
+                    y_scaled = (full_image.shape[0]/prev_size+response["scale_h"]) * (response["shift_y"] + image.shape[0]/3)
+                    center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
+                    to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                    upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
+                    lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
+                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 0, 255))
                     # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                    point = (int(x_coordinate), int(y_coordinate))
-                    remaining_size_after_crop = ((full_image.shape[1]*(2/3))*response["scale_w"], (full_image.shape[0]*(2/3))*response["scale_h"])
-                    second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
-                    to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
+                    # point = (int(x_coordinate), int(y_coordinate))
+                    # remaining_size_after_crop = ((full_image.shape[1]*(2/3))*response["scale_w"], (full_image.shape[0]*(2/3))*response["scale_h"])
+                    # second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
+                    # to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
                     # cv2.imwrite("drawn.png",to_draw)
                 cv2.imshow("Targetting", to_draw)
                 cv2.waitKey(1)

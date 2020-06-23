@@ -159,10 +159,10 @@ class SIFTEngine:
         keypointForRansac = kp
         # print(kp[0].pt)
 
-        return kp, des, img,keypointForRansac
+        return kp, des, img, keypointForRansac
 
 
-    def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False,mode=MTEAlgo.SIFT_KNN):
+    def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False, mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
         if w == 380:

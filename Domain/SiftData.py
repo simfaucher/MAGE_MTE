@@ -16,6 +16,7 @@ class SiftData:
         self.des = self.desc_380
 
     def switch_640(self):
+        print("640")
         self.kp = self.kp_640
         self.des = self.desc_640
 
