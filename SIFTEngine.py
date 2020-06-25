@@ -130,6 +130,7 @@ class SIFTEngine:
                 print("SIFT deformé")
                 warped_image = image.copy()
         else:
+            print("Pas assez de match pour lancer homographie: {}".format(len(good_matches)))
             warped_image = image.copy()
             for i in range (len(kp_img)):
                 kp_img[i].size = 1

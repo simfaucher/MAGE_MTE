@@ -16,7 +16,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -146,6 +146,8 @@ class ACD:
                 to_draw = full_image
                 cv2.putText(to_draw, "Taille image: {}".format(prev_size), (300, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (0, 0, 255), 2)
+                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                    (255, 255, 255), 2)
                 size = response["size"]
                 if not prev_size == size:
                     print("Changement de taille {} -> {}".format(prev_size, size))
@@ -169,8 +171,6 @@ class ACD:
                     else:
                         color_box = (255, 255, 255)
                     # Display target on image                    
-                    cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                    (255, 255, 255), 2)
                     if reco_data["success"] and not response["response"] == "TARGET_LOST":
                         # print(response)
                         cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \

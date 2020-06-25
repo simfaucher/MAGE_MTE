@@ -355,8 +355,15 @@ class MTE:
                 dist_kirsh = results.dist_roi[0] < self.threshold_380.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_380.mean_canny
                 dist_color = results.dist_roi[2] < self.threshold_380.mean_color
+                print(dist_kirsh)
+                print(dist_canny)
+                print(dist_color)
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
+                    print("Trop de distance > à la moyenne")
+                    print(results.dist_roi[0])
+                    print(results.dist_roi[1])
+                    print(results.dist_roi[2])
                     response_for_client = self.orange_behaviour(results, 380)
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
