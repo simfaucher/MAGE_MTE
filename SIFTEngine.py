@@ -1,3 +1,7 @@
+"""
+    Engine using SIFT to detect keypoints.
+    Some parameters for validation are written here.
+"""
 import os
 import sys
 import time
@@ -41,6 +45,10 @@ class SIFTEngine:
         self.resized_height = 213
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
+        """Learn the sift keypoints of the image given through learning_data.
+        It does not return a results but but changes values inside learning_data.
+        """
+
         if learning_data.sift_data is None:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
@@ -72,23 +80,23 @@ class SIFTEngine:
         homography_success = False
 
         if sift_success:
-            H, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
+            homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            h, w = learning_data.sift_data.ref.shape[:2]
-            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-            dst = cv2.perspectiveTransform(pts, H)
+            height, width = learning_data.sift_data.ref.shape[:2]
+            pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
+            dst = cv2.perspectiveTransform(pts, homography_matrix)
 
             debug_img = cv2.polylines(image.copy(), [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
 
             # cv2.imshow("Deformation", debug_img)
 
-            scale_x = float(H[0][0])
-            scale_y = float(H[1][1])
-            skew_x = float(H[0][1])
-            skew_y = float(H[1][0])
-            t_x = float(H[0][2])
-            t_y = float(H[1][2])
+            scale_x = float(homography_matrix[0][0])
+            scale_y = float(homography_matrix[1][1])
+            skew_x = float(homography_matrix[0][1])
+            skew_y = float(homography_matrix[1][0])
+            t_x = float(homography_matrix[0][2])
+            t_y = float(homography_matrix[1][2])
 
             scale_ok = SIFTEngine.HOMOGRAPHY_MIN_SCALE <= scale_x <= SIFTEngine.HOMOGRAPHY_MAX_SCALE \
                 and SIFTEngine.HOMOGRAPHY_MIN_SCALE <= scale_y <= SIFTEngine.HOMOGRAPHY_MAX_SCALE
@@ -103,15 +111,15 @@ class SIFTEngine:
                 print("SIFT valide")
 
                 # Framing
-                H = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, H, (w, h))
+                homography_matrix = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
+                warped_image = cv2.warpPerspective(image, homography_matrix, (width, height))
                 # on recup les kp en float + reshape pour passer le perspectiveTransform
                 pos = []
                 for i in range(len(kp_img)):
                      pos += [[kp_img[i].pt[0],kp_img[i].pt[1]]]
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
-                new_pos = cv2.perspectiveTransform(pts,H)
+                new_pos = cv2.perspectiveTransform(pts,homography_matrix)
 
                 new_kp = []
                 for i in range(new_pos.shape[0]):
@@ -191,9 +199,9 @@ class SIFTEngine:
                     pass
         elif mode == MTEAlgo.SIFT_RANSAC:
             matches = match_descriptors(des_img, sift_data.des, cross_check=True)
-            left=[kp_base[loop].pt[:] for loop in matches[:,0]]
+            left = [kp_base[loop].pt[:] for loop in matches[:,0]]
             keypoints_left = np.asarray(left)
-            right=[sift_data.kp_base[loop].pt[:] for loop in matches[:,1]]
+            right = [sift_data.kp_base[loop].pt[:] for loop in matches[:,1]]
             keypoints_right = np.asarray(right)
             np.random.seed(0)
             model, inliers = ransac(

@@ -1,6 +1,11 @@
+"""
+    Results returned by the recognition function
+"""
 import numpy as np
 
 class RecognitionData:
+    """A class containing all the data of a recognition"""
+
     def __init__(self, success: bool, recog_ret_data: dict, nb_kp: int,
                  nb_match: int, sum_translation: float, \
                  sum_skew: float, sum_distances: float, \

@@ -143,6 +143,9 @@ class ACD:
                 reco_data = reply["recognition"]
                 prev_size = size
                 response = reply["recognition"]["results"]
+                to_draw = full_image
+                cv2.putText(to_draw, "Taille image: {}".format(prev_size), (300, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (0, 0, 255), 2)
                 size = response["size"]
                 if not prev_size == size:
                     print("Changement de taille {} -> {}".format(prev_size, size))
@@ -158,63 +161,65 @@ class ACD:
                     print("Recognition failed")
                 if response["response"] == "TARGET_LOST":
                     print("Cible perdu")
+                elif not response["response"] == "RED":
+                    if response["response"] == "ORANGE":
+                        color_box = (0, 165, 255)
+                    elif response["response"] == "GREEN":
+                        color_box = (0, 255, 0)
+                    else:
+                        color_box = (255, 255, 255)
+                    # Display target on image                    
+                    cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                    (255, 255, 255), 2)
+                    if reco_data["success"] and not response["response"] == "TARGET_LOST":
+                        # print(response)
+                        cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 255, 255), 2)
+                        cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 255, 255), 2)
+                        cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 255, 255), 2)
+                        cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 255, 255), 2)
+                        cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                    (255, 255, 255), 2)
+                        cv2.putText(to_draw, "Target", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, response["response"], (160, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            color_box, 2)
+                        # If we add the response scale_w for x it doesn't correspond to the real corner
+                        # y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*(response["shift_y"] + image.shape[0]/3)
+                        x_coordinate = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
+                        y_coordinate = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
+                        center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                        to_draw = cv2.drawKeypoints(to_draw, [center], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-                
-                # Display target on image
-                to_draw = full_image
-                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                if reco_data["success"] and not response["response"] == "TARGET_LOST":
-                    # print(response)
-                    cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 255, 255), 2)
-                    cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 255, 255), 2)
-                    cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 255, 255), 2)
-                    cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 255, 255), 2)
-                    cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                (255, 255, 255), 2)
-                    cv2.putText(to_draw, "No scale", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Scale x,y", (160, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (0, 255, 255), 2)
-                    cv2.putText(to_draw, "Scale y", (300, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (0, 0, 255), 2)
-                    # If we add the response scale_w for x it doesn't correspond to the real corner
-                    # y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*(response["shift_y"] + image.shape[0]/3)
-                    x_coordinate = (full_image.shape[1]/prev_size) * (response["shift_x"] + image.shape[1]/3)
-                    y_coordinate = (full_image.shape[0]/prev_size) * (response["shift_y"] + image.shape[0]/3)
-                    center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
-                    to_draw = cv2.drawKeypoints(to_draw, [center], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                        # upper_left_conner = cv2.KeyPoint(x_coordinate-image.shape[1]/3, y_coordinate-image.shape[0]/3, 8)
+                        upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), int(y_coordinate-full_image.shape[0]/3))
+                        lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), int(y_coordinate+full_image.shape[0]/3))
+                        to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (255, 0, 0))
 
-                    # upper_left_conner = cv2.KeyPoint(x_coordinate-image.shape[1]/3, y_coordinate-image.shape[0]/3, 8)
-                    upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), int(y_coordinate-full_image.shape[0]/3))
-                    lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), int(y_coordinate+full_image.shape[0]/3))
-                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (255, 0, 0))
+                        x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
+                        y_scaled = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
+                        center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
+                        to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), color_box, cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                        upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*response["scale_w"]), int(y_scaled-(full_image.shape[0]/3)*response["scale_h"]))
+                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*response["scale_w"]), int(y_scaled+(full_image.shape[0]/3)*response["scale_h"]))
+                        to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, color_box)
 
-                    x_scaled = (full_image.shape[1]/prev_size+response["scale_w"]) * (response["shift_x"] + image.shape[1]/3)
-                    y_scaled = (full_image.shape[0]/prev_size+response["scale_h"]) * (response["shift_y"] + image.shape[0]/3)
-                    center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                    to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                    upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
-                    lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
-                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 255, 255))
-
-                    x_scaled = (full_image.shape[1]/prev_size) * (response["shift_x"] + image.shape[1]/3)
-                    y_scaled = (full_image.shape[0]/prev_size+response["scale_h"]) * (response["shift_y"] + image.shape[0]/3)
-                    center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                    to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                    upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
-                    lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
-                    to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 0, 255))
-                    # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                    # point = (int(x_coordinate), int(y_coordinate))
-                    # remaining_size_after_crop = ((full_image.shape[1]*(2/3))*response["scale_w"], (full_image.shape[0]*(2/3))*response["scale_h"])
-                    # second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
-                    # to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
-                    # cv2.imwrite("drawn.png",to_draw)
+                        # x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"] + image.shape[1]/6)
+                        # y_scaled = (full_image.shape[0]/image.shape[0]+response["scale_h"]) * (response["shift_y"] + image.shape[0]/6)
+                        # center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
+                        # to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                        # upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
+                        # lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
+                        # to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 0, 255))
+                        # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                        # point = (int(x_coordinate), int(y_coordinate))
+                        # remaining_size_after_crop = ((full_image.shape[1]*(2/3))*response["scale_w"], (full_image.shape[0]*(2/3))*response["scale_h"])
+                        # second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
+                        # to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
+                        # cv2.imwrite("drawn.png",to_draw)
                 cv2.imshow("Targetting", to_draw)
                 cv2.waitKey(1)
             # elif mode == MTEMode.FRAMING:

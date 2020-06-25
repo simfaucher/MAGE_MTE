@@ -167,11 +167,14 @@ class MTE:
                 else:
                     print("Taille d'image non supporté")
                     response_for_client = None
+
+                # If we can capture
                 if self.validation > MIN_VALIDATION_COUNT:
                     self.validation = MIN_VALIDATION_COUNT
                 if self.validation == MIN_VALIDATION_COUNT:
                     is_blurred = self.is_image_blurred(image, \
                         size=int(response_for_client.size/18), thresh=10)
+                    # if the image is not blurred else we just return green
                     if not is_blurred[1]:
                         response_for_client.response = MTEResponse.CAPTURE
                         self.validation = 0
@@ -215,14 +218,14 @@ class MTE:
         mean = np.mean(magnitude)
         return (mean, mean <= thresh)
 
-    def compute_direction(self, translation, size):
+    def compute_direction(self, translation_value, size):
         """Return a string representing a cardinal direction.
 
         Keyword arguments:
         translation -> tuple containing homographic estimations of x,y
         size -> the width of the current image
         """
-
+        translation = (translation_value[0]+int(size*9/16/3), translation_value[1]+size/3)
         direction = ""
         size_h = (size*9)/16
         if translation[0] < size_h*(1/3):
@@ -279,7 +282,8 @@ class MTE:
         msg = MTEResponse.RED
         if self.devicetype == "CPU":
             msg = MTEResponse.TARGET_LOST
-            if not IS_DEMO:
+            if IS_DEMO:
+                size = 380
                 self.resolution_change_allowed = 3
         else:
             self.rollback += 1
@@ -336,6 +340,7 @@ class MTE:
             if results.nb_match < 30:
                 response_for_client = self.red_380()
             else:
+                print("Not enough kp")
                 response_for_client = self.orange_behaviour(results, 380)
         else:
             response = MTEResponse.GREEN
@@ -361,6 +366,9 @@ class MTE:
                         self.validation += 1
                         self.rollback = 0
                     else:
+                        print("Aberation")
+                        print(results.dist_roi[0])
+                        print(results.dist_roi[2])
                         response = MTEResponse.ORANGE
                     response_for_client = ResponseData(380, response,\
                                      results.translations[0], results.translations[1], \
@@ -520,9 +528,9 @@ class MTE:
             return {'success' : False,
                     'flou' : True}
 
-        kernel_size = 25
-        sigma = 5
-        kernel = 31
+        kernel_size = 15
+        sigma = 3
+        kernel = 21
 
         kernel_v = np.zeros((kernel_size, kernel_size))
         kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
@@ -542,6 +550,7 @@ class MTE:
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
+        cv2.imwrite("flou.png",image_gaussian_blur)
         if not results.success:
             print("Failure gaussian blur")
             return validation_value
