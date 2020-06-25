@@ -119,7 +119,7 @@ class SIFTEngine:
                      pos += [[kp_img[i].pt[0],kp_img[i].pt[1]]]
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
-                new_pos = cv2.perspectiveTransform(pts,homography_matrix)
+                new_pos = cv2.perspectiveTransform(pts, homography_matrix)
 
                 new_kp = []
                 for i in range(new_pos.shape[0]):

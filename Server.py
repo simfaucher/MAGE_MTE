@@ -157,6 +157,7 @@ class MTE:
 
                 ret_data["recognition"] = results.recog_ret_data
                 ret_data["recognition"]["success"] = results.success
+                ret_data["recognition"]["nb_kp"] = results.nb_kp
                 ret_data["recognition"]["nb_match"] = results.nb_match
                 if image.shape[1] == 380:
                     response_for_client = self.behaviour_380(results)
@@ -359,7 +360,7 @@ class MTE:
                 print(dist_canny)
                 print(dist_color)
                 # If 0 or 1 mean valid
-                if dist_kirsh+dist_canny+dist_color < 2:
+                if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
                     print("Trop de distance > à la moyenne")
                     print(results.dist_roi[0])
                     print(results.dist_roi[1])
