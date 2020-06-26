@@ -218,12 +218,13 @@ class ACD:
                         lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), int(y_coordinate+full_image.shape[0]/3))
                         to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (255, 0, 0))
 
+                        mean_scale = (response["scale_w"] + response["scale_h"]) / 2
                         x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
                         y_scaled = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
                         center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
                         to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), color_box, cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                        upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*response["scale_w"]), int(y_scaled-(full_image.shape[0]/3)*response["scale_h"]))
-                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*response["scale_w"]), int(y_scaled+(full_image.shape[0]/3)*response["scale_h"]))
+                        upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), int(y_scaled-(full_image.shape[0]/3)*mean_scale))
+                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale), int(y_scaled+(full_image.shape[0]/3)*mean_scale))
                         to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, color_box)
 
                         # x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"] + image.shape[1]/6)

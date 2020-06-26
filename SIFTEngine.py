@@ -43,6 +43,8 @@ class SIFTEngine:
         self.ransacmax = maxRansac
         self.resized_width = 380
         self.resized_height = 213
+        self.img360 = None
+        self.img640 = None
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
@@ -53,12 +55,12 @@ class SIFTEngine:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_380, des_380, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
-            # cv2.imwrite('ref moteur {}*{}.png'.format(self.resized_width, self.resized_height), image_ref)
+            # cv2.imwrite('ref_resize{}*{}.png'.format(self.resized_width, self.resized_height), image_ref)
 
             dim = (640, 360)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_640, des_640, temp, _ = self.compute_sift(img, crop_image, crop_margin)
-            # cv2.imwrite('ref moteur {}*{}.png'.format(dim[0], dim[1]), temp)
+            # cv2.imwrite('ref_resize{}*{}.png'.format(dim[0], dim[1]), temp)
 
             dim = (1730, int(1730*9/16))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)

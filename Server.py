@@ -98,7 +98,7 @@ class MTE:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
         self.threshold_380 = MTEThreshold(100, 45, 2900, 900, 10000, 4000, 11000)
-        self.threshold_640 = MTEThreshold(100, 70, 2700, 1050, 12000, 5000, 15000)
+        self.threshold_640 = MTEThreshold(100, 70, 2800, 1200, 14000, 5000, 18000)
         self.threshold_1730 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
@@ -284,6 +284,7 @@ class MTE:
 
         size = 640
         msg = MTEResponse.RED
+        self.validation = 0
         if self.devicetype == "CPU":
             msg = MTEResponse.TARGET_LOST
             #if IS_DEMO:
@@ -428,8 +429,8 @@ class MTE:
                 elif int(dist_kirsh)+int(dist_canny)+int(dist_color) == 3:
                     response_for_client = self.green_640(results)
                 else:
-                    dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
-                    dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
+                    dist_kirsh = results.dist_roi[0] < self.threshold_640.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_640.color_aberration
                     # If 0 aberration
                     if int(dist_kirsh)+int(dist_color) == 2:
                         response_for_client = self.green_640(results)
