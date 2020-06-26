@@ -144,14 +144,35 @@ class ACD:
                 prev_size = size
                 response = reply["recognition"]["results"]
                 to_draw = full_image
-                cv2.putText(to_draw, "Taille image: {}".format(prev_size), (300, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (0, 0, 255), 2)
-                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (160, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                    (255, 255, 255), 2)
+                if response["response"] == "ORANGE":
+                    color_box = (0, 165, 255)
+                elif response["response"] == "GREEN":
+                    color_box = (0, 255, 0)
+                elif response["response"] == "RED":
+                    color_box = (0, 0, 255)
+                elif response["response"] == "TARGET_LOST":
+                    color_box = (0, 0, 0)
+                else:
+                    color_box = (255, 255, 255)
+                cv2.putText(to_draw, "Taille image: {}".format(prev_size), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                cv2.putText(to_draw, "Nb kp: {:.2f}".format(reco_data["nb_kp"]), (120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (220, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                    (255, 0, 0), 2)
+                cv2.putText(to_draw, response["response"], (320, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            color_box, 2)
+                if reco_data["success"]:
+                    cv2.putText(to_draw, "Dist 1: {:.2f}".format(reco_data["dist"][0]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Dist 2: {:.2f}".format(reco_data["dist"][1]), (120, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Dist 3: {:.2f}".format(reco_data["dist"][2]), (220, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                        (255, 0, 0), 2)
                 size = response["size"]
                 if not prev_size == size:
                     print("Changement de taille {} -> {}".format(prev_size, size))
-                if reco_data["success"]:
+                if reco_data["success"]:                    
                     print("Recognition OK")
                 elif "sift_success" in reco_data and reco_data["sift_success"]:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
@@ -163,30 +184,24 @@ class ACD:
                     print("Recognition failed")
                 if response["response"] == "TARGET_LOST":
                     print("Cible perdu")
-                elif not response["response"] == "RED":
-                    if response["response"] == "ORANGE":
-                        color_box = (0, 165, 255)
-                    elif response["response"] == "GREEN":
-                        color_box = (0, 255, 0)
-                    else:
-                        color_box = (255, 255, 255)
+                elif response["response"] == "RED":
+                    print("RED : pas d'homographie")
+                else:
                     # Display target on image                    
-                    if reco_data["success"] and not response["response"] == "TARGET_LOST":
+                    if reco_data["success"]:
                         # print(response)
                         cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 255, 255), 2)
-                        cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (160, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 255, 255), 2)
-                        cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 255, 255), 2)
-                        cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (160, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 255, 255), 2)
-                        cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                    (255, 255, 255), 2)
-                        cv2.putText(to_draw, "Target", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (255, 0, 0), 2)
-                        cv2.putText(to_draw, response["response"], (160, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            color_box, 2)
+                        cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (120, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (120, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Target", (120, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
                         # If we add the response scale_w for x it doesn't correspond to the real corner
                         # y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*(response["shift_y"] + image.shape[0]/3)
                         x_coordinate = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)

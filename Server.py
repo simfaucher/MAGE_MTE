@@ -97,8 +97,8 @@ class MTE:
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
-        self.threshold_380 = MTEThreshold(260, 45, 2900, 900, 10000, 4000, 11000)
-        self.threshold_640 = MTEThreshold(750, 70, 2700, 1050, 12000, 5000, 15000)
+        self.threshold_380 = MTEThreshold(100, 45, 2900, 900, 10000, 4000, 11000)
+        self.threshold_640 = MTEThreshold(100, 70, 2700, 1050, 12000, 5000, 15000)
         self.threshold_1730 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
@@ -158,6 +158,7 @@ class MTE:
                 ret_data["recognition"] = results.recog_ret_data
                 ret_data["recognition"]["success"] = results.success
                 ret_data["recognition"]["nb_kp"] = results.nb_kp
+                ret_data["recognition"]["dist"] = results.dist_roi
                 ret_data["recognition"]["nb_match"] = results.nb_match
                 if image.shape[1] == 380:
                     response_for_client = self.behaviour_380(results)
@@ -182,6 +183,7 @@ class MTE:
                         self.rollback = 0
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
+                print(response_for_client.convert_to_dict())
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -283,9 +285,9 @@ class MTE:
         msg = MTEResponse.RED
         if self.devicetype == "CPU":
             msg = MTEResponse.TARGET_LOST
-            if IS_DEMO:
-                size = 380
-                self.resolution_change_allowed = 3
+            #if IS_DEMO:
+                #size = 380
+                #self.resolution_change_allowed = 3
         else:
             self.rollback += 1
             if self.rollback >= 5:
@@ -335,6 +337,7 @@ class MTE:
         # If not enough keypoints
         if results.nb_kp < self.threshold_380.nb_kp:
             response_for_client = self.red_380()
+            print("Pas assez de kp")
         # If not enough matches
         elif results.nb_match < self.threshold_380.nb_match:
             # If homography doesn't even start
@@ -370,7 +373,7 @@ class MTE:
                     dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
                     dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
                     # If 0 aberration
-                    if dist_kirsh+dist_color == 2:
+                    if int(dist_kirsh)+int(dist_color) == 2:
                         self.validation += 1
                         self.rollback = 0
                     else:
@@ -418,16 +421,16 @@ class MTE:
                 dist_canny = results.dist_roi[1] < self.threshold_640.mean_canny
                 dist_color = results.dist_roi[2] < self.threshold_640.mean_color
                 # If 0 or 1 mean valid
-                if dist_kirsh+dist_canny+dist_color < 2:
+                if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
                     response_for_client = self.orange_behaviour(results, 640)
                 # If all means are valids
-                elif dist_kirsh+dist_canny+dist_color == 3:
+                elif int(dist_kirsh)+int(dist_canny)+int(dist_color) == 3:
                     response_for_client = self.green_640(results)
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
                     dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
                     # If 0 aberration
-                    if dist_kirsh+dist_color == 2:
+                    if int(dist_kirsh)+int(dist_color) == 2:
                         response_for_client = self.green_640(results)
                     else:
                         response_for_client = self.orange_behaviour(results, 640)
