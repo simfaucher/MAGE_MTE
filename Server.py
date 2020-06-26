@@ -540,9 +540,9 @@ class MTE:
             return {'success' : False,
                     'flou' : True}
 
-        kernel_size = 15
+        kernel_size = 10
         sigma = 3
-        kernel = 21
+        kernel = 15
 
         kernel_v = np.zeros((kernel_size, kernel_size))
         kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)

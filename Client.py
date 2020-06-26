@@ -169,6 +169,16 @@ class ACD:
                         (255, 0, 0), 2)
                     cv2.putText(to_draw, "Dist 3: {:.2f}".format(reco_data["dist"][2]), (420, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                         (255, 0, 0), 2)
+
+                if reco_data["nb_kp"] > 30 and not response["response"] == "RED" and not response["response"] == "TARGET_LOST":
+                    cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                            (255, 0, 0), 2)
                 size = response["size"]
                 if not prev_size == size:
                     print("Changement de taille {} -> {}".format(prev_size, size))
@@ -182,24 +192,16 @@ class ACD:
                     print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
-                    cv2.putText(to_draw, "L'homographie à échouer.", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+                    cv2.putText(to_draw, "L'homographie à échouer.", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (255, 0, 0), 2)
                 if response["response"] == "TARGET_LOST":
                     print("Cible perdu")
                 elif response["response"] == "RED":
                     print("RED : pas d'homographie")
                 else:
-                    # Display target on image
+                    # Display target on image                    
                     if reco_data["success"]:
                         # print(response)
-                        cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                        cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                        cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                        cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
                         cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (255, 0, 0), 2)
                         cv2.putText(to_draw, "Target", (220, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
