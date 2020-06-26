@@ -179,8 +179,8 @@ class MTE:
                     # if the image is not blurred else we just return green
                     if not is_blurred[1]:
                         response_for_client.response = MTEResponse.CAPTURE
-                        self.validation = 0
-                        self.rollback = 0
+                        # self.validation = 0
+                        # self.rollback = 0
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
                 print(response_for_client.convert_to_dict())
@@ -252,6 +252,7 @@ class MTE:
 
         size = 380
         self.rollback += 1
+        self.validation -= 1
         if self.rollback >= 5:
             self.rollback = 0
             size = 640
@@ -359,15 +360,15 @@ class MTE:
                 dist_kirsh = results.dist_roi[0] < self.threshold_380.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_380.mean_canny
                 dist_color = results.dist_roi[2] < self.threshold_380.mean_color
-                print(dist_kirsh)
-                print(dist_canny)
-                print(dist_color)
+                # print(dist_kirsh)
+                # print(dist_canny)
+                # print(dist_color)
                 # If 0 or 1 mean valid
                 if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
-                    print("Trop de distance > à la moyenne")
-                    print(results.dist_roi[0])
-                    print(results.dist_roi[1])
-                    print(results.dist_roi[2])
+                    # print("Trop de distance > à la moyenne")
+                    # print(results.dist_roi[0])
+                    # print(results.dist_roi[1])
+                    # print(results.dist_roi[2])
                     response_for_client = self.orange_behaviour(results, 380)
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
@@ -377,9 +378,9 @@ class MTE:
                         self.validation += 1
                         self.rollback = 0
                     else:
-                        print("Aberation")
-                        print(results.dist_roi[0])
-                        print(results.dist_roi[2])
+                        # print("Aberation")
+                        # print(results.dist_roi[0])
+                        # print(results.dist_roi[2])
                         response = MTEResponse.ORANGE
                     response_for_client = ResponseData(380, response,\
                                      results.translations[0], results.translations[1], \
