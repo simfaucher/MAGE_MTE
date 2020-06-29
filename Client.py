@@ -206,8 +206,7 @@ class ACD:
                             (255, 0, 0), 2)
                         cv2.putText(to_draw, "Target", (220, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (255, 0, 0), 2)
-                        # If we add the response scale_w for x it doesn't correspond to the real corner
-                        # y_coordinate = (full_image.shape[0]/prev_size+response["scale_h"])*(response["shift_y"] + image.shape[0]/3)
+                        # Center point
                         x_coordinate = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
                         y_coordinate = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
                         center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)

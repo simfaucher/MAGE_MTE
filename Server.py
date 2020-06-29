@@ -230,11 +230,7 @@ class MTE:
         translation -> tuple containing homographic estimations of x,y
         size -> the width of the current image
         """
-        center = (translation_value[1]*scale_value[1]+size/3, translation_value[0]*scale_value[0]+int((size*9/16)/3))
-        # center_kp = cv2.KeyPoint(center[0], center[1], 8)
-        # to_draw = cv2.drawKeypoints(self.debug, [center_kp], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.imshow("Direction", to_draw)
-        # cv2.waitKey(1)
+        center = (translation_value[0]*scale_value[0]+size/3, translation_value[1]*scale_value[1]+int((size*9/16)/3))        
         direction = ""
         size_h = (size*9)/16
         if center[1] < size_h*(1/3):
@@ -249,6 +245,12 @@ class MTE:
             direction += "E"
         else:
             direction += "C"
+        # center_kp = cv2.KeyPoint(center[0], center[1], 8)
+        # to_draw = cv2.drawKeypoints(self.debug, [center_kp], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # cv2.putText(to_draw, "Direction: "+direction, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
+        #                     (255, 0, 0), 2)
+        # cv2.imshow("Direction", to_draw)
+        # cv2.waitKey(1)
         return direction
 
     def red_380(self):
