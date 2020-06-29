@@ -106,6 +106,7 @@ class MTE:
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
 
+        self.debug = None
 
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
@@ -151,6 +152,7 @@ class MTE:
             elif mode == MTEMode.RECOGNITION:
                 pov_id = data["pov_id"]
                 # print("MODE recognition")
+                self.debug = image_for_learning
                 if self.devicetype == "CPU" and image.shape[1] > 640:
                     image = cv2.resize(image, (640, 360), interpolation=cv2.INTER_AREA)
                 results = RecognitionData(*self.recognition(pov_id, image))
@@ -221,25 +223,29 @@ class MTE:
         mean = np.mean(magnitude)
         return (mean, mean <= thresh)
 
-    def compute_direction(self, translation_value, size):
+    def compute_direction(self, translation_value, scale_value, size):
         """Return a string representing a cardinal direction.
 
         Keyword arguments:
         translation -> tuple containing homographic estimations of x,y
         size -> the width of the current image
         """
-        translation = (translation_value[0]+int(size*9/16/3), translation_value[1]+size/3)
+        center = (translation_value[1]*scale_value[1]+size/3, translation_value[0]*scale_value[0]+int((size*9/16)/3))
+        # center_kp = cv2.KeyPoint(center[0], center[1], 8)
+        # to_draw = cv2.drawKeypoints(self.debug, [center_kp], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # cv2.imshow("Direction", to_draw)
+        # cv2.waitKey(1)
         direction = ""
         size_h = (size*9)/16
-        if translation[0] < size_h*(1/3):
+        if center[1] < size_h*(1/3):
             direction += "N"
-        elif translation[0] > size_h*(2/3):
+        elif center[1] > size_h*(2/3):
             direction += "S"
         else:
             direction += "C"
-        if translation[1] < size*(1/3):
+        if center[0] < size*(1/3):
             direction += "W"
-        elif translation[1] > size*(2/3):
+        elif center[0] > size*(2/3):
             direction += "E"
         else:
             direction += "C"
@@ -274,7 +280,7 @@ class MTE:
 
         return ResponseData(size, MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
-                            self.compute_direction(results.translations, size), \
+                            self.compute_direction(results.translations, results.scales, size), \
                             results.scales[0], results.scales[1])
 
     def red_640(self):
@@ -315,7 +321,7 @@ class MTE:
             self.validation += 1
         return ResponseData(size, MTEResponse.GREEN,\
                             results.translations[0], results.translations[1], \
-                            self.compute_direction(results.translations, 640), \
+                            self.compute_direction(results.translations, results.scales, 640), \
                             results.scales[0], results.scales[1])
 
     def lost_1730(self):
@@ -355,7 +361,7 @@ class MTE:
                 self.validation = 0
                 response_for_client = ResponseData(380, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 380), \
+                                     self.compute_direction(results.translations, results.scales, 380), \
                                      results.scales[0], results.scales[1])
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_380.mean_kirsh
@@ -385,7 +391,7 @@ class MTE:
                         response = MTEResponse.ORANGE
                     response_for_client = ResponseData(380, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 380), \
+                                     self.compute_direction(results.translations, results.scales, 380), \
                                      results.scales[0], results.scales[1])
 
         if response_for_client.response == MTEResponse.GREEN:
@@ -416,7 +422,7 @@ class MTE:
             if not results.success:
                 response_for_client = ResponseData(640, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 640), \
+                                     self.compute_direction(results.translations, results.scales, 640), \
                                      results.scales[0], results.scales[1])
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_640.mean_kirsh
@@ -461,7 +467,7 @@ class MTE:
             if not results.success:
                 response_for_client = ResponseData(1730, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1730), \
+                                     self.compute_direction(results.translations, results.scales, 1730), \
                                      results.scales[0], results.scales[1])
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_1730.mean_kirsh
@@ -474,7 +480,7 @@ class MTE:
                 elif dist_kirsh+dist_canny+dist_color == 3:
                     response_for_client = ResponseData(640, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1730), \
+                                     self.compute_direction(results.translations, results.scales, 1730), \
                                      results.scales[0], results.scales[1])
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_1730.kirsh_aberration
@@ -487,7 +493,7 @@ class MTE:
                         size = 1730
                     response_for_client = ResponseData(size, response,\
                                      results.translations[0], results.translations[1], \
-                                     self.compute_direction(results.translations, 1730), \
+                                     self.compute_direction(results.translations, results.scales, 1730), \
                                      results.scales[0], results.scales[1])
         return response_for_client
 
