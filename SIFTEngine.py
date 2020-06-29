@@ -43,8 +43,9 @@ class SIFTEngine:
         self.ransacmax = maxRansac
         self.resized_width = 380
         self.resized_height = 213
-        self.img360 = None
+        self.img380 = None
         self.img640 = None
+        self.display = None
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
@@ -55,11 +56,12 @@ class SIFTEngine:
             dim = (self.resized_width, self.resized_height)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_380, des_380, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
+            self.img380 = image_ref
             # cv2.imwrite('ref_resize{}*{}.png'.format(self.resized_width, self.resized_height), image_ref)
 
             dim = (640, 360)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_640, des_640, temp, _ = self.compute_sift(img, crop_image, crop_margin)
+            keypoints_640, des_640, self.img640, _ = self.compute_sift(img, crop_image, crop_margin)
             # cv2.imwrite('ref_resize{}*{}.png'.format(dim[0], dim[1]), temp)
 
             dim = (1730, int(1730*9/16))
@@ -85,7 +87,11 @@ class SIFTEngine:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            height, width = learning_data.sift_data.ref.shape[:2]
+            if image.shape[1] == 380:
+                height, width = self.img380.shape[:2]
+            else:
+                height, width = self.img640.shape[:2]
+
             pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, homography_matrix)
 
@@ -122,11 +128,17 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
+                if image.shape[1] == 380:
+                    self.display = np.hstack((self.img380, warped_image))
+                else:
+                    self.display = np.hstack((self.img640, warped_image))
 
-                new_kp = []
-                for i in range(new_pos.shape[0]):
-                     new_kp += [cv2.KeyPoint(new_pos[i][0][0], new_pos[i][0][1], 1)]
-                warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                cv2.imshow("Comparision", self.display)
+                cv2.waitKey(1)
+                # new_kp = []
+                # for i in range(new_pos.shape[0]):
+                #      new_kp += [cv2.KeyPoint(new_pos[i][0][0], new_pos[i][0][1], 1)]
+                # warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             else:
                 print("SIFT deformé")
