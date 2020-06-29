@@ -260,7 +260,8 @@ class MTE:
 
         size = 380
         self.rollback += 1
-        self.validation -= 1
+        if self.validation > 0:
+            self.validation -= 1
         if self.rollback >= 5:
             self.rollback = 0
             size = 640
