@@ -293,8 +293,8 @@ class MTE:
 
         size = 640
         msg = MTEResponse.RED
-        self.validation = 0
         if self.devicetype == "CPU":
+            self.validation = 0
             msg = MTEResponse.TARGET_LOST
             #if IS_DEMO:
                 #size = 380
