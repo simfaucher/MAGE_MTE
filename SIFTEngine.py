@@ -35,7 +35,7 @@ class SIFTEngine:
     HOMOGRAPHY_MIN_SCALE = 0.0
     HOMOGRAPHY_MAX_SCALE = 3
     HOMOGRAPHY_MAX_SKEW = 1
-    HOMOGRAPHY_MIN_TRANS = 0
+    HOMOGRAPHY_MIN_TRANS = -500
     HOMOGRAPHY_MAX_TRANS = 500
 
     def __init__(self, maxRansac):
