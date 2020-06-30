@@ -124,7 +124,7 @@ class MTE:
                 response -> data that will be sent to client
                 is blurred -> is the current image blurred
         """
-        if not recognition.dist_roi == []:
+        if not isinstance(recognition.dist_roi, int):
             distance_kirsh = recognition.dist_roi[0]
             distance_canny = recognition.dist_roi[1]
             distance_color = recognition.dist_roi[2]
