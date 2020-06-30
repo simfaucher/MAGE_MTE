@@ -49,7 +49,7 @@ class SIFTEngine:
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
-        It does not return a results but but changes values inside learning_data.
+        It does not return a result but but changes values inside learning_data.
         """
 
         if learning_data.sift_data is None:
@@ -116,7 +116,7 @@ class SIFTEngine:
             homography_success = scale_ok and skew_ok and translation_ok
 
             if homography_success:
-                print("SIFT valide")
+                print("SIFT valid")
 
                 # Framing
                 homography_matrix = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
@@ -133,7 +133,7 @@ class SIFTEngine:
                 else:
                     self.display = np.hstack((self.img640, warped_image))
 
-                cv2.imshow("Comparision", self.display)
+                cv2.imshow("Comparison", self.display)
                 cv2.waitKey(1)
                 # new_kp = []
                 # for i in range(new_pos.shape[0]):
@@ -141,10 +141,10 @@ class SIFTEngine:
                 # warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             else:
-                print("SIFT deformé")
+                print("SIFT distored")
                 warped_image = image.copy()
         else:
-            print("Pas assez de match pour lancer homographie: {}".format(len(good_matches)))
+            print("Not enough match for homography: {}".format(len(good_matches)))
             warped_image = image.copy()
             for i in range (len(kp_img)):
                 kp_img[i].size = 1

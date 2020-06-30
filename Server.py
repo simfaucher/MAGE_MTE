@@ -7,10 +7,13 @@ import sys
 import time
 
 import argparse
+import csv
 import json
+from datetime import datetime
 import cv2
 import imutils
 import numpy as np
+
 
 from imutils.video import FPS
 from pykson import Pykson
@@ -108,6 +111,45 @@ class MTE:
 
         self.debug = None
 
+    def init_writer(self, name):
+        """ This function creates and initializes a writer.
+
+        In : name -> String being the name of the csv file that will be created, can be a path
+        Out : Writer object pointing to name.csv
+        """
+        result_csv = open(name+'.csv', 'w')
+        metrics = ['Success', 'Number of keypoints', 'Number of matches',
+                   'Distance Kirsh', 'Distance Canny', 'Distance Color',
+                   'Translation x', 'Translation y',
+                   'Scale x', 'Scale y',
+                   'Response', 'Direction',
+                   'Blurred']
+        writer = csv.DictWriter(result_csv, fieldnames=metrics)
+        writer.writeheader()
+        return writer
+
+    def fill_writer(self, writer, recognition, response, is_blurred):
+        """ This function fill a csv files with the data set as input.
+        
+        In :    writer -> Object pointing to the csv file
+                recognition -> results of the recognition
+                response -> data that will be sent to client
+                is blurred -> is the current image blurred
+        """
+        writer.writerow({'Success' : recognition.success,
+                         'Number of keypoints' : recognition.nb_kp,
+                         'Number of matches': recognition.nb_match,
+                         'Distance Kirsh' : recognition.dist_roi[0],
+                         'Distance Canny' : recognition.dist_roi[1],
+                         'Distance Color' : recognition.dist_roi[2],
+                         'Translation x' : recognition.translations[0],
+                         'Translation y' : recognition.translations[1],
+                         'Scale x' : recognition.scales[0],
+                         'Scale y' : recognition.scales[1],
+                         'Response' : response.response.name,
+                         'Direction' : response.direction,
+                         'Blurred' : is_blurred})
+
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
 
@@ -116,6 +158,7 @@ class MTE:
         containing the operations's results.
         """
 
+        pov_id = -1
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
 
@@ -150,18 +193,27 @@ class MTE:
                                             "data" : learning_data}
 
             elif mode == MTEMode.RECOGNITION:
-                pov_id = data["pov_id"]
+                # Writer initialization if we have a new ref
+                if not data["pov_id"] == pov_id:
+                    pov_id = data["pov_id"]
+                    log_location = "./logs/"+"ref"+str(pov_id)
+                    try:
+                        os.mkdir(log_location)
+                    except FileExistsError:
+                        print("Log folder for this reference already exist.")
+                    log_name = datetime.now().strftime("%m_%d_%Y_%H:%M:%S")
+                    log_path = log_location+"/"+log_name
+                    log_writer = self.init_writer(log_path)
+
                 # print("MODE recognition")
                 self.debug = image_for_learning
                 if self.devicetype == "CPU" and image.shape[1] > 640:
                     image = cv2.resize(image, (640, 360), interpolation=cv2.INTER_AREA)
+
+                # Recognition
                 results = RecognitionData(*self.recognition(pov_id, image))
 
-                ret_data["recognition"] = results.recog_ret_data
-                ret_data["recognition"]["success"] = results.success
-                ret_data["recognition"]["nb_kp"] = results.nb_kp
-                ret_data["recognition"]["dist"] = results.dist_roi
-                ret_data["recognition"]["nb_match"] = results.nb_match
+                # Analysing results
                 if image.shape[1] == 380:
                     response_for_client = self.behaviour_380(results)
                 elif image.shape[1] == 640:
@@ -172,7 +224,15 @@ class MTE:
                     print("Image size not supported.")
                     response_for_client = None
 
+                # Additional informations for client
+                ret_data["recognition"] = results.recog_ret_data
+                ret_data["recognition"]["success"] = results.success
+                ret_data["recognition"]["nb_kp"] = results.nb_kp
+                ret_data["recognition"]["dist"] = results.dist_roi
+                ret_data["recognition"]["nb_match"] = results.nb_match
+
                 # If we can capture
+                is_blurred = False
                 if self.validation > MIN_VALIDATION_COUNT:
                     self.validation = MIN_VALIDATION_COUNT
                 if self.validation == MIN_VALIDATION_COUNT:
@@ -181,11 +241,10 @@ class MTE:
                     # if the image is not blurred else we just return green
                     if not is_blurred[1]:
                         response_for_client.response = MTEResponse.CAPTURE
-                        # self.validation = 0
-                        # self.rollback = 0
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
                 print(response_for_client.convert_to_dict())
+                self.fill_writer(log_writer, results, response_for_client, is_blurred)
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -230,7 +289,8 @@ class MTE:
         translation -> tuple containing homographic estimations of x,y
         size -> the width of the current image
         """
-        center = (translation_value[0]*scale_value[0]+size/3, translation_value[1]*scale_value[1]+int((size*9/16)/3))        
+        center = (translation_value[0]*scale_value[0]+size/3, \
+            translation_value[1]*scale_value[1]+int((size*9/16)/3))
         direction = ""
         size_h = (size*9)/16
         if center[1] < size_h*(1/3):
@@ -246,7 +306,8 @@ class MTE:
         else:
             direction += "C"
         # center_kp = cv2.KeyPoint(center[0], center[1], 8)
-        # to_draw = cv2.drawKeypoints(self.debug, [center_kp], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # to_draw = cv2.drawKeypoints(self.debug, [center_kp], \
+        # np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         # cv2.putText(to_draw, "Direction: "+direction, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
         #                     (255, 0, 0), 2)
         # cv2.imshow("Direction", to_draw)
@@ -689,7 +750,8 @@ class MTE:
         # if success:
         #     translation = ((translation[0]*scale_x + image.shape[1]/3), (translation[1]*scale_y + image.shape[0]/3))
         #     upper_left_conner = cv2.KeyPoint(translation[0], translation[1], 8)
-        #     to_draw = cv2.drawKeypoints(image, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        #     to_draw = cv2.drawKeypoints(image, [upper_left_conner], \
+        #       np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         #     cv2.imshow("Server visu", to_draw)
         #     cv2.waitKey(1)
         # ML validation
