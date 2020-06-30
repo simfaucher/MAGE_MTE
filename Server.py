@@ -99,7 +99,7 @@ class MTE:
 
         self.debug = None
 
-    def init_writer(self, name):
+    def init_log(self, name):
         """ This function creates and initializes a writer.
 
         In : name -> String being the name of the csv file that will be created, can be a path
@@ -116,20 +116,29 @@ class MTE:
         writer.writeheader()
         return writer
 
-    def fill_writer(self, writer, recognition, response, is_blurred):
+    def fill_log(self, writer, recognition, response, is_blurred):
         """ This function fill a csv files with the data set as input.
-        
+
         In :    writer -> Object pointing to the csv file
                 recognition -> results of the recognition
                 response -> data that will be sent to client
                 is blurred -> is the current image blurred
         """
+        if recognition.success:
+            distance_kirsh = recognition.dist_roi[0]
+            distance_canny = recognition.dist_roi[1]
+            distance_color = recognition.dist_roi[2]
+        else:
+            distance_kirsh = ""
+            distance_canny = ""
+            distance_color = ""
+
         writer.writerow({'Success' : recognition.success,
                          'Number of keypoints' : recognition.nb_kp,
                          'Number of matches': recognition.nb_match,
-                         'Distance Kirsh' : recognition.dist_roi[0],
-                         'Distance Canny' : recognition.dist_roi[1],
-                         'Distance Color' : recognition.dist_roi[2],
+                         'Distance Kirsh' : distance_kirsh,
+                         'Distance Canny' : distance_canny,
+                         'Distance Color' : distance_color,
                          'Translation x' : recognition.translations[0],
                          'Translation y' : recognition.translations[1],
                          'Scale x' : recognition.scales[0],
@@ -188,7 +197,7 @@ class MTE:
 
                     log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
                     log_path = os.path.join(log_location, log_name)
-                    log_writer = self.init_writer(log_path)
+                    log_writer = self.init_log(log_path)
 
                 # print("MODE recognition")
                 self.debug = image_for_learning
@@ -229,7 +238,7 @@ class MTE:
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
                 print(response_for_client.convert_to_dict())
-                self.fill_writer(log_writer, results, response_for_client, is_blurred)
+                self.fill_log(log_writer, results, response_for_client, is_blurred)
             else:
                 pov_id = data["pov_id"]
                 print("MODE framing")
@@ -650,10 +659,10 @@ class MTE:
 
         # Renvoyer le nombre d'amers sur l'image envoyée
         if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            keypoints, _, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
+            keypoints, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
             return len(keypoints)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            keypoints, _, _, _ = self.d2net_engine.compute_d2(image, crop_image=True)
+            keypoints, _, _ = self.d2net_engine.compute_d2(image, crop_image=True)
             return len(keypoints)
 
         return 0
@@ -775,6 +784,9 @@ class MTE:
         sum(skews), sum_distances, distances, transformed, scales, translation
 
     def framing(self, pov_id, image):
+        """Compute a recognition between an image an a reference.
+        Return the image warped with the same perspective as the reference."""
+
         # Recadrage avec SIFT et renvoi de l'image
         learning_data = self.get_learning_data(pov_id)
 
