@@ -4,12 +4,11 @@
 class SiftData:
     """Data that will be saved and later used to find the former reference"""
 
-    def __init__(self, kp_380, desc_380, ref, kp_base, kp_640, desc_640, kp_1730, desc_1730):
+    def __init__(self, kp_380, desc_380, ref, kp_640, desc_640, kp_1730, desc_1730):
         self.kp = kp_380
         self.des = desc_380
         self.current_size = 380
         self.ref = ref
-        self.kp_base = kp_base
         self.kp_380 = kp_380
         self.kp_640 = kp_640
         self.kp_1730 = kp_1730

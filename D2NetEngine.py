@@ -61,20 +61,23 @@ class D2NetEngine:
     HOMOGRAPHY_MIN_SCALE = 0.0
     HOMOGRAPHY_MAX_SCALE = 3
     HOMOGRAPHY_MAX_SKEW = 1
-    HOMOGRAPHY_MIN_TRANS = 0
+    HOMOGRAPHY_MIN_TRANS = -500
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self,max_edge,max_sum_edges,maxRansac,width,height):
+    def __init__(self, max_edge, max_sum_edges, maxRansac, width, height):
         #Init d2net
-        model_file="d2models/d2_tf_no_phototourism.pth"
-        self.max_edge=max_edge
-        self.max_sum_edges=max_sum_edges
+        model_file = "d2models/d2_tf_no_phototourism.pth"
+        self.max_edge = max_edge
+        self.max_sum_edges = max_sum_edges
         self.ransacmax = maxRansac
         self.resized_width = width
         self.resized_height = height
-        self.preprocessing="caffe"
-        self.multiscale=False
-        use_relu=True
+        self.preprocessing = "caffe"
+        self.multiscale = False
+        use_relu = True
+        self.img380 = None
+        self.img640 = None
+        self.display = None
         print('Loading D2Net model...')
         self.d2model = D2Net(
             model_file=model_file,
@@ -82,15 +85,27 @@ class D2NetEngine:
             use_cuda=use_cuda
         )
         print('Loading done, ready for client.')
-        self.cpt = 0
+        # self.cpt = 0
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         if learning_data.sift_data is None:
-            kp, des, image_ref,kp_base_ransac = self.compute_d2(learning_data.full_image, crop_image, crop_margin)
+            dim = (self.resized_width, self.resized_height)
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints_380, des_380, image_ref = self.compute_d2(img, crop_image, crop_margin)
+            self.img380 = image_ref
 
-            learning_data.sift_data = SiftData(kp, des, image_ref,kp_base_ransac)
+            dim = (640, 360)
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints_640, des_640, self.img640 = self.compute_d2(img, crop_image, crop_margin)
 
-    def recognition(self, image, learning_data,modeAlgo):
+            dim = (1730, int(1730*9/16))
+            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
+            keypoints_1730, des_1730, _ = self.compute_d2(img, crop_image, crop_margin)
+
+            learning_data.sift_data = SiftData(keypoints_380, des_380, image_ref, \
+                keypoints_640, des_640, keypoints_1730, des_1730)
+
+    def recognition(self, image, learning_data, modeAlgo):
         scale_x = 1
         scale_y = 1
         skew_x = 0
@@ -99,15 +114,19 @@ class D2NetEngine:
         t_y = 0
 
         d2succes, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_d2(image, \
-            learning_data.sift_data, debug=True,mode=modeAlgo)
+            learning_data.sift_data, debug=True, mode=modeAlgo)
         homography_success = False
 
         if d2succes:
             H, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            h, w = learning_data.sift_data.ref.shape[:2]
-            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+            if image.shape[1] == 380:
+                height, width = self.img380.shape[:2]
+            else:
+                height, width = self.img640.shape[:2]
+
+            pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, H)
 
             debug_img = cv2.polylines(image.copy(), [np.int32(dst)], True, (0, 0, 255), 3, cv2.LINE_AA)
@@ -131,16 +150,24 @@ class D2NetEngine:
             homography_success = scale_ok and skew_ok and translation_ok
 
             if homography_success:
-                print("Homographie valide")
+                print("Homography valid")
 
                 # Framing
                 H = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, H, (w, h))
+                warped_image = cv2.warpPerspective(image, H, (width, height))
 
+                if image.shape[1] == 380:
+                    self.display = np.hstack((self.img380, warped_image))
+                else:
+                    self.display = np.hstack((self.img640, warped_image))
+
+                cv2.imshow("Comparison", self.display)
+                cv2.waitKey(1)
             else:
-                print("Homographie deformé")
+                print("Homography distored")
                 warped_image = image.copy()
         else:
+            print("Not enough match for homography: {}".format(len(good_matches)))
             warped_image = image.copy()
 
         return d2succes and homography_success, \
@@ -167,12 +194,10 @@ class D2NetEngine:
         return croped
 
     def compute_d2(self, image, crop_image, crop_margin=1/6):
-        imgCrop=image
+        img_crop = image
         if crop_image:
-            imgCrop = self.crop_image(image, crop_margin)
-            
-        dim = (self.resized_width, self.resized_height)
-        img = cv2.resize(imgCrop,dim, interpolation = cv2.INTER_AREA)
+            img_crop = self.crop_image(image, crop_margin)
+        img = img_crop
 
         # Setting up input image to use it in the CNN
         if len(img.shape) == 2:
@@ -185,13 +210,13 @@ class D2NetEngine:
             width = int(resized_image.shape[1] * scale_percent)
             height = int(resized_image.shape[0] * scale_percent)
             dim = (width, height)
-            resized_image = cv2.resize(resized_image,dim)
+            resized_image = cv2.resize(resized_image, dim)
         if sum(resized_image.shape[: 2]) > self.max_sum_edges:
             scale_percent = self.max_sum_edges / sum(resized_image.shape[: 2])
             width = int(resized_image.shape[1] * scale_percent)
             height = int(resized_image.shape[0] * scale_percent)
             dim = (width, height)
-            resized_image = cv2.resize(resized_image,dim)
+            resized_image = cv2.resize(resized_image, dim)
 
         fact_i = img.shape[0] / resized_image.shape[0]
         fact_j = img.shape[1] / resized_image.shape[1]
@@ -229,14 +254,16 @@ class D2NetEngine:
         # The sort is ascending
         s = sorted(z, key = lambda x: x[0])
         # Unzip
-        tempScore,tempKp,tempDs = zip(*s)
+        temp_score, temp_kp, temp_ds = zip(*s)
         # Conversion back from tuple to array
-        tempDesc = np.asarray(tempDs)
-        tempKeyp = np.asarray(tempKp)
+        temp_desc = np.asarray(temp_ds)
+        temp_keypoints = np.asarray(temp_kp)
         # Reduction of size by D2REDUCTION factor, we are hoping to gain
         # time during the matching phase of the recognition
-        descriptors = tempDesc[np.size(tempDesc,0) - int(np.size(tempDesc,0)*D2REDUCTION):np.size(tempDesc,0),:]
-        keypoints = tempKeyp[np.size(tempKeyp,0) - int(np.size(tempKeyp,0)*D2REDUCTION):np.size(tempKeyp,0),:]
+        descriptors = temp_desc[np.size(temp_desc, 0) - int(np.size(temp_desc, 0)\
+                                *D2REDUCTION):np.size(temp_desc, 0), :]
+        keypoints = temp_keypoints[np.size(temp_keypoints, 0) - int(np.size(temp_keypoints, 0)\
+                                *D2REDUCTION):np.size(temp_keypoints, 0), :]
 
         # i, j -> u, v
         keypoints = keypoints[:, [1, 0, 2]]
@@ -244,16 +271,14 @@ class D2NetEngine:
         kp=[]
         for i in range(keypoints.shape[0]):
              kp += [cv2.KeyPoint(keypoints[i][0], keypoints[i][1], 1)]
-        # print(kp[0].pt)
 
-        return kp, descriptors, img,keypoints
+        return kp, descriptors, img_crop
 
-    def apply_d2(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False,mode=MTEAlgo.D2NET_KNN):
-        h, w = image.shape[:2]
+    def apply_d2(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False, mode=MTEAlgo.D2NET_KNN):
+        kp_img, des_img, image = self.compute_d2(image, crop_image, crop_margin)
+        kp_base = cv2.KeyPoint_convert(kp_img)
 
-        kp_img, des_img, image,kp_base = self.compute_d2(image, crop_image, crop_margin)
-
-        if mode == MTEAlgo.D2NET_KNN :
+        if mode == MTEAlgo.D2NET_KNN:
             flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
             matches = flann.knnMatch(des_img, sift_data.des, k=2)
             # Need to draw only good matches, so create a mask
@@ -267,7 +292,7 @@ class D2NetEngine:
                 except ValueError:
                     pass
             print(len(good_matches))
-        elif mode == MTEAlgo.D2NET_RANSAC :
+        elif mode == MTEAlgo.D2NET_RANSAC:
             ########################### Brute force sur les descripeurs + ransac (random samples) #################################################
             matches = match_descriptors(des_img, sift_data.des, cross_check=True)
             keypoints_left = kp_base[matches[:, 0], : 2]
@@ -288,8 +313,7 @@ class D2NetEngine:
             ########################### Match knn GPU #######################
             descriptors1 = torch.from_numpy(des_img).to(device)
             descriptors2 = torch.from_numpy(sift_data.des).to(device)
-            good_matches=mutual_nn_matcher(descriptors1, descriptors2)
-            print(len(good_matches))
+            good_matches = mutual_nn_matcher(descriptors1, descriptors2)
 
         # Homography
         # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
@@ -322,7 +346,7 @@ class D2NetEngine:
         #     matching_result = cv2.drawMatches(debug_img, inlier_keypoints_left, sift_data.ref, inlier_keypoints_right, good_matches, None, **DRAW_PARAMS)
         #
         # cv2.imwrite("framing/matching {}.png".format(self.cpt), matching_result)
-        self.cpt += 1
+        # self.cpt += 1
 
         if debug:
             return success, src_pts, dst_pts, kp_img, des_img, good_matches, image
