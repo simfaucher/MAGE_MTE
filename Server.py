@@ -42,7 +42,6 @@ from ML.LinesDetector import LinesDetector
 from ML.BoxLearner import BoxLearner
 
 from MLValidation import MLValidation
-from VCLikeEngine import VCLikeEngine
 from SIFTEngine import SIFTEngine
 from D2NetEngine import D2NetEngine
 
@@ -175,18 +174,20 @@ class MTE:
                 if learning_data["success"]:
                     ret_data["learning"] = {"id" : learning_data["learning_id"],
                                             "data" : learning_data}
+                else:
+                    ret_data["learning"] = {"id" : learning_data["learning_id"]}
 
             elif mode == MTEMode.RECOGNITION:
                 # Writer initialization if we have a new ref
                 if not data["pov_id"] == pov_id:
                     pov_id = data["pov_id"]
-                    log_location = "./logs/"+"ref"+str(pov_id)
-                    try:
-                        os.mkdir(log_location)
-                    except FileExistsError:
-                        print("Log folder for this reference already exist.")
-                    log_name = datetime.now().strftime("%m_%d_%Y_%H:%M:%S")
-                    log_path = log_location+"/"+log_name
+                    log_location = os.path.join("logs", "ref"+str(pov_id))
+
+                    if not os.path.exists(log_location):
+                        os.makedirs(log_location)
+
+                    log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
+                    log_path = os.path.join(log_location, log_name)
                     log_writer = self.init_writer(log_path)
 
                 # print("MODE recognition")
