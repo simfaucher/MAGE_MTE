@@ -57,7 +57,7 @@ IS_DEMO = True
 
 class MTE:
     """
-    This class initialize a server that will listen to client
+    This class initializes a server that will listen to client
     and will compute a motion tracking for the client.
     """
 
@@ -111,8 +111,8 @@ class MTE:
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
 
-        The behaviour depend of the mode send : PRELEARNING/LEARNING/RECOGNITION/FRAMING
-        This function have no proper value to return but will send a message to the client
+        The behaviour depends of the mode sent : PRELEARNING/LEARNING/RECOGNITION/FRAMING
+        This function has no proper value to return but will send a message to the client
         containing the operations's results.
         """
 
@@ -169,7 +169,7 @@ class MTE:
                 elif image.shape[1] == 1730:
                     response_for_client = self.behaviour_1730(results)
                 else:
-                    print("Taille d'image non supporté")
+                    print("Image size not supported.")
                     response_for_client = None
 
                 # If we can capture
@@ -204,7 +204,7 @@ class MTE:
                 self.image_hub.send_reply(json.dumps(ret_data).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
-        """Check if an imaeg is blurred. Return a tuple (mean float,blurred bool)
+        """Check if an image is blurred. Return a tuple (mean float,blurred bool)
 
         Keyword arguments:
         image -> the image to test as array
@@ -307,7 +307,7 @@ class MTE:
         return ResponseData(size, msg, None, None, None, None, None)
 
     def green_640(self, results):
-        """Behaviour for an image (_, 640) when the flag turn on to be green.
+        """Behaviour for an image (_, 640) when the flag turn green.
         Return a ResponseData and change global variable.
 
         Keyword arguments:
@@ -328,7 +328,7 @@ class MTE:
                             results.scales[0], results.scales[1])
 
     def lost_1730(self):
-        """Behaviour for a image w=1730 when the target is lost
+        """Behaviour for a image (_, 1730) when the target is lost
         Return a ResponseData.
         """
 
@@ -348,14 +348,14 @@ class MTE:
         # If not enough keypoints
         if results.nb_kp < self.threshold_380.nb_kp:
             response_for_client = self.red_380()
-            print("Pas assez de kp")
+            print("Not enought keypoints")
         # If not enough matches
         elif results.nb_match < self.threshold_380.nb_match:
             # If homography doesn't even start
             if results.nb_match < 30:
                 response_for_client = self.red_380()
             else:
-                print("Not enough kp")
+                print("Not enough keypoints")
                 response_for_client = self.orange_behaviour(results, 380)
         else:
             response = MTEResponse.GREEN
@@ -501,7 +501,7 @@ class MTE:
         return response_for_client
 
     def fake_init_for_reference(self, image_ref_reduite, image_ref):
-        """Iniatialize learning datas with the reference and avoid the use of database.
+        """Iniatialize learning data with the reference and avoid the use of database.
 
         Keyword arguments:
         image_ref_reduite -> int array of the reduced reference
@@ -534,10 +534,10 @@ class MTE:
         return results
 
     def check_reference(self, image_ref):
-        """Check if the image given is valid as reference.
+        """Check if the image given is a valid reference.
         Return a dictinnary with 2 boolean:
-        succes -> is the given image valid as reference
-        flou -> is the given image blurred
+        success -> is the given image valid as reference
+        blurred -> is the given image blurred
 
         Keyword arguments:
         image_ref -> int array of the potential reference
@@ -548,7 +548,7 @@ class MTE:
                         size=size, thresh=10)
         if blurred[1]:
             return {'success' : False,
-                    'flou' : True}
+                    'blurred' : True}
 
         kernel_size = 10
         sigma = 3
@@ -572,7 +572,6 @@ class MTE:
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
-        cv2.imwrite("flou.png",image_gaussian_blur)
         if not results.success:
             print("Failure gaussian blur")
             return validation_value
@@ -595,13 +594,13 @@ class MTE:
 
         # All 3 noises are valid
         validation_value = {'success' : True,
-                            'flou' : False}
-        print("Référence valide.")
+                            'blurred' : False}
+        print("Valid for reference.")
 
         return validation_value
 
     def prelearning(self, image):
-        """Compute the keypoints and theirs descriptors of the given image.
+        """Compute keypoints and theirs descriptors of the given image.
         Return the number of keypoints found.
 
         Keyword arguments:
@@ -622,7 +621,7 @@ class MTE:
         """Test if the given image can be used as reference.
         Return a dictionnary containing :
         success for global success
-        flou for blur
+        blurred to indicate if the image is blurred
         learning_id for the position of the image in the DB
 
         Keyword arguments:
@@ -630,7 +629,7 @@ class MTE:
         """
 
         validation = self.check_reference(full_image)
-        if validation["success"] and not validation["flou"]:
+        if validation["success"] and not validation["blurred"]:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 
