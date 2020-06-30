@@ -16,7 +16,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -45,8 +45,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
-# LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
+VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
+LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -60,8 +60,8 @@ MODE_VIDEO = not MODE_CAMERA
 # VIDEO_PATH = "videos/T3.3/T3.3-rotated.mp4"
 # LEARNING_IMAGE_PATH = "videos/T3.3/vlcsnap-2020-02-28-11h42m56s577.png"
 
-VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
-LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
+# VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
+# LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
 
 class ACD:
     def __init__(self):
@@ -189,8 +189,6 @@ class ACD:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
                         reco_data["skew"]["x"], reco_data["skew"]["y"], \
                         reco_data["translation"]["x"], reco_data["translation"]["y"]))
-                elif "vc_like_engine_success" in reco_data and reco_data["vc_like_engine_success"]:
-                    print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
                     cv2.putText(to_draw, "Homography failed.", (20, 100), \

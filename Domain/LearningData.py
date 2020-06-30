@@ -8,5 +8,4 @@ class LearningData:
         self.full_image = full_image
 
         self.sift_data = None
-        self.vc_like_data = None
         self.ml_data = None
