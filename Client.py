@@ -188,8 +188,6 @@ class ACD:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
                         reco_data["skew"]["x"], reco_data["skew"]["y"], \
                         reco_data["translation"]["x"], reco_data["translation"]["y"]))
-                elif "vc_like_engine_success" in reco_data and reco_data["vc_like_engine_success"]:
-                    print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
                     cv2.putText(to_draw, "L'homographie à échouer.", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \

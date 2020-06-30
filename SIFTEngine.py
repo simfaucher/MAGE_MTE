@@ -57,12 +57,10 @@ class SIFTEngine:
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_380, des_380, image_ref, kp_base_ransac = self.compute_sift(img, crop_image, crop_margin)
             self.img380 = image_ref
-            # cv2.imwrite('ref_resize{}*{}.png'.format(self.resized_width, self.resized_height), image_ref)
 
             dim = (640, 360)
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_640, des_640, self.img640, _ = self.compute_sift(img, crop_image, crop_margin)
-            # cv2.imwrite('ref_resize{}*{}.png'.format(dim[0], dim[1]), temp)
 
             dim = (1730, int(1730*9/16))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
@@ -121,6 +119,7 @@ class SIFTEngine:
                 # Framing
                 homography_matrix = self.get_homography_matrix(src_pts, dst_pts, dst_to_src=True)
                 warped_image = cv2.warpPerspective(image, homography_matrix, (width, height))
+
                 # on recup les kp en float + reshape pour passer le perspectiveTransform
                 pos = []
                 for i in range(len(kp_img)):
@@ -135,10 +134,6 @@ class SIFTEngine:
 
                 cv2.imshow("Comparision", self.display)
                 cv2.waitKey(1)
-                # new_kp = []
-                # for i in range(new_pos.shape[0]):
-                #      new_kp += [cv2.KeyPoint(new_pos[i][0][0], new_pos[i][0][1], 1)]
-                # warped_image = cv2.drawKeypoints(warped_image, new_kp, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
             else:
                 print("SIFT deformé")
@@ -180,7 +175,6 @@ class SIFTEngine:
 
         kp, des = self.sift.detectAndCompute(img, None)
         keypointForRansac = kp
-        # print(kp[0].pt)
 
         return kp, des, img, keypointForRansac
 
@@ -229,14 +223,6 @@ class SIFTEngine:
             inlier_keypoints_left = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_left[inliers]]
             inlier_keypoints_right = [cv2.KeyPoint(point[0], point[1], 1) for point in keypoints_right[inliers]]
             good_matches = [cv2.DMatch(idx, idx, 1) for idx in range(n_inliers)]
-
-        # Add crop
-        # if crop_image:
-        #     for kp in kp_img:
-        #         kp.pt = (kp.pt[0] + w * CROP_SIZE_HOR, kp.pt[1] + h * CROP_SIZE_VER)
-
-        # Homography
-        # print("Matches found: %d/%d" % (len(goodMatches), MIN_MATCH_COUNT))
 
         success = len(good_matches) > MIN_MATCH_COUNT
 
