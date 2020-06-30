@@ -95,13 +95,13 @@ class ACD:
             if not success:
                 break
 
-            # image_640 = cv2.resize(full_image, (size, int((size*9)/16)), interpolation=cv2.INTER_AREA)
             image_640 = imutils.resize(full_image, width=size)
             # image_640 = full_image
 
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
-                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 10, (640*2, image_640.shape[0]))
+                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
+                                      10, (640*2, image_640.shape[0]))
 
             data = {
                 "mode": self.mode.value,
@@ -138,7 +138,7 @@ class ACD:
             elif self.mode == MTEMode.LEARNING:
                 self.pov_id = reply["learning"]["id"]
                 if self.pov_id == -1:
-                    print("Echec de l'apprentissage.")
+                    print("Failed to learn.")
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
                 prev_size = size
@@ -154,35 +154,36 @@ class ACD:
                     color_box = (50, 50, 50)
                 else:
                     color_box = (255, 255, 255)
-                cv2.putText(to_draw, "Taille image: {}".format(prev_size), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                cv2.putText(to_draw, "Nb kp: {:.2f}".format(reco_data["nb_kp"]), (220, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), (420, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                    (255, 0, 0), 2)
-                cv2.putText(to_draw, response["response"], (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            color_box, 2)
+                cv2.putText(to_draw, "Size: {}".format(prev_size), (20, 20), \
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(to_draw, "Nb kp: {:.2f}".format(reco_data["nb_kp"]), \
+                    (220, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(to_draw, "{} matches".format(reco_data["nb_match"]), \
+                    (420, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(to_draw, response["response"], \
+                    (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_box, 2)
                 if reco_data["success"]:
-                    cv2.putText(to_draw, "Dist 1: {:.2f}".format(reco_data["dist"][0]), (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Dist 2: {:.2f}".format(reco_data["dist"][1]), (220, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Dist 3: {:.2f}".format(reco_data["dist"][2]), (420, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                        (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Dist 1: {:.2f}".format(reco_data["dist"][0]), (20, 40), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Dist 2: {:.2f}".format(reco_data["dist"][1]), (220, 40), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Dist 3: {:.2f}".format(reco_data["dist"][2]), (420, 40), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-                if reco_data["nb_kp"] > 30 and not response["response"] == "RED" and not response["response"] == "TARGET_LOST":
-                    cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
-                    cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
+                if reco_data["nb_kp"] > 30 and not response["response"] == "RED" and \
+                    not response["response"] == "TARGET_LOST":
+                    cv2.putText(to_draw, "Trans. x: {:.2f}".format(response["shift_x"]), (20, 60), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Trans. y: {:.2f}".format(response["shift_y"]), \
+                        (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Scale x: {:.2f}".format(response["scale_h"]), (20, 80), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Scale y: {:.2f}".format(response["scale_w"]), (220, 80), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                 size = response["size"]
                 if not prev_size == size:
-                    print("Changement de taille {} -> {}".format(prev_size, size))
-                if reco_data["success"]:                    
+                    print("Change of size {} -> {}".format(prev_size, size))
+                if reco_data["success"]:
                     print("Recognition OK")
                 elif "sift_success" in reco_data and reco_data["sift_success"]:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
@@ -190,53 +191,49 @@ class ACD:
                         reco_data["translation"]["x"], reco_data["translation"]["y"]))
                 else:
                     print("Recognition failed")
-                    cv2.putText(to_draw, "L'homographie à échouer.", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
+                    cv2.putText(to_draw, "Homography failed.", (20, 100), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                 if response["response"] == "TARGET_LOST":
-                    print("Cible perdu")
+                    print("Target lost")
                 elif response["response"] == "RED":
-                    print("RED : pas d'homographie")
+                    print("RED : no homography")
                 else:
-                    # Display target on image                    
+                    # Display target on image
                     if reco_data["success"]:
                         # print(response)
-                        cv2.putText(to_draw, "Direction: {}".format(response["direction"]), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Direction: {}".format(response["direction"]), \
+                            (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                         cv2.putText(to_draw, "Target", (220, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
                             (255, 0, 0), 2)
                         # Center point
                         x_coordinate = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
                         y_coordinate = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
                         center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
-                        to_draw = cv2.drawKeypoints(to_draw, [center], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                        to_draw = cv2.drawKeypoints(to_draw, [center], np.array([]), (255, 0, 0), \
+                                                    cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-                        # upper_left_conner = cv2.KeyPoint(x_coordinate-image.shape[1]/3, y_coordinate-image.shape[0]/3, 8)
-                        upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), int(y_coordinate-full_image.shape[0]/3))
-                        lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), int(y_coordinate+full_image.shape[0]/3))
-                        to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (255, 0, 0), thickness = 3)
+                        upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), \
+                                             int(y_coordinate-full_image.shape[0]/3))
+                        lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), \
+                                             int(y_coordinate+full_image.shape[0]/3))
+                        to_draw = cv2.rectangle(to_draw, upper_left_conner,\
+                                                lower_right_cornner, (255, 0, 0), thickness=3)
 
                         mean_scale = (response["scale_w"] + response["scale_h"]) / 2
                         x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
                         y_scaled = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
                         center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                        to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), color_box, cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                        upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), int(y_scaled-(full_image.shape[0]/3)*mean_scale))
-                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale), int(y_scaled+(full_image.shape[0]/3)*mean_scale))
-                        to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, color_box, thickness = 3)
+                        to_draw = cv2.drawKeypoints(to_draw, [center_scaled], \
+                                                    np.array([]), color_box, \
+                                                    cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-                        # x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"] + image.shape[1]/6)
-                        # y_scaled = (full_image.shape[0]/image.shape[0]+response["scale_h"]) * (response["shift_y"] + image.shape[0]/6)
-                        # center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                        # to_draw = cv2.drawKeypoints(to_draw, [center_scaled], np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                        # upper_left_conner = (int(x_scaled-full_image.shape[1]/3), int(y_scaled-full_image.shape[0]/3))
-                        # lower_right_cornner = (int(x_scaled+full_image.shape[1]/3), int(y_scaled+full_image.shape[0]/3))
-                        # to_draw = cv2.rectangle(to_draw, upper_left_conner, lower_right_cornner, (0, 0, 255))
-                        # to_draw = cv2.drawKeypoints(to_draw, [upper_left_conner], np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-                        # point = (int(x_coordinate), int(y_coordinate))
-                        # remaining_size_after_crop = ((full_image.shape[1]*(2/3))*response["scale_w"], (full_image.shape[0]*(2/3))*response["scale_h"])
-                        # second_point = (int(x_coordinate+remaining_size_after_crop[0]), int(y_coordinate+remaining_size_after_crop[1]))
-                        # to_draw = cv2.rectangle(to_draw, point, second_point, (255, 0, 0))
-                        # cv2.imwrite("drawn.png",to_draw)
+                        upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), \
+                                             int(y_scaled-(full_image.shape[0]/3)*mean_scale))
+                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale), \
+                                             int(y_scaled+(full_image.shape[0]/3)*mean_scale))
+                        to_draw = cv2.rectangle(to_draw, upper_left_conner,\
+                                                lower_right_cornner, color_box, thickness=3)
+
                 cv2.imshow("Targetting", to_draw)
                 cv2.waitKey(1)
             # elif mode == MTEMode.FRAMING:
