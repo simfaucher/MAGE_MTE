@@ -119,7 +119,7 @@ class Client:
                 image = image_640
 
             reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
-            fps = FPS().start()
+            begin = time.time()
             to_draw = full_image.copy()
             # Response
             if self.mode == MTEMode.PRELEARNING:
@@ -226,9 +226,10 @@ class Client:
             else:
                 pass
 
-            fps.update()
-            fps.stop()
-            cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
+            frame_pre_sec = 1/(time.time()-begin)
+            if frame_pre_sec > 60:
+                frame_pre_sec = 60
+            cv2.putText(to_draw, "FPS : {:.1f}".format(frame_pre_sec), (to_draw.shape[1]-120, 20), \
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
             cv2.imshow("Targetting", to_draw)
