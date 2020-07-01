@@ -16,7 +16,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -63,7 +63,7 @@ LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
 # VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
 # LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
 
-class ACD:
+class Client:
     def __init__(self):
         print("Connecting...")
         # self.sender = imagezmq.ImageSender(connect_to='tcp://10.1.162.31:5555')
@@ -214,10 +214,10 @@ class ACD:
 
                         upper_left_conner = (int(x_coordinate-full_image.shape[1]/3), \
                                              int(y_coordinate-full_image.shape[0]/3))
-                        lower_right_cornner = (int(x_coordinate+full_image.shape[1]/3), \
+                        lower_right_corner = (int(x_coordinate+full_image.shape[1]/3), \
                                              int(y_coordinate+full_image.shape[0]/3))
                         to_draw = cv2.rectangle(to_draw, upper_left_conner,\
-                                                lower_right_cornner, (255, 0, 0), thickness=3)
+                                                lower_right_corner, (255, 0, 0), thickness=3)
 
                         mean_scale = (response["scale_w"] + response["scale_h"]) / 2
                         x_scaled = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
@@ -229,10 +229,10 @@ class ACD:
 
                         upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), \
                                              int(y_scaled-(full_image.shape[0]/3)*mean_scale))
-                        lower_right_cornner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale), \
+                        lower_right_corner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale), \
                                              int(y_scaled+(full_image.shape[0]/3)*mean_scale))
                         to_draw = cv2.rectangle(to_draw, upper_left_conner,\
-                                                lower_right_cornner, color_box, thickness=3)
+                                                lower_right_corner, color_box, thickness=3)
 
                 cv2.imshow("Targetting", to_draw)
             # elif mode == MTEMode.FRAMING:
@@ -272,5 +272,5 @@ class ACD:
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    acd = ACD()
+    acd = Client()
     acd.run()

@@ -49,7 +49,7 @@ class SIFTEngine:
         self.width2 = width2
         self.width3 = width3
         self.resized_width = self.width1
-        self.resized_height = int(self.resized_width * self.format_resolution)
+        self.resized_height = int(self.resized_width * (1/self.format_resolution))
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
@@ -62,11 +62,11 @@ class SIFTEngine:
             keypoints_380, des_380, image_ref = self.compute_sift(img, crop_image, crop_margin)
             self.img380 = image_ref
 
-            dim = (self.width2, int(self.width2 * self.format_resolution))
+            dim = (self.width2, int(self.width2 * (1/self.format_resolution)))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_640, des_640, self.img640 = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (self.width3, int(self.width3 * self.format_resolution))
+            dim = (self.width3, int(self.width3 * (1/self.format_resolution)))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_1730, des_1730, _ = self.compute_sift(img, crop_image, crop_margin)
 
