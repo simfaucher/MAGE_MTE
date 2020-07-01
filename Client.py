@@ -132,6 +132,7 @@ class Client:
             else:
                 reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
 
+            to_draw = full_image.copy()
             # Response
             if self.mode == MTEMode.PRELEARNING:
                 print("Number of keypoints: {}".format(reply["prelearning"]["nb_kp"]))
@@ -234,14 +235,11 @@ class Client:
                         to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                 lower_right_corner, color_box, thickness=3)
 
-                cv2.imshow("Targetting", to_draw)
             # elif mode == MTEMode.FRAMING:
             else:
                 pass
 
-            # Debugging
-            debug_img = full_image.copy()
-            cv2.imshow("Debug", debug_img)
+            cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
 
             if self.mode == MTEMode.LEARNING:
@@ -251,7 +249,6 @@ class Client:
                 self.mode = MTEMode.PRELEARNING
             elif key == ord("2"):
                 self.mode = MTEMode.LEARNING
-                cv2.destroyWindow("Targetting")
             elif key == ord("3"):
                 self.mode = MTEMode.RECOGNITION
             elif key == ord("4"):
