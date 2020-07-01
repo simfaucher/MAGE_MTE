@@ -19,6 +19,7 @@ import numpy as np
 from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
+import Domain.ErrorLearning as ErrorLearning
 
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
@@ -196,11 +197,8 @@ class MTE:
                 self.validation = 0
                 self.resolution_change_allowed = 3
                 learning_data = self.learning(image_for_learning)
-                if learning_data["success"]:
-                    ret_data["learning"] = {"id" : learning_data["learning_id"],
-                                            "data" : learning_data}
-                else:
-                    ret_data["learning"] = {"id" : learning_data["learning_id"]}
+                ret_data["learning"] = {"id" : learning_data["learning_id"],
+                                        "code" : learning_data["code"]}
 
             # elif mode == MTEMode.RECOGNITION:
             else:
@@ -629,14 +627,13 @@ class MTE:
         image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
 
         self.fake_init_for_reference(image_ref_reduite, image_ref)
-        validation_value = {'success' : False}
 
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
         if not results.success:
             print("Failure gaussian blur")
-            return validation_value
+            return ErrorLearning.GAUSSIAN_BLUR_FAILURE
 
         # Vertical motion blur.
         image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
@@ -644,7 +641,7 @@ class MTE:
 
         if not results.success:
             print("Failure vertical blur")
-            return validation_value
+            return ErrorLearning.VERTICAL_BLUR_FAILURE
 
         # Horizontal motion blur.
         image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
@@ -652,14 +649,12 @@ class MTE:
 
         if not results.success:
             print("Failure horizontal blur")
-            return validation_value
+            return ErrorLearning.HORIZONTAL_BLUR_FAILURE
 
         # All 3 noises are valid
-        validation_value = {'success' : True,
-                            'blurred' : False}
         print("Valid for reference.")
 
-        return validation_value
+        return ErrorLearning.SUCCESS
 
     def prelearning(self, image):
         """Compute the keypoints and their descriptors of the given image.
@@ -690,8 +685,9 @@ class MTE:
         full_image -> int array of the image
         """
 
-        validation = self.check_reference(full_image)
-        if validation["success"] and not validation["blurred"]:
+        validation = {}
+        validation_value = self.check_reference(full_image)
+        if validation_value == ErrorLearning.SUCCESS:
             # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
             validation["learning_id"] = self.repo.save_new_pov(full_image)
 
@@ -701,6 +697,8 @@ class MTE:
                 self.learning_db.append(learning_data)
         else:
             validation["learning_id"] = -1
+
+        validation["code"] = validation_value
 
         return validation
 

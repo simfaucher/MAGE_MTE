@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 import imutils
 import imagezmq
+import Domain.ErrorLearning as ErrorLearning
 
 from Domain.MTEMode import MTEMode
 from imutils.video import FPS
@@ -129,7 +130,7 @@ class Client:
                 print("Number of keypoints: {}".format(reply["prelearning"]["nb_kp"]))
             elif self.mode == MTEMode.LEARNING:
                 self.pov_id = reply["learning"]["id"]
-                if self.pov_id == -1:
+                if self.pov_id == -1 or not reply["learning"]["code"] == ErrorLearning.SUCCESS:
                     print("Failed to learn.")
             elif self.mode == MTEMode.RECOGNITION:
                 reco_data = reply["recognition"]
@@ -195,8 +196,8 @@ class Client:
                         # print(response)
                         cv2.putText(to_draw, "Direction: {}".format(response["direction"]), \
                             (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                        cv2.putText(to_draw, "Target", (220, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-                            (255, 0, 0), 2)
+                        cv2.putText(to_draw, "Target", (220, 100), cv2.FONT_HERSHEY_SIMPLEX,\
+                            0.5, (255, 0, 0), 2)
                         # Center point
                         x_coordinate = (full_image.shape[1]/image.shape[1]) * (response["shift_x"]*response["scale_w"] + image.shape[1]/3)
                         y_coordinate = (full_image.shape[0]/image.shape[0]) * (response["shift_y"]*response["scale_h"] + image.shape[0]/3)
