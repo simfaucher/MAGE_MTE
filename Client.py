@@ -87,7 +87,7 @@ class ACD:
 
             if not os.path.exists(DEMO_FOLDER):
                 os.makedirs(DEMO_FOLDER)
-        size = 380
+        size = 400
         while self.cap.isOpened():
             # Sending
             success, full_image = self.cap.read()
