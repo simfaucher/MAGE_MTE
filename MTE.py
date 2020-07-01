@@ -163,7 +163,7 @@ class MTE:
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
 
-        The behaviour depend of the mode send : PRELEARNING/LEARNING/RECOGNITION/FRAMING
+        The behaviour depend of the mode send : PRELEARNING/LEARNING/RECOGNITION
         This function has no proper value to return but will send a message to the client
         containing the operations' results.
         """
@@ -199,7 +199,8 @@ class MTE:
                 else:
                     ret_data["learning"] = {"id" : learning_data["learning_id"]}
 
-            elif mode == MTEMode.RECOGNITION:
+            # elif mode == MTEMode.RECOGNITION:
+            else:
                 if data["pov_id"] == -1:
                     ret_data["recognition"]["success"] = False
                     print("No valid reference for comparision.")
@@ -260,22 +261,9 @@ class MTE:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
                 print(response_for_client.convert_to_dict())
                 self.fill_log(log_writer, results, response_for_client, is_blurred)
-            else:
-                pov_id = data["pov_id"]
-                print("MODE framing")
-                success, warped_image = self.framing(pov_id, image)
 
-                ret_data["framing"] = {
-                    "success": success
-                }
 
-                # cv2.imshow("Warped image", warped_image)
-                # cv2.waitKey(1)
-
-            if mode == MTEMode.FRAMING:
-                self.image_hub.send_reply_image(warped_image, json.dumps(ret_data))
-            else:
-                self.image_hub.send_reply(json.dumps(ret_data).encode())
+            self.image_hub.send_reply(json.dumps(ret_data).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
         """Check if an image is blurred. Return a tuple (mean: float, blurred: bool)
@@ -803,39 +791,6 @@ class MTE:
 
         return success, ret_data, nb_kp, nb_matches, sum(translation),\
         sum(skews), sum_distances, distances, transformed, scales, translation
-
-    def framing(self, pov_id, image):
-        """Compute a recognition between an image an a reference.
-        Return the image warped with the same perspective as the reference."""
-
-        # Recadrage avec SIFT et renvoi de l'image
-        learning_data = self.get_learning_data(pov_id)
-
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            d2_success, src_pts, dst_pts, _ = self.d2net_engine.apply_d2\
-                (image, learning_data.sift_data, self.mte_algo)
-
-            if d2_success:
-                height, weight = image.shape[:2]
-                homography_matrix = self.d2net_engine.get_homography_matrix\
-                    (src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, homography_matrix, (weight, height))
-                return d2_success, warped_image
-            else:
-                return d2_success, image
-        else:
-            sift_success, src_pts, dst_pts, _ = self.sift_engine.\
-                                                    apply_sift(image, \
-                                                        learning_data.sift_data, self.mte_algo)
-
-            if sift_success:
-                height, weight = image.shape[:2]
-                homography_matrix = self.sift_engine.get_homography_matrix\
-                    (src_pts, dst_pts, dst_to_src=True)
-                warped_image = cv2.warpPerspective(image, homography_matrix, (weight, height))
-                return sift_success, warped_image
-            else:
-                return sift_success, image
 
     def get_learning_data(self, pov_id):
         """Load the data from a reference. If it's not the same as the previous one

@@ -117,20 +117,7 @@ class Client:
             else:
                 image = image_640
 
-            if self.mode == MTEMode.FRAMING:
-                reply, reply_image = self.sender.send_image_reqrep_image(json.dumps(data), image)
-                reply = json.loads(reply)
-
-                if image_640.shape[1] == reply_image.shape[1]:
-                    stacked_images = np.hstack((image_640, reply_image))
-                    cv2.imshow("Reply image framing", stacked_images)
-                else:
-                    cv2.imshow("Reply image framing", reply_image)
-
-                if CAPTURE_DEMO and reply["framing"]["success"]:
-                    out.write(stacked_images)
-            else:
-                reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
+            reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
 
             to_draw = full_image.copy()
             # Response
@@ -235,7 +222,6 @@ class Client:
                         to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                 lower_right_corner, color_box, thickness=3)
 
-            # elif mode == MTEMode.FRAMING:
             else:
                 pass
 
@@ -251,8 +237,6 @@ class Client:
                 self.mode = MTEMode.LEARNING
             elif key == ord("3"):
                 self.mode = MTEMode.RECOGNITION
-            elif key == ord("4"):
-                self.mode = MTEMode.FRAMING
             elif key == ord("q"):
                 sys.exit("User ended program.")
                 if CAPTURE_DEMO:
