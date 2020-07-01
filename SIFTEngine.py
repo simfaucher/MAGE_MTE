@@ -38,14 +38,18 @@ class SIFTEngine:
     HOMOGRAPHY_MIN_TRANS = -500
     HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self, maxRansac):
+    def __init__(self, maxRansac, format_resolution, width1, width2, width3):
         self.sift = cv2.xfeatures2d.SIFT_create()
         self.ransacmax = maxRansac
-        self.resized_width = 380
-        self.resized_height = 213
+        self.format_resolution = format_resolution
         self.img380 = None
         self.img640 = None
         self.display = None
+        self.width1 = width1
+        self.width2 = width2
+        self.width3 = width3
+        self.resized_width = self.width1
+        self.resized_height = int(self.resized_width * self.format_resolution)
 
     def learn(self, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
@@ -58,11 +62,11 @@ class SIFTEngine:
             keypoints_380, des_380, image_ref = self.compute_sift(img, crop_image, crop_margin)
             self.img380 = image_ref
 
-            dim = (640, 360)
+            dim = (self.width2, int(self.width2 * self.format_resolution))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_640, des_640, self.img640 = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (1730, int(1730*9/16))
+            dim = (self.width3, int(self.width3 * self.format_resolution))
             img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
             keypoints_1730, des_1730, _ = self.compute_sift(img, crop_image, crop_margin)
 
@@ -85,7 +89,7 @@ class SIFTEngine:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            if image.shape[1] == 380:
+            if image.shape[1] == self.width1:
                 height, width = self.img380.shape[:2]
             else:
                 height, width = self.img640.shape[:2]
@@ -127,7 +131,7 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
-                if image.shape[1] == 380:
+                if image.shape[1] == self.width1:
                     self.display = np.hstack((self.img380, warped_image))
                 else:
                     self.display = np.hstack((self.img640, warped_image))
@@ -180,9 +184,9 @@ class SIFTEngine:
     def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False, mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
-        if w == 380:
+        if w == self.width1:
             sift_data.switch_380()
-        elif w == 640:
+        elif w == self.width2:
             sift_data.switch_640()
         else:
             sift_data.switch_1730()
