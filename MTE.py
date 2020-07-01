@@ -101,8 +101,8 @@ class MTE:
             self.sift_engine = SIFTEngine(maxRansac=ransacount, format_resolution=self.format_resolution,\
                                           width1=self.width_small, width2=self.width_medium, width3=self.width_large)
 
-        self.threshold_380 = MTEThreshold(100, 45, 2900, 900, 10000, 4000, 11000)
-        self.threshold_640 = MTEThreshold(100, 70, 2800, 1200, 14000, 5000, 18000)
+        self.threshold_380 = MTEThreshold(100, 45, 3500, 1100, 12000, 4000, 13000)
+        self.threshold_640 = MTEThreshold(100, 70, 3400, 1200, 14000, 5000, 18000)
         self.threshold_1730 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
@@ -192,6 +192,9 @@ class MTE:
                 }
             elif mode == MTEMode.LEARNING:
                 print("MODE learning")
+                self.rollback = 0
+                self.validation = 0
+                self.resolution_change_allowed = 3
                 learning_data = self.learning(image_for_learning)
                 if learning_data["success"]:
                     ret_data["learning"] = {"id" : learning_data["learning_id"],

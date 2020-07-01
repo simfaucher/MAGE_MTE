@@ -12,11 +12,12 @@ import imutils
 import imagezmq
 
 from Domain.MTEMode import MTEMode
+from imutils.video import FPS
 
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -118,7 +119,7 @@ class Client:
                 image = image_640
 
             reply = json.loads(self.sender.send_image(json.dumps(data), image).decode())
-
+            fps = FPS().start()
             to_draw = full_image.copy()
             # Response
             if self.mode == MTEMode.PRELEARNING:
@@ -225,6 +226,11 @@ class Client:
             else:
                 pass
 
+            fps.update()
+            fps.stop()
+            cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
 
@@ -235,6 +241,7 @@ class Client:
                 self.mode = MTEMode.PRELEARNING
             elif key == ord("2"):
                 self.mode = MTEMode.LEARNING
+                size = 400
             elif key == ord("3"):
                 self.mode = MTEMode.RECOGNITION
             elif key == ord("q"):
