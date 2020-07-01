@@ -200,6 +200,7 @@ class MTE:
 
             elif mode == MTEMode.RECOGNITION:
                 if data["pov_id"] == -1:
+                    ret_data["recognition"]["success"] = False
                     print("No valid reference for comparision.")
                     self.image_hub.send_reply(json.dumps(ret_data).encode())
                     continue
