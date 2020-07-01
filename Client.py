@@ -235,7 +235,6 @@ class ACD:
                                                 lower_right_cornner, color_box, thickness=3)
 
                 cv2.imshow("Targetting", to_draw)
-                cv2.waitKey(1)
             # elif mode == MTEMode.FRAMING:
             else:
                 pass
@@ -252,6 +251,7 @@ class ACD:
                 self.mode = MTEMode.PRELEARNING
             elif key == ord("2"):
                 self.mode = MTEMode.LEARNING
+                cv2.destroyWindow("Targetting")
             elif key == ord("3"):
                 self.mode = MTEMode.RECOGNITION
             elif key == ord("4"):

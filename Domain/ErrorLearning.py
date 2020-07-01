@@ -1,5 +1,5 @@
 """
-    Return code for learning
+    Return code for learning call.
 """
 SUCCESS = 0
 ERROR = 1
