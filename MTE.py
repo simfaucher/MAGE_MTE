@@ -231,11 +231,11 @@ class MTE:
 
                 # Analysing results
                 if image.shape[1] == self.width_small:
-                    response_for_client = self.behaviour_380(results)
+                    response_for_client = self.behaviour_width_small(results)
                 elif image.shape[1] == self.width_medium:
-                    response_for_client = self.behaviour_640(results)
+                    response_for_client = self.behaviour_width_medium(results)
                 elif image.shape[1] == self.width_large:
-                    response_for_client = self.behaviour_1730(results)
+                    response_for_client = self.behaviour_width_large(results)
                 else:
                     print("Image size not supported.")
                     response_for_client = None
@@ -317,7 +317,7 @@ class MTE:
         # cv2.waitKey(1)
         return direction
 
-    def red_380(self):
+    def red_width_small(self):
         """Critical recognition behaviour for an image (_, 380).
         Return a ResponseData and change global variables.
         """
@@ -350,7 +350,7 @@ class MTE:
                             self.compute_direction(results.translations, results.scales, width), \
                             results.scales[0], results.scales[1])
 
-    def red_640(self):
+    def red_width_medium(self):
         """Critical recognition behaviour for an image (_, 640).
         Return a ResponseData and change global variables.
         """
@@ -367,7 +367,7 @@ class MTE:
                 self.rollback = 0
         return ResponseData(width, msg, None, None, None, None, None)
 
-    def green_640(self, results):
+    def green_width_medium(self, results):
         """Behaviour for an image (_, 640) when the flag turns on to be green.
         Return a ResponseData and change global variable.
 
@@ -388,7 +388,7 @@ class MTE:
                             self.compute_direction(results.translations, results.scales, self.width_medium), \
                             results.scales[0], results.scales[1])
 
-    def lost_1730(self):
+    def lost_width_large(self):
         """Behaviour for a image (_, 1730) when the target is lost
         Return a ResponseData.
         """
@@ -396,7 +396,7 @@ class MTE:
         msg = MTEResponse.TARGET_LOST
         return ResponseData(self.width_large, msg, None, None, None, None, None)
 
-    def behaviour_380(self, results):
+    def behaviour_width_small(self, results):
         """Global behaviour for recognition of image (_,380).
         Based on the activity diagram.
         Return a ResponseData.
@@ -408,13 +408,13 @@ class MTE:
         response = MTEResponse.RED
         # If not enough keypoints
         if results.nb_kp < self.threshold_380.nb_kp:
-            response_for_client = self.red_380()
+            response_for_client = self.red_width_small()
             print("Not enought keypoints")
         # If not enough matches
         elif results.nb_match < self.threshold_380.nb_match:
             # If homography doesn't even start
             if results.nb_match < 30:
-                response_for_client = self.red_380()
+                response_for_client = self.red_width_small()
             else:
                 print("Not enough keypoints")
                 response_for_client = self.orange_behaviour(results, self.width_small)
@@ -462,7 +462,7 @@ class MTE:
             self.rollback = 0
         return response_for_client
 
-    def behaviour_640(self, results):
+    def behaviour_width_medium(self, results):
         """Global behaviour for recognition of image (_,640).
         Based on the activity diagram.
         Return a ResponseData.
@@ -472,12 +472,12 @@ class MTE:
         """
 
         if results.nb_kp < self.threshold_640.nb_kp:
-            response_for_client = self.red_640()
+            response_for_client = self.red_width_medium()
         # If not enough matches
         elif results.nb_match < self.threshold_640.nb_match:
             # If homography doesn't even start
             if results.nb_match < 30:
-                response_for_client = self.red_640()
+                response_for_client = self.red_width_medium()
             else:
                 response_for_client = self.orange_behaviour(results, self.width_medium)
         else:
@@ -497,13 +497,13 @@ class MTE:
                     response_for_client = self.orange_behaviour(results, self.width_medium)
                 # If all means are valids
                 elif int(dist_kirsh)+int(dist_canny)+int(dist_color) == 3:
-                    response_for_client = self.green_640(results)
+                    response_for_client = self.green_width_medium(results)
                 else:
                     dist_kirsh = results.dist_roi[0] < self.threshold_640.kirsh_aberration
                     dist_color = results.dist_roi[2] < self.threshold_640.color_aberration
                     # If 0 aberration
                     if int(dist_kirsh)+int(dist_color) == 2:
-                        response_for_client = self.green_640(results)
+                        response_for_client = self.green_width_medium(results)
                     else:
                         response_for_client = self.orange_behaviour(results, self.width_medium)
 
@@ -511,7 +511,7 @@ class MTE:
             self.rollback = 0
         return response_for_client
 
-    def behaviour_1730(self, results):
+    def behaviour_width_large(self, results):
         """Global behaviour for recognition of image (_,1730).
         Based on the activity diagram.
         Return a ResponseData.
@@ -521,10 +521,10 @@ class MTE:
         """
 
         if results.nb_kp < self.threshold_1730.nb_kp:
-            response_for_client = self.lost_1730()
+            response_for_client = self.lost_width_large()
         # If not enough matches
         elif results.nb_match < self.threshold_1730.nb_match:
-            response_for_client = self.lost_1730()
+            response_for_client = self.lost_width_large()
         else:
             response = MTEResponse.GREEN
             # If not centered with target
@@ -539,7 +539,7 @@ class MTE:
                 dist_color = results.dist_roi[2] < self.threshold_1730.mean_color
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
-                    response_for_client = self.lost_1730()
+                    response_for_client = self.lost_width_large()
                 # If all means are valids
                 elif dist_kirsh+dist_canny+dist_color == 3:
                     response_for_client = ResponseData(self.width_medium, response,\
