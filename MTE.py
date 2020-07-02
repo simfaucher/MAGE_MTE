@@ -257,7 +257,14 @@ class MTE:
                         size=int(response_for_client.size/18), thresh=10)
                     # if the image is not blurred else we just return green
                     if not is_blurred[1]:
-                        response_for_client.response = MTEResponse.CAPTURE
+                        translations_ok = True
+                        for trans in results.translations:
+                            if SIFTEngine.HOMOGRAPHY_MIN_TRANS > trans or \
+                                SIFTEngine.HOMOGRAPHY_MAX_TRANS < trans:
+                                translations_ok = False
+
+                        if translations_ok:
+                            response_for_client.response = MTEResponse.CAPTURE
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
                 print(response_for_client.convert_to_dict())

@@ -27,16 +27,16 @@ FLANN_THRESH = 0.7
 MIN_MATCH_COUNT = 30
 
 class SIFTEngine:
-    # HOMOGRAPHY_MIN_SCALE = 0.75
-    # HOMOGRAPHY_MAX_SCALE = 1.25
-    # HOMOGRAPHY_MAX_SKEW = 0.13
-    # HOMOGRAPHY_MIN_TRANS = 0
-    # HOMOGRAPHY_MAX_TRANS = 50
-    HOMOGRAPHY_MIN_SCALE = 0.0
-    HOMOGRAPHY_MAX_SCALE = 3
-    HOMOGRAPHY_MAX_SKEW = 1
-    HOMOGRAPHY_MIN_TRANS = -500
-    HOMOGRAPHY_MAX_TRANS = 500
+    HOMOGRAPHY_MIN_SCALE = 0.75
+    HOMOGRAPHY_MAX_SCALE = 1.25
+    HOMOGRAPHY_MAX_SKEW = 0.13
+    HOMOGRAPHY_MIN_TRANS = -25
+    HOMOGRAPHY_MAX_TRANS = 50
+    # HOMOGRAPHY_MIN_SCALE = 0.0
+    # HOMOGRAPHY_MAX_SCALE = 3
+    # HOMOGRAPHY_MAX_SKEW = 1
+    # HOMOGRAPHY_MIN_TRANS = -500
+    # HOMOGRAPHY_MAX_TRANS = 500
 
     def __init__(self, maxRansac, format_resolution, width1, width2, width3):
         self.sift = cv2.xfeatures2d.SIFT_create()
@@ -112,10 +112,11 @@ class SIFTEngine:
                 and SIFTEngine.HOMOGRAPHY_MIN_SCALE <= scale_y <= SIFTEngine.HOMOGRAPHY_MAX_SCALE
             skew_ok = 0 <= abs(skew_x) <= SIFTEngine.HOMOGRAPHY_MAX_SKEW \
                 and 0 <= abs(skew_y) <= SIFTEngine.HOMOGRAPHY_MAX_SKEW
-            translation_ok = SIFTEngine.HOMOGRAPHY_MIN_TRANS <= t_x <= SIFTEngine.HOMOGRAPHY_MAX_TRANS \
-                and SIFTEngine.HOMOGRAPHY_MIN_TRANS <= t_y <= SIFTEngine.HOMOGRAPHY_MAX_TRANS
+            # translation_ok = SIFTEngine.HOMOGRAPHY_MIN_TRANS <= t_x <= SIFTEngine.HOMOGRAPHY_MAX_TRANS \
+            #     and SIFTEngine.HOMOGRAPHY_MIN_TRANS <= t_y <= SIFTEngine.HOMOGRAPHY_MAX_TRANS
 
-            homography_success = scale_ok and skew_ok and translation_ok
+            # homography_success = scale_ok and skew_ok and translation_ok
+            homography_success = scale_ok and skew_ok
 
             if homography_success:
                 print("SIFT valid")
