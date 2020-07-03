@@ -48,3 +48,21 @@ class LearningData:
             return 0
         else:
             return 1
+
+    def fill_with_engine_for_learning(self, ratio, kp_small, desc_small, kp_medium, desc_medium, kp_large, desc_large):
+        self.id_ref = -1
+        self.mte_paramters = {
+            "ratio" : ratio,
+            "size_small" : {
+                "keypoints" : kp_small,
+                "descriptors" : desc_small
+            },
+            "size_medium" : {
+                "keypoints" : kp_medium,
+                "descriptors" : desc_medium
+            },
+            "size_large" : {
+                "keypoints" : kp_large,
+                "descriptors" : desc_large
+            }
+        }
