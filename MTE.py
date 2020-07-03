@@ -20,6 +20,7 @@ from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
 import Domain.ErrorLearning as ErrorLearning
+import Domain.ErrorRecognition as ErrorRecognition
 
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
@@ -111,7 +112,10 @@ class MTE:
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
 
-        self.debug = None
+        # Initialize datas 
+        self.reference = LearningData()
+
+        self.debug = None        
 
     def init_log(self, name):
         """ This function creates and initializes a writer.
@@ -157,8 +161,8 @@ class MTE:
                          'Translation y' : recognition.translations[1],
                          'Scale x' : recognition.scales[0],
                          'Scale y' : recognition.scales[1],
-                         'Response' : response.response.name,
-                         'Direction' : response.direction,
+                         'Response' : response.flag.name,
+                         'Direction' : response.user_information,
                          'Blurred' : is_blurred})
 
     def listen_images(self):
@@ -169,109 +173,92 @@ class MTE:
         containing the operations' results.
         """
 
-        pov_id = -1
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
 
             data = json.loads(msg)
 
-            ret_data = {}
-
             if "error" in data and data["error"]:
                 continue
 
-            image_for_learning = image
-
-            mode = MTEMode(data["mode"])
-            if mode == MTEMode.PRELEARNING:
-                # print("MODE prelearning")
-                nb_kp = self.prelearning(image)
-                # save_ref = "save_ref" in data and data["save_ref"]
-                # ret_data["prelearning_pts"] = self.get_rectangle(0, image, force_new_ref=save_ref)
-                ret_data["prelearning"] = {
-                    "nb_kp": nb_kp
-                }
-            elif mode == MTEMode.LEARNING:
-                print("MODE learning")
+            if data["mode"] == 1:
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
-                learning_data = self.learning(image_for_learning)
-                ret_data["learning"] = {"id" : learning_data["learning_id"],
-                                        "code" : learning_data["code"]}
+                to_send = {
+                    "status" : self.learning(image),
+                    "mte_parameters" : self.reference
+                }
 
-            # elif mode == MTEMode.RECOGNITION:
-            else:
-                if data["pov_id"] == -1:
-                    ret_data["recognition"]["success"] = False
-                    print("No valid reference for comparision.")
-                    self.image_hub.send_reply(json.dumps(ret_data).encode())
-                    continue
-
-                # Writer initialization if we have a new ref
-                print(pov_id)
-                print(data["pov_id"])
-                if not data["pov_id"] == pov_id:
-                    pov_id = data["pov_id"]
-                    log_location = os.path.join("logs", "ref"+str(pov_id))
-
+            elif data["mode"] == 2:
+                init_status = self.reference.initialiaze_control_assist(data["id_ref"], data["mte_parameters"])
+                if init_status == 0:
+                    log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
                     if not os.path.exists(log_location):
                         os.makedirs(log_location)
-
                     log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
                     log_path = os.path.join(log_location, log_name)
                     log_writer = self.init_log(log_path)
+                to_send = {
+                    "status" : init_status
+                }
 
-                # print("MODE recognition")
-                self.debug = image_for_learning
-                if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
-                    image = cv2.resize(image, (self.width_medium, self.width_medium*(1/self.format_resolution)), interpolation=cv2.INTER_AREA)
-
-                # Recognition
-                results = RecognitionData(*self.recognition(pov_id, image))
-
-                # Analysing results
-                if image.shape[1] == self.width_small:
-                    response_for_client = self.behaviour_width_small(results)
-                elif image.shape[1] == self.width_medium:
-                    response_for_client = self.behaviour_width_medium(results)
-                elif image.shape[1] == self.width_large:
-                    response_for_client = self.behaviour_width_large(results)
+            elif data["mode"] == 3:
+                if data["id_ref"] != self.reference.id_ref:
+                    print("Wrong initialization.")
                 else:
-                    print("Image size not supported.")
-                    response_for_client = None
+                    self.debug = image
+                    if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
+                        image = cv2.resize(image, (self.width_medium, self.width_medium*(1/self.format_resolution)), interpolation=cv2.INTER_AREA)
+                    results = RecognitionData(*self.recognition(image))
+                    if image.shape[1] == self.width_small:
+                        to_send = self.behaviour_width_small(results)
+                    elif image.shape[1] == self.width_medium:
+                        to_send = self.behaviour_width_medium(results)
+                    elif image.shape[1] == self.width_large:
+                        to_send = self.behaviour_width_large(results)
+                    else:
+                        print("Image size not supported.")
+                        to_send = ResponseData(\
+                                                [self.width_small,\
+                                                self.width_small*self.format_resolution],\
+                                                MTEResponse.RED, 0, 0, "None", \
+                                                0, 0, ErrorRecognition.MISMATCH_SIZE_WITH_REF)
 
-                # Additional informations for client
-                ret_data["recognition"] = results.recog_ret_data
-                ret_data["recognition"]["success"] = results.success
-                ret_data["recognition"]["nb_kp"] = results.nb_kp
-                ret_data["recognition"]["dist"] = results.dist_roi
-                ret_data["recognition"]["nb_match"] = results.nb_match
+                    # If we can capture
+                    is_blurred = False
+                    if self.validation > MIN_VALIDATION_COUNT:
+                        self.validation = MIN_VALIDATION_COUNT
+                    if self.validation == MIN_VALIDATION_COUNT:
+                        is_blurred = self.is_image_blurred(image, \
+                            size=int(to_send.size/18), thresh=10)
+                        # if the image is not blurred else we just return green
+                        if not is_blurred[1]:
+                            translations_ok = True
+                            for trans in results.translations:
+                                if SIFTEngine.HOMOGRAPHY_MIN_TRANS > trans or \
+                                    SIFTEngine.HOMOGRAPHY_MAX_TRANS < trans:
+                                    translations_ok = False
 
-                # If we can capture
-                is_blurred = False
-                if self.validation > MIN_VALIDATION_COUNT:
-                    self.validation = MIN_VALIDATION_COUNT
-                if self.validation == MIN_VALIDATION_COUNT:
-                    is_blurred = self.is_image_blurred(image, \
-                        size=int(response_for_client.size/18), thresh=10)
-                    # if the image is not blurred else we just return green
-                    if not is_blurred[1]:
-                        translations_ok = True
-                        for trans in results.translations:
-                            if SIFTEngine.HOMOGRAPHY_MIN_TRANS > trans or \
-                                SIFTEngine.HOMOGRAPHY_MAX_TRANS < trans:
-                                translations_ok = False
+                            if translations_ok:
+                                to_send.flag = MTEResponse.CAPTURE.name
+                    # if not to_send is None:
+                    #     ret_data["recognition"]["results"] = to_send.convert_to_dict()
+                    # print(to_send.convert_to_dict())
+                    self.fill_log(log_writer, results, to_send, is_blurred)
 
-                        if translations_ok:
-                            response_for_client.response = MTEResponse.CAPTURE
-                if not response_for_client is None:
-                    ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
-                print(response_for_client.convert_to_dict())
-                self.fill_log(log_writer, results, response_for_client, is_blurred)
+            elif data["mode"] == 4:
+                to_send = {
+                    "status" : self.reference.clean_control_assist(data["id_ref"])
+                }
 
-
-            self.image_hub.send_reply(json.dumps(ret_data).encode())
+            else:
+                to_send = {
+                    "status" : 1
+                }
+                print("{} is an unknown mode.".format(data["mode"]))
+            
+            self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
         """Check if an image is blurred. Return a tuple (mean: float, blurred: bool)
@@ -614,8 +601,7 @@ class MTE:
         blurred = self.is_image_blurred(image_ref, \
                         size=size, thresh=10)
         if blurred[1]:
-            return {'success' : False,
-                    'blurred' : True}
+            return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
 
         kernel_size = 10
         sigma = 3
@@ -705,9 +691,7 @@ class MTE:
         else:
             validation["learning_id"] = -1
 
-        validation["code"] = validation_value
-
-        return validation
+        return validation_value
 
     def recognition(self, pov_id, image):
         """Compute the homography using the running engine.
