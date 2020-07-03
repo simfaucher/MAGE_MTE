@@ -38,17 +38,17 @@ class SIFTEngine:
         self.img_small = None
         self.img_medium = None
         self.display = None
-        self.width1 = None
-        self.width2 = None
-        self.width3 = None
+        self.width_small = None
+        self.width_medium = None
+        self.width_large = None
         self.resized_width = None
         self.resized_height = None
         self.format_resolution = None
     
     def set_parameters(self, width_small, width_medium, width_large, format_resolution):
-        self.width1 = width_small
-        self.width2 = width_medium
-        self.width3 = width_large
+        self.width_small = width_small
+        self.width_medium = width_medium
+        self.width_large = width_large
         self.resized_width = width_small
         self.resized_height = int(self.resized_width * (1/format_resolution))
         self.format_resolution = format_resolution
@@ -63,11 +63,11 @@ class SIFTEngine:
             img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
             keypoints_small, des_small, self.img_small = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (self.width2, int(self.width2 * (1/self.format_resolution)))
+            dim = (self.width_medium, int(self.width_medium * (1/self.format_resolution)))
             img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
             keypoints_medium, des_medium, self.img_medium = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (self.width3, int(self.width3 * (1/self.format_resolution)))
+            dim = (self.width_large, int(self.width_large * (1/self.format_resolution)))
             img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
             keypoints_large, des_large, _ = self.compute_sift(img, crop_image, crop_margin)
 
@@ -90,7 +90,7 @@ class SIFTEngine:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            if image.shape[1] == self.width1:
+            if image.shape[1] == self.width_small:
                 height, width = self.img_small.shape[:2]
             else:
                 height, width = self.img_medium.shape[:2]
@@ -133,7 +133,7 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
-                if image.shape[1] == self.width1:
+                if image.shape[1] == self.width_small:
                     self.display = np.hstack((self.img_small, warped_image))
                 else:
                     self.display = np.hstack((self.img_medium, warped_image))
@@ -186,10 +186,10 @@ class SIFTEngine:
     def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False, mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
-        if w == self.width1:
+        if w == self.width_small:
             keypoints = sift_data["size_small"]["keypoints"]
             descriptors = sift_data["size_small"]["descriptors"]
-        elif w == self.width2:
+        elif w == self.width_medium:
             keypoints = sift_data["size_medium"]["keypoints"]
             descriptors = sift_data["size_medium"]["descriptors"]
         else:
@@ -217,9 +217,9 @@ class SIFTEngine:
                     pass
         elif mode == MTEAlgo.SIFT_RANSAC:
             matches = match_descriptors(des_img, descriptors, cross_check=True)
-            left = [kp_base[loop].pt[:] for loop in matches[:,0]]
+            left = [kp_base[loop].pt[:] for loop in matches[:, 0]]
             keypoints_left = np.asarray(left)
-            right = [cv2.KeyPoint_convert(keypoints)[loop].pt[:] for loop in matches[:,1]]
+            right = [cv2.KeyPoint_convert(keypoints)[loop].pt[:] for loop in matches[:, 1]]
             keypoints_right = np.asarray(right)
             np.random.seed(0)
             model, inliers = ransac(

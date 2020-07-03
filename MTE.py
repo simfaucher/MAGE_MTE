@@ -75,16 +75,10 @@ class MTE:
         # ML validation
         self.ml_validator = MLValidation()
 
-        self.format_resolution = 16/9
-        # self.format_resolution = 4/3
-        if math.isclose(self.format_resolution, 16/9, rel_tol=1e-5):
-            self.width_small = 400
-            self.width_medium = 660
-            self.width_large = 1730
-        else:
-            self.width_small = 350
-            self.width_medium = 570
-            self.width_large = 1730
+        self.format_resolution = None
+        self.width_small = None
+        self.width_medium = None
+        self.width_large = None
 
         # Motion tracking engines
         self.mte_algo = mte_algo
@@ -100,22 +94,20 @@ class MTE:
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
         else:
-            self.sift_engine = SIFTEngine(maxRansac=ransacount, format_resolution=self.format_resolution,\
-                                          width1=self.width_small, width2=self.width_medium, width3=self.width_large)
+            self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
-        self.threshold_380 = MTEThreshold(100, 45, 3500, 1100, 12000, 4000, 13000)
-        self.threshold_640 = MTEThreshold(100, 70, 3400, 1200, 14000, 5000, 18000)
-        self.threshold_1730 = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
+        self.threshold_small = MTEThreshold(100, 45, 3500, 1100, 12000, 4000, 13000)
+        self.threshold_medium = MTEThreshold(100, 70, 3400, 1200, 14000, 5000, 18000)
+        self.threshold_large = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
         self.validation = 0
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
 
-        # Initialize datas 
         self.reference = LearningData()
 
-        self.debug = None        
+        self.debug = None
 
     def init_log(self, name):
         """ This function creates and initializes a writer.
@@ -185,12 +177,33 @@ class MTE:
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
+                if math.isclose(image.shape[1]/image.shape[0], 16/9, rel_tol=1e-5):
+                    self.width_small = 400
+                    self.width_medium = 660
+                    self.width_large = 1730
+                else:
+                    self.width_small = 350
+                    self.width_medium = 570
+                    self.width_large = 1730
+                self.sift_engine.set_parameters(self.width_small, self.width_medium,\
+                    self.width_large, self.format_resolution)
                 to_send = {
                     "status" : self.learning(image),
-                    "mte_parameters" : self.reference
+                    "mte_parameters" : self.reference.mte_paramters
                 }
 
             elif data["mode"] == 2:
+                self.format_resolution = data["mte_paramaters"]["ratio"]
+                if math.isclose(self.format_resolution, 16/9, rel_tol=1e-5):
+                    self.width_small = 400
+                    self.width_medium = 660
+                    self.width_large = 1730
+                else:
+                    self.width_small = 350
+                    self.width_medium = 570
+                    self.width_large = 1730
+                self.sift_engine.set_parameters(self.width_small, self.width_medium,\
+                    self.width_large, self.format_resolution)
                 init_status = self.reference.initialiaze_control_assist(data["id_ref"], data["mte_parameters"])
                 if init_status == 0:
                     log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
@@ -324,7 +337,7 @@ class MTE:
         if self.rollback >= 5:
             self.rollback = 0
             width = self.width_medium
-        return ResponseData(width, MTEResponse.RED, None, None, None, None, None)
+        return ResponseData([width, int(width*(1/self.format_resolution))], MTEResponse.RED, None, None, None, None, None)
 
     def orange_behaviour(self, results, width):
         """Uncertain recognition behaviour.
@@ -340,7 +353,7 @@ class MTE:
         if width == self.width_medium and self.rollback > 0:
             self.rollback -= 1
 
-        return ResponseData(width, MTEResponse.ORANGE,\
+        return ResponseData([width, int(width*(1/self.format_resolution))], MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
                             self.compute_direction(results.translations, results.scales, width), \
                             results.scales[0], results.scales[1])
@@ -360,7 +373,7 @@ class MTE:
             if self.rollback >= 5:
                 width = self.width_large
                 self.rollback = 0
-        return ResponseData(width, msg, None, None, None, None, None)
+        return ResponseData([width, int(width*(1/self.format_resolution))], msg, None, None, None, None, None)
 
     def green_width_medium(self, results):
         """Behaviour for an image (_, 640) when the flag turns on to be green.
@@ -378,7 +391,7 @@ class MTE:
             self.rollback = 0
         else:
             self.validation += 1
-        return ResponseData(width, MTEResponse.GREEN,\
+        return ResponseData([width, int(width*(1/self.format_resolution))], MTEResponse.GREEN,\
                             results.translations[0], results.translations[1], \
                             self.compute_direction(results.translations, results.scales, self.width_medium), \
                             results.scales[0], results.scales[1])
@@ -389,7 +402,7 @@ class MTE:
         """
 
         msg = MTEResponse.TARGET_LOST
-        return ResponseData(self.width_large, msg, None, None, None, None, None)
+        return ResponseData([self.width_large, int(self.width_large*(1/self.format_resolution))], msg, None, None, None, None, None)
 
     def behaviour_width_small(self, results):
         """Global behaviour for recognition of image (_,380).
@@ -402,56 +415,51 @@ class MTE:
 
         response = MTEResponse.RED
         # If not enough keypoints
-        if results.nb_kp < self.threshold_380.nb_kp:
+        if results.nb_kp < self.threshold_small.nb_kp:
             response_for_client = self.red_width_small()
+            response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_KEYPOINTS)
             print("Not enought keypoints")
         # If not enough matches
-        elif results.nb_match < self.threshold_380.nb_match:
+        elif results.nb_match < self.threshold_small.nb_match:
             # If homography doesn't even start
             if results.nb_match < 30:
                 response_for_client = self.red_width_small()
+                response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_MATCH_CRITICAL)
             else:
-                print("Not enough keypoints")
                 response_for_client = self.orange_behaviour(results, self.width_small)
+                response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_MATCH)
         else:
             response = MTEResponse.GREEN
             # If not centered with target
             if not results.success:
                 self.validation = 0
-                response_for_client = ResponseData(self.width_small, response,\
+                response_for_client = ResponseData([self.width_small, int(self.width_small*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_small), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
             else:
-                dist_kirsh = results.dist_roi[0] < self.threshold_380.mean_kirsh
-                dist_canny = results.dist_roi[1] < self.threshold_380.mean_canny
-                dist_color = results.dist_roi[2] < self.threshold_380.mean_color
-                # print(dist_kirsh)
-                # print(dist_canny)
-                # print(dist_color)
+                dist_kirsh = results.dist_roi[0] < self.threshold_small.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_small.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_small.mean_color
                 # If 0 or 1 mean valid
                 if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
-                    # print("Trop de distance > à la moyenne")
-                    # print(results.dist_roi[0])
-                    # print(results.dist_roi[1])
-                    # print(results.dist_roi[2])
                     response_for_client = self.orange_behaviour(results, self.width_small)
+                    response_for_client.set_status(ErrorRecognition.MEANS_OUT_OF_LIMITS)
                 else:
-                    dist_kirsh = results.dist_roi[0] < self.threshold_380.kirsh_aberration
-                    dist_color = results.dist_roi[2] < self.threshold_380.color_aberration
-                    # If 0 aberration
+                    dist_kirsh = results.dist_roi[0] < self.threshold_small.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_small.color_aberration
+                    # If no aberration
                     if int(dist_kirsh)+int(dist_color) == 2:
-                        self.validation += 1
+                        self.validation += 1                
                         self.rollback = 0
+                        status = ErrorRecognition.SUCCESS
                     else:
-                        # print("Aberation")
-                        # print(results.dist_roi[0])
-                        # print(results.dist_roi[2])
                         response = MTEResponse.ORANGE
-                    response_for_client = ResponseData(self.width_small, response,\
+                        status = ErrorRecognition.ABERRATION_VALUE
+                    response_for_client = ResponseData([self.width_small, int(self.width_small*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_small), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=status)
 
         if response_for_client.response == MTEResponse.GREEN:
             self.rollback = 0
@@ -466,41 +474,48 @@ class MTE:
         results -> the RecognitionData
         """
 
-        if results.nb_kp < self.threshold_640.nb_kp:
+        if results.nb_kp < self.threshold_medium.nb_kp:
             response_for_client = self.red_width_medium()
+            response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_KEYPOINTS)
         # If not enough matches
-        elif results.nb_match < self.threshold_640.nb_match:
+        elif results.nb_match < self.threshold_medium.nb_match:
             # If homography doesn't even start
             if results.nb_match < 30:
                 response_for_client = self.red_width_medium()
+                response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_MATCH_CRITICAL)
             else:
                 response_for_client = self.orange_behaviour(results, self.width_medium)
+                response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_MATCH)
         else:
             response = MTEResponse.GREEN
             # If not centered with target
             if not results.success:
-                response_for_client = ResponseData(self.width_medium, response,\
+                response_for_client = ResponseData([self.width_medium, int(self.width_medium*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_medium), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
             else:
-                dist_kirsh = results.dist_roi[0] < self.threshold_640.mean_kirsh
-                dist_canny = results.dist_roi[1] < self.threshold_640.mean_canny
-                dist_color = results.dist_roi[2] < self.threshold_640.mean_color
+                dist_kirsh = results.dist_roi[0] < self.threshold_medium.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_medium.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_medium.mean_color
                 # If 0 or 1 mean valid
                 if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
                     response_for_client = self.orange_behaviour(results, self.width_medium)
+                    response_for_client.set_status(ErrorRecognition.MEANS_OUT_OF_LIMITS)
                 # If all means are valids
                 elif int(dist_kirsh)+int(dist_canny)+int(dist_color) == 3:
                     response_for_client = self.green_width_medium(results)
+                    response_for_client.set_status(ErrorRecognition.SUCCESS)
                 else:
-                    dist_kirsh = results.dist_roi[0] < self.threshold_640.kirsh_aberration
-                    dist_color = results.dist_roi[2] < self.threshold_640.color_aberration
-                    # If 0 aberration
+                    dist_kirsh = results.dist_roi[0] < self.threshold_medium.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_medium.color_aberration
+                    # If no aberration
                     if int(dist_kirsh)+int(dist_color) == 2:
                         response_for_client = self.green_width_medium(results)
+                        response_for_client.set_status(ErrorRecognition.SUCCESS)
                     else:
                         response_for_client = self.orange_behaviour(results, self.width_medium)
+                        response_for_client.set_status(ErrorRecognition.ABERRATION_VALUE)
 
         if response_for_client.response == MTEResponse.GREEN:
             self.rollback = 0
@@ -515,61 +530,65 @@ class MTE:
         results -> the RecognitionData
         """
 
-        if results.nb_kp < self.threshold_1730.nb_kp:
+        if results.nb_kp < self.threshold_large.nb_kp:
             response_for_client = self.lost_width_large()
+            response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_KEYPOINTS)
         # If not enough matches
-        elif results.nb_match < self.threshold_1730.nb_match:
+        elif results.nb_match < self.threshold_large.nb_match:
             response_for_client = self.lost_width_large()
+            response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_MATCH_CRITICAL)
         else:
             response = MTEResponse.GREEN
             # If not centered with target
             if not results.success:
-                response_for_client = ResponseData(self.width_large, response,\
+                response_for_client = ResponseData([self.width_large, int(self.width_large*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_large), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=ErrorRecognition.SUCCESS)
             else:
-                dist_kirsh = results.dist_roi[0] < self.threshold_1730.mean_kirsh
-                dist_canny = results.dist_roi[1] < self.threshold_1730.mean_canny
-                dist_color = results.dist_roi[2] < self.threshold_1730.mean_color
+                dist_kirsh = results.dist_roi[0] < self.threshold_large.mean_kirsh
+                dist_canny = results.dist_roi[1] < self.threshold_large.mean_canny
+                dist_color = results.dist_roi[2] < self.threshold_large.mean_color
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
                     response_for_client = self.lost_width_large()
+                    response_for_client.set_status(ErrorRecognition.MEANS_OUT_OF_LIMITS)
                 # If all means are valids
                 elif dist_kirsh+dist_canny+dist_color == 3:
-                    response_for_client = ResponseData(self.width_medium, response,\
+                    response_for_client = ResponseData([self.width_medium, int(self.width_medium*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_large), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=ErrorRecognition.SUCCESS)
                 else:
-                    dist_kirsh = results.dist_roi[0] < self.threshold_1730.kirsh_aberration
-                    dist_color = results.dist_roi[2] < self.threshold_1730.color_aberration
-                    # If 0 aberration
+                    dist_kirsh = results.dist_roi[0] < self.threshold_large.kirsh_aberration
+                    dist_color = results.dist_roi[2] < self.threshold_large.color_aberration
+                    # If no aberration
                     if dist_kirsh+dist_color == 2:
                         size = self.width_medium
+                        status = ErrorRecognition.SUCCESS
                     else:
                         response = MTEResponse.ORANGE
                         size = self.width_large
-                    response_for_client = ResponseData(size, response,\
+                        status = ErrorRecognition.ABERRATION_VALUE
+                    response_for_client = ResponseData([size, int(size*(1/self.format_resolution))], response,\
                                      results.translations[0], results.translations[1], \
                                      self.compute_direction(results.translations, results.scales, self.width_large), \
-                                     results.scales[0], results.scales[1])
+                                     results.scales[0], results.scales[1], status=status)
         return response_for_client
 
-    def fake_init_for_reference(self, image_ref_reduite, image_ref):
+    def fake_init_for_reference(self, image_ref):
         """Initialize learning datas with the reference and avoid the use of database.
 
         Keyword arguments:
-        image_ref_reduite -> int array of the reduced reference
         image_ref -> int array of the reference in full size
         """
 
-        learning_data = LearningData(-1, "0", image_ref_reduite, image_ref)
+        learning_data = LearningData()
 
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
         else:
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+            self.sift_engine.learn(image_ref, learning_data, crop_image=True, crop_margin=self.crop_margin)
         self.ml_validator.learn(learning_data)
         self.last_learning_data = learning_data
 
@@ -583,7 +602,7 @@ class MTE:
 
         dim = (self.validation_width, self.validation_height)
         blurred_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
-        results = RecognitionData(*self.recognition(-1, blurred_redux))
+        results = RecognitionData(*self.recognition(blurred_redux))
 
         return results
 
@@ -615,11 +634,7 @@ class MTE:
         kernel_h[int((kernel_size - 1)/2), :] = np.ones(kernel_size)
         kernel_h /= kernel_size
 
-        # Resize reference and compute keypoints
-        dim = (self.validation_width, self.validation_height)
-        image_ref_reduite = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
-
-        self.fake_init_for_reference(image_ref_reduite, image_ref)
+        self.fake_init_for_reference(image_ref)
 
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
@@ -649,24 +664,6 @@ class MTE:
 
         return ErrorLearning.SUCCESS
 
-    def prelearning(self, image):
-        """Compute the keypoints and their descriptors of the given image.
-        Return the number of keypoints found.
-
-        Keyword arguments:
-        image_ref -> int array of the image
-        """
-
-        # Renvoyer le nombre d'amers sur l'image envoyée
-        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
-            keypoints, _, _ = self.sift_engine.compute_sift(image, crop_image=False)
-            return len(keypoints)
-        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            keypoints, _, _ = self.d2net_engine.compute_d2(image, crop_image=True)
-            return len(keypoints)
-
-        return 0
-
     def learning(self, full_image):
         """Test if the given image can be used as reference.
         Return a dictionary containing :
@@ -678,22 +675,9 @@ class MTE:
         full_image -> int array of the image
         """
 
-        validation = {}
-        validation_value = self.check_reference(full_image)
-        if validation_value == ErrorLearning.SUCCESS:
-            # Enregistrement de l'image de référence en 640 pour SIFT + VC léger et 4K pour VCE
-            validation["learning_id"] = self.repo.save_new_pov(full_image)
+        return self.check_reference(full_image)
 
-            validation["success"], learning_data = self.repo.get_pov_by_id(\
-                validation["learning_id"], resize_width=self.validation_width)
-            if validation["success"]:
-                self.learning_db.append(learning_data)
-        else:
-            validation["learning_id"] = -1
-
-        return validation_value
-
-    def recognition(self, pov_id, image):
+    def recognition(self, image):
         """Compute the homography using the running engine.
         Computation is made between the image from the video stream and
         the image that have been learn with its id.
@@ -715,20 +699,19 @@ class MTE:
         }
         sum_distances = 9999
         distances = 9999
-        learning_data = self.get_learning_data(pov_id)
 
         fps = FPS().start()
         nb_matches = 0
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
-                nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
+                nb_kp = self.d2net_engine.recognition(image, self.reference, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
             skew = max(skew_x, skew_y)
         else:
             success, scales, skews, translation, transformed, nb_matches, \
-                nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
+                nb_kp = self.sift_engine.recognition(image, self.reference, self.mte_algo)
             scale_x, scale_y = scales
             skew_x, skew_y = skews
             scale = max(scale_x, scale_y)
@@ -746,7 +729,7 @@ class MTE:
         ml_success = False
         if success:
             ml_success, sum_distances, distances = self.ml_validator.\
-                validate(learning_data, transformed)
+                validate(self.reference, transformed)
 
         fps.update()
         fps.stop()
@@ -783,42 +766,6 @@ class MTE:
 
         return success, ret_data, nb_kp, nb_matches, sum(translation),\
         sum(skews), sum_distances, distances, transformed, scales, translation
-
-    def get_learning_data(self, pov_id):
-        """Load the data from a reference. If it's not the same as the previous one
-        we calculate the data using the selected engine.
-
-        Keyword arguments:
-        pov_id -> pov_id -> int for the position of the reference in the DB
-        """
-
-        learning_data = None
-
-        if self.last_learning_data is not None \
-            and self.last_learning_data.id == pov_id:
-            learning_data = self.last_learning_data
-        else:
-            items = [x for x in self.learning_db if x.id == pov_id]
-            if len(items) > 0:
-                learning_data = items[0]
-            else:
-                success, learning_data = self.repo.get_pov_by_id\
-                    (pov_id, resize_width=self.validation_width)
-                if not success:
-                    raise Exception("No POV with id {}".format(pov_id))
-
-        self.last_learning_data = learning_data
-
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
-        else:
-            # Learn SIFT data
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
-
-        # Learn ML data
-        self.ml_validator.learn(learning_data)
-
-        return learning_data
 
 def str2bool(string_value):
     """Convert a string to a bool."""

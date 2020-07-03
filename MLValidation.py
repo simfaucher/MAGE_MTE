@@ -42,8 +42,8 @@ class MLValidation:
 
     
     def learn(self, learning_data):
-        if learning_data.ml_data is None:
-            learning_data.ml_data = deepcopy(self.learning_settings)
+        if learning_data.mte_parameters["ml_validation"] is None:
+            learning_data.mte_parameters["ml_validation"] = deepcopy(self.learning_settings)
 
             image_class = ImageClass()
             image_class.id = 0
@@ -51,7 +51,7 @@ class MLValidation:
 
             h, w = learning_data.resized_image.shape[:2]
 
-            for sight in learning_data.ml_data.sights:
+            for sight in learning_data.mte_parameters["ml_validation"].sights:
                 pt_tl = Point2D()
                 pt_tl.x = int(w / 2 - sight.width / 2)
                 pt_tl.y = int(h / 2 - sight.height / 2)
@@ -97,11 +97,11 @@ class MLValidation:
                     roi.images.append(image)
 
     def validate(self, learning_data, warped_image):
-        success = len(learning_data.ml_data.sights) > 0
+        success = len(learning_data.mte_parameters["ml_validation"].sights) > 0
         sum_distances = 0
         distances = []
 
-        for sight in learning_data.ml_data.sights:
+        for sight in learning_data.mte_parameters["ml_validation"].sights:
             self.box_learner.get_knn_contexts(sight)
             self.box_learner.input_image = warped_image
 
