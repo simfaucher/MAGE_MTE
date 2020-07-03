@@ -46,6 +46,7 @@ from ML.BoxLearner import BoxLearner
 from MLValidation import MLValidation
 from SIFTEngine import SIFTEngine
 from D2NetEngine import D2NetEngine
+from VCLikeEngine import VCLikeEngine
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -98,6 +99,8 @@ class MTE:
                                             max_sum_edges=resize_width + self.resize_height,\
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
+        elif self.mte_algo == MTEAlgo.VC_LIKE:
+            self.vc_like_engine = VCLikeEngine()
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount, format_resolution=self.format_resolution,\
                                           width1=self.width_small, width2=self.width_medium, width3=self.width_large)
@@ -209,8 +212,6 @@ class MTE:
                     continue
 
                 # Writer initialization if we have a new ref
-                print(pov_id)
-                print(data["pov_id"])
                 if not data["pov_id"] == pov_id:
                     pov_id = data["pov_id"]
                     log_location = os.path.join("logs", "ref"+str(pov_id))
@@ -267,7 +268,7 @@ class MTE:
                             response_for_client.response = MTEResponse.CAPTURE
                 if not response_for_client is None:
                     ret_data["recognition"]["results"] = response_for_client.convert_to_dict()
-                print(response_for_client.convert_to_dict())
+                # print(response_for_client.convert_to_dict())
                 self.fill_log(log_writer, results, response_for_client, is_blurred)
 
 
@@ -579,10 +580,12 @@ class MTE:
 
         learning_data = LearningData(-1, "0", image_ref_reduite, image_ref)
 
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
         else:
-            self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+            self.vc_like_engine.learn(learning_data)
         self.ml_validator.learn(learning_data)
         self.last_learning_data = learning_data
 
@@ -735,20 +738,22 @@ class MTE:
 
         fps = FPS().start()
         nb_matches = 0
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+        if self.mte_algo == MTEAlgo.VC_LIKE:
+            nb_kp = 300
+            nb_matches = 150
+            success, scales, skews, translation, transformed = self.vc_like_engine.\
+                find_target(image, learning_data)
+            # cv2.imshow("VC-like engine", transformed)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.d2net_engine.recognition(image, learning_data, self.mte_algo)
-            scale_x, scale_y = scales
-            skew_x, skew_y = skews
-            scale = max(scale_x, scale_y)
-            skew = max(skew_x, skew_y)
         else:
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.sift_engine.recognition(image, learning_data, self.mte_algo)
-            scale_x, scale_y = scales
-            skew_x, skew_y = skews
-            scale = max(scale_x, scale_y)
-            skew = max(skew_x, skew_y)
+        scale_x, scale_y = scales
+        skew_x, skew_y = skews
+        scale = max(scale_x, scale_y)
+        skew = max(skew_x, skew_y)
 
         # if success:
         #     translation = ((translation[0]*scale_x + image.shape[1]/3), (translation[1]*scale_y + image.shape[0]/3))
@@ -825,11 +830,14 @@ class MTE:
 
         self.last_learning_data = learning_data
 
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
-        else:
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
             # Learn SIFT data
             self.sift_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+        else:
+            # Learn VC-like engine data
+            self.vc_like_engine.learn(learning_data)
 
         # Learn ML data
         self.ml_validator.learn(learning_data)
@@ -865,9 +873,9 @@ if __name__ == "__main__":
             return whole - frac if whole < 0 else whole + frac
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
+    ap.add_argument("-a", "--algo", required=False, default="VC_LIKE",\
         help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC,\
-             D2NET_KNN or D2NET_RANSAC). Default: SIFT_KNN")
+             D2NET_KNN, D2NET_RANSAC or VC_LIKE). Default: VC_LIKE")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=380, type=int,\

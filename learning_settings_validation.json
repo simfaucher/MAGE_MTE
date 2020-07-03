@@ -27,19 +27,9 @@
             },
             "roi": [
                 {
-                    "name": "Color",
-                    "filter": "posterisation",
-                    "feature_type": "composite_profile",
-                    "tolerance": 17000,
-                    "width": 213,
-                    "height": 121,
-                    "x": 0,
-                    "y": 0
-                },
-                {
-                    "name": "Shape",
-                    "filter": "kirsch",
-                    "feature_type": "raw_pixels_16",
+                    "name": "Sketch",
+                    "filter": "canny",
+                    "feature_type": "raw_pixels",
                     "tolerance": 66000,
                     "width": 213,
                     "height": 121,

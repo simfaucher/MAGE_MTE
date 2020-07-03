@@ -18,7 +18,7 @@ from imutils.video import FPS
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -182,6 +182,8 @@ class Client:
                     print("Scale: {}, skew x: {}, skew y:{}, trans x: {}, trans y: {}".format(reco_data["scale"], \
                         reco_data["skew"]["x"], reco_data["skew"]["y"], \
                         reco_data["translation"]["x"], reco_data["translation"]["y"]))
+                elif "vc_like_engine_success" in reco_data and reco_data["vc_like_engine_success"]:
+                    print("Recognition VC-like success")
                 else:
                     print("Recognition failed")
                     cv2.putText(to_draw, "Homography failed.", (20, 100), \
@@ -230,7 +232,8 @@ class Client:
             else:
                 pass
 
-            cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
+            if fps.elapsed() > 0:
+                cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
             cv2.imshow("Targetting", to_draw)

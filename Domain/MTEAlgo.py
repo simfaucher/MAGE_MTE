@@ -5,3 +5,4 @@ class MTEAlgo(Enum):
     SIFT_RANSAC = 2
     D2NET_KNN = 3
     D2NET_RANSAC = 4
+    VC_LIKE = 5
