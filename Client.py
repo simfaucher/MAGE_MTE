@@ -90,12 +90,24 @@ class Client:
             if not os.path.exists(DEMO_FOLDER):
                 os.makedirs(DEMO_FOLDER)
         size = 400
+        equalize = "hsv"
         while self.cap.isOpened():
             # Sending
             success, full_image = self.cap.read()
 
             if not success:
                 break
+                        
+            if equalize == "yuv":
+                equalized = cv2.cvtColor(full_image, cv2.COLOR_BGR2YUV)
+                equalized[:, :, 0] = cv2.equalizeHist(equalized[:, :, 0])
+                cv2.imshow("yuv", equalized)
+                full_image = cv2.cvtColor(equalized, cv2.COLOR_YUV2BGR)
+            elif equalize == "hsv":
+                equalized = cv2.cvtColor(full_image, cv2.COLOR_BGR2HSV)
+                equalized[:, :, 2] = cv2.equalizeHist(equalized[:, :, 2])
+                cv2.imshow("hsv", equalized)
+                full_image = cv2.cvtColor(equalized, cv2.COLOR_HSV2BGR)
 
             image_640 = imutils.resize(full_image, width=size)
             # image_640 = full_image
@@ -242,19 +254,28 @@ class Client:
             if self.mode == MTEMode.LEARNING:
                 self.mode = MTEMode.PRELEARNING
 
-            if key == ord("1"):
+            if key == ord("1") or key == ord("&"):
                 self.mode = MTEMode.PRELEARNING
-            elif key == ord("2"):
+            elif key == ord("2") or key == ord("é"):
                 self.mode = MTEMode.LEARNING
                 size = 400
-            elif key == ord("3"):
+            elif key == ord("3") or key == ord("\""):
                 self.mode = MTEMode.RECOGNITION
-            elif key == ord("q"):
+            elif key == ord("q") or key == ord("Q"):
                 sys.exit("User ended program.")
                 if CAPTURE_DEMO:
                     out.release()
                     out = None
-
+            elif key == ord("h") or key == ord("H"):
+                equalize = "hsv"
+                cv2.destroyWindow("yuv")
+            elif key == ord("y") or key == ord("Y"):
+                equalize = "yuv"
+                cv2.destroyWindow("hsv")
+            elif key == ord("n") or key == ord("N"):
+                equalize = ""
+                cv2.destroyWindow("yuv")
+                cv2.destroyWindow("hsv")
             # print(reply)
 
         # Release all
