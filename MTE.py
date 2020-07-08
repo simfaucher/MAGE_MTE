@@ -19,9 +19,9 @@ import numpy as np
 from imutils.video import FPS
 from pykson import Pykson
 import imagezmq
-import Domain.ErrorLearning as ErrorLearning
-import Domain.ErrorRecognition as ErrorRecognition
 
+from Domain.ErrorLearning import ErrorLearning
+from Domain.ErrorRecognition import ErrorRecognition
 from Domain.MTEMode import MTEMode
 from Domain.MTEAlgo import MTEAlgo
 from Domain.LearningData import LearningData
@@ -189,7 +189,7 @@ class MTE:
                     self.width_large, self.format_resolution)
                 to_send = {
                     "status" : self.learning(image),
-                    "mte_parameters" : self.reference.mte_paramters
+                    "mte_parameters" : self.reference.mte_parameters
                 }
 
             elif data["mode"] == 2:
@@ -219,6 +219,9 @@ class MTE:
             elif data["mode"] == 3:
                 if data["id_ref"] != self.reference.id_ref:
                     print("Wrong initialization.")
+                    to_send = {
+                        "status" : 1
+                    }
                 else:
                     self.debug = image
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
@@ -450,7 +453,7 @@ class MTE:
                     dist_color = results.dist_roi[2] < self.threshold_small.color_aberration
                     # If no aberration
                     if int(dist_kirsh)+int(dist_color) == 2:
-                        self.validation += 1                
+                        self.validation += 1
                         self.rollback = 0
                         status = ErrorRecognition.SUCCESS
                     else:

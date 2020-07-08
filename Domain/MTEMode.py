@@ -1,6 +1,8 @@
 from enum import Enum
 
 class MTEMode(Enum):
-    PRELEARNING = 1
-    LEARNING = 2
-    RECOGNITION = 3
+    NEUTRAL = 0
+    VALIDATION_REFERENCE = 1
+    INITIALIZE_MTE = 2
+    MOTION_TRACKING = 3
+    CLEAR_MTE = 4

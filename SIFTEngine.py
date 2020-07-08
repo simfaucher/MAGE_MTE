@@ -83,7 +83,7 @@ class SIFTEngine:
         t_y = 0
 
         sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
-            learning_data.mte_paramters, debug=True, mode=modeAlgo)
+            learning_data.mte_parameters, debug=True, mode=modeAlgo)
         homography_success = False
 
         if sift_success:

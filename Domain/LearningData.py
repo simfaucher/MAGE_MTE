@@ -3,7 +3,7 @@ from Domain.SiftData import SiftData
 class LearningData:
     def __init__(self):
         self.id_ref = None
-        self.mte_paramters = {
+        self.mte_parameters = {
             "ratio" : None,
             "size_small" : {
                 "keypoints" : None,
@@ -22,7 +22,7 @@ class LearningData:
 
     def initialiaze_control_assist(self, id_ref, parameters):
         self.id_ref = id_ref
-        self.mte_paramters = {
+        self.mte_parameters = {
             "ratio" : parameters["ratio"],
             "size_small" : {
                 "keypoints" : parameters["size_small"]["kp_small"],
@@ -43,7 +43,7 @@ class LearningData:
     def clean_control_assist(self, id_ref):
         # If we try to clean the wrong reference
         if id_ref == self.id_ref:
-            self.mte_paramters = None
+            self.mte_parameters = None
             self.id_ref = None
             return 0
         else:
@@ -51,7 +51,7 @@ class LearningData:
 
     def fill_with_engine_for_learning(self, ratio, kp_small, desc_small, kp_medium, desc_medium, kp_large, desc_large):
         self.id_ref = -1
-        self.mte_paramters = {
+        self.mte_parameters = {
             "ratio" : ratio,
             "size_small" : {
                 "keypoints" : kp_small,
