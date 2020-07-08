@@ -20,7 +20,7 @@ from imutils.video import FPS
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -49,8 +49,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-VIDEO_PATH = "videos/T2.3/T2.3-rotated.mp4"
-LEARNING_IMAGE_PATH = "videos/T2.3/vlcsnap-2020-02-28-11h42m56s577.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -236,8 +236,8 @@ class Client:
                     else:
                         print("clear failed.")
 
-            cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)

@@ -71,7 +71,7 @@ class SIFTEngine:
             img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
             keypoints_large, des_large, _ = self.compute_sift(img, crop_image, crop_margin)
 
-            learning_data.fill_with_engine_for_learning(self.format_resolution, keypoints_small, des_small, image_ref, \
+            learning_data.fill_with_engine_for_learning(self.format_resolution, keypoints_small, des_small, \
                 keypoints_medium, des_medium, keypoints_large, des_large)
 
     def recognition(self, image, learning_data, modeAlgo):

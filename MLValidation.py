@@ -41,7 +41,7 @@ class MLValidation:
             sys.exit("Type error in {} with the attribute \"{}\". Expected {} but had {}.".format(error.args[0], error.args[1], error.args[2], error.args[3]))
 
     
-    def learn(self, learning_data):
+    def learn(self, learning_data, img):
         if learning_data.mte_parameters["ml_validation"] is None:
             learning_data.mte_parameters["ml_validation"] = deepcopy(self.learning_settings)
 
@@ -49,7 +49,7 @@ class MLValidation:
             image_class.id = 0
             image_class.name = "Reference"
 
-            h, w = learning_data.resized_image.shape[:2]
+            h, w = img.shape[:2]
 
             for sight in learning_data.mte_parameters["ml_validation"].sights:
                 pt_tl = Point2D()
@@ -60,7 +60,7 @@ class MLValidation:
                 pt_br.x = pt_tl.x + sight.width
                 pt_br.y = pt_tl.y + sight.height
 
-                sight_image = learning_data.resized_image[pt_tl.y: pt_br.y, pt_tl.x: pt_br.x]
+                sight_image = img[pt_tl.y: pt_br.y, pt_tl.x: pt_br.x]
                 # cv2.imshow("Sight", sight_image)
 
                 for j, roi in enumerate(sight.roi):

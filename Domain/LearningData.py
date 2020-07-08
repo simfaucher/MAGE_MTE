@@ -64,5 +64,6 @@ class LearningData:
             "size_large" : {
                 "keypoints" : kp_large,
                 "descriptors" : desc_large
-            }
+            },
+            "ml_validation" : None
         }

@@ -16,7 +16,7 @@ class ResponseData:
             "scales" : (scale_h, scale_w)
         }
         self.user_information = direction
-        self.status = status
+        self.status = status.value
 
     def set_status(self, status):
         self.status = status

@@ -83,11 +83,10 @@ class MTE:
         # Motion tracking engines
         self.mte_algo = mte_algo
         self.crop_margin = crop_margin
-        self.validation_width = self.width_small
-        self.validation_height = int(self.validation_width*(1/self.format_resolution))
         self.resize_width = resize_width
-        self.resize_height = int(resize_width*(1/self.format_resolution))
-
+        self.resize_height = int(resize_width*(1/(16/9)))
+        self.validation_width = None
+        self.validation_height = None
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine = D2NetEngine(max_edge=resize_width, \
                                             max_sum_edges=resize_width + self.resize_height,\
@@ -156,6 +155,27 @@ class MTE:
                          'Response' : response.flag.name,
                          'Direction' : response.user_information,
                          'Blurred' : is_blurred})
+    
+    def set_mte_parameters(self, ratio):
+        """Edit values for globals parameters of the motion tracking engine."""
+
+        if math.isclose(ratio, 16/9, rel_tol=1e-5):
+            self.width_small = 400
+            self.width_medium = 660
+            self.width_large = 1730
+            self.format_resolution = 16/9
+        elif math.isclose(ratio, 4/3, rel_tol=1e-5):
+            self.width_small = 350
+            self.width_medium = 570
+            self.width_large = 1730
+            self.format_resolution = 4/3
+        else:
+            print("What kind of format is that ?")
+
+        self.validation_width = self.width_small
+        self.validation_height = int(self.validation_width*(1/self.format_resolution))
+        self.sift_engine.set_parameters(self.width_small, self.width_medium,\
+                                        self.width_large, self.format_resolution)
 
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
@@ -177,33 +197,15 @@ class MTE:
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
-                if math.isclose(image.shape[1]/image.shape[0], 16/9, rel_tol=1e-5):
-                    self.width_small = 400
-                    self.width_medium = 660
-                    self.width_large = 1730
-                else:
-                    self.width_small = 350
-                    self.width_medium = 570
-                    self.width_large = 1730
-                self.sift_engine.set_parameters(self.width_small, self.width_medium,\
-                    self.width_large, self.format_resolution)
+                self.set_mte_parameters(image.shape[1]/image.shape[0])
                 to_send = {
-                    "status" : self.learning(image),
+                    "status" : self.learning(image).value,
                     "mte_parameters" : self.reference.mte_parameters
                 }
 
             elif data["mode"] == 2:
                 self.format_resolution = data["mte_paramaters"]["ratio"]
-                if math.isclose(self.format_resolution, 16/9, rel_tol=1e-5):
-                    self.width_small = 400
-                    self.width_medium = 660
-                    self.width_large = 1730
-                else:
-                    self.width_small = 350
-                    self.width_medium = 570
-                    self.width_large = 1730
-                self.sift_engine.set_parameters(self.width_small, self.width_medium,\
-                    self.width_large, self.format_resolution)
+                self.set_mte_parameters(self.format_resolution)
                 init_status = self.reference.initialiaze_control_assist(data["id_ref"], data["mte_parameters"])
                 if init_status == 0:
                     log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
@@ -585,14 +587,14 @@ class MTE:
         image_ref -> int array of the reference in full size
         """
 
-        learning_data = LearningData()
+        self.reference = LearningData()
 
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine.learn(learning_data, crop_image=True, crop_margin=self.crop_margin)
+            self.d2net_engine.learn(self.reference, crop_image=True, crop_margin=self.crop_margin)
         else:
-            self.sift_engine.learn(image_ref, learning_data, crop_image=True, crop_margin=self.crop_margin)
-        self.ml_validator.learn(learning_data)
-        self.last_learning_data = learning_data
+            self.sift_engine.learn(image_ref, self.reference, crop_image=True, crop_margin=self.crop_margin)
+        self.ml_validator.learn(self.reference, image_ref)
+        self.last_learning_data = self.reference
 
     def test_filter(self, blurred_image):
         """Test the recognition between the input and the image learned with fakeInitForReference.
