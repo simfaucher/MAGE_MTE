@@ -261,19 +261,18 @@ class MTE:
                     # if not to_send is None:
                     #     ret_data["recognition"]["results"] = to_send.convert_to_dict()
                     # print(to_send.convert_to_dict())
-                    self.fill_log(log_writer, results, to_send, is_blurred)
+                    # self.fill_log(log_writer, results, to_send, is_blurred)
 
             elif data["mode"] == 4:
                 to_send = {
                     "status" : self.reference.clean_control_assist(data["id_ref"])
                 }
-
             else:
                 to_send = {
                     "status" : 1
                 }
                 print("{} is an unknown mode.".format(data["mode"]))
-            
+
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
