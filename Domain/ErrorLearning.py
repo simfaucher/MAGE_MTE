@@ -4,6 +4,8 @@
 from enum import Enum
 
 class ErrorLearning(Enum):
+    """Potential error when learning a reference."""
+
     SUCCESS = 0
     ERROR = 11
     ERROR_REFERENCE_IS_BLURRED = 12

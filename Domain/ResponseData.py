@@ -16,7 +16,30 @@ class ResponseData:
             "scales" : (scale_h, scale_w)
         }
         self.user_information = direction
-        self.status = status.value
+        if status is not None:
+            self.status = status.value
+        else:
+            self.status = 1
 
     def set_status(self, status):
-        self.status = status
+        """Status setter.
+        Needed to choose precisely what kind of Error we have
+        """
+
+        self.status = status.value
+
+    def to_dict(self):
+        """ Convert the response to a dictionnary to
+        bypass JSON limitations.
+        """
+
+        return {
+            "requested_image_size" : self.requested_image_size,
+            "flag" : self.flag,
+            "target_data" : {
+                "translations" : self.target_data["translations"],
+                "scales" : self.target_data["scales"]
+            },
+            "user_information" : self.user_information,
+            "status" : self.status
+        }
