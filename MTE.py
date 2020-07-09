@@ -155,7 +155,7 @@ class MTE:
                          'Response' : response.flag.name,
                          'Direction' : response.user_information,
                          'Blurred' : is_blurred})
-    
+
     def set_mte_parameters(self, ratio):
         """Edit values for globals parameters of the motion tracking engine."""
 
@@ -200,8 +200,9 @@ class MTE:
                 self.set_mte_parameters(image.shape[1]/image.shape[0])
                 to_send = {
                     "status" : self.learning(image).value,
-                    "mte_parameters" : self.reference.mte_parameters
+                    "mte_parameters" : self.reference.change_parameters_type_for_sending()
                 }
+                print(type(to_send["mte_parameters"]["ml_validation"]))
 
             elif data["mode"] == 2:
                 self.format_resolution = data["mte_paramaters"]["ratio"]

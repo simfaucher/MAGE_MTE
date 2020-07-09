@@ -1,4 +1,5 @@
 from Domain.SiftData import SiftData
+import cv2 as cv2
 
 class LearningData:
     def __init__(self):
@@ -66,4 +67,22 @@ class LearningData:
                 "descriptors" : desc_large
             },
             "ml_validation" : None
+        }
+
+    def change_parameters_type_for_sending(self):
+        return {
+            "ratio" : self.mte_parameters["ratio"],
+            "size_small" : {
+                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"]).tolist(),
+                "descriptors" : self.mte_parameters["size_small"]["descriptors"].tolist()
+            },
+            "size_medium" : {
+                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"]).tolist(),
+                "descriptors" : self.mte_parameters["size_medium"]["descriptors"].tolist()
+            },
+            "size_large" : {
+                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"]).tolist(),
+                "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
+            },
+            "ml_validation" : self.mte_parameters["ml_validation"]
         }
