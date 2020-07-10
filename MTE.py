@@ -19,6 +19,7 @@ import imagezmq
 from Domain.MTEMode import MTEMode
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
+from Domain.ErrorInitialize import ErrorInitialize
 from Domain.MTEAlgo import MTEAlgo
 from Domain.LearningData import LearningData
 from Domain.MTEResponse import MTEResponse
@@ -195,20 +196,25 @@ class MTE:
                     }
 
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
-                self.format_resolution = data["mte_parameters"]["ratio"]
-                self.set_mte_parameters(self.format_resolution)
-                init_status = self.reference.initialiaze_control_assist\
-                    (data["id_ref"], data["mte_parameters"])
-                if init_status == 0:
-                    log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
-                    if not os.path.exists(log_location):
-                        os.makedirs(log_location)
-                    log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
-                    log_path = os.path.join(log_location, log_name)
-                    log_writer = self.init_log(log_path)
-                to_send = {
-                    "status" : init_status
-                }
+                if data["id_ref"] is None:
+                    to_send = {
+                        "status" : ErrorInitialize.ERROR.value
+                    }
+                else:
+                    self.format_resolution = data["mte_parameters"]["ratio"]
+                    self.set_mte_parameters(self.format_resolution)
+                    init_status = self.reference.initialiaze_control_assist\
+                        (data["id_ref"], data["mte_parameters"])
+                    if init_status == 0:
+                        log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
+                        if not os.path.exists(log_location):
+                            os.makedirs(log_location)
+                        log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
+                        log_path = os.path.join(log_location, log_name)
+                        log_writer = self.init_log(log_path)
+                    to_send = {
+                        "status" : init_status
+                    }
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if self.reference.id_ref is None:

@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
+from Domain.ErrorInitialize import ErrorInitialize
 
 class LearningData:
     """Data class and function."""
@@ -53,7 +54,7 @@ class LearningData:
             },
             "ml_validation" : Pykson().from_json(parameters["ml_validation"], LearningKnowledge)
         }
-        return 0
+        return ErrorInitialize.SUCCESS.value
 
     def clean_control_assist(self, id_ref):
         """ Clear the memory from the given reference."""
