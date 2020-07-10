@@ -116,7 +116,7 @@ class LearningData:
                     "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
                 },
                 "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
-           }
+            }
 
     def to_dict(self):
         """ Return all informations as a dictionnary.
