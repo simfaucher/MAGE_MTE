@@ -190,7 +190,8 @@ class MTE:
                     to_send = {
                         "status" : self.learning(image).value
                     }
-                    to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
+                    if to_send["status"] == ErrorLearning.SUCCESS:
+                        to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
@@ -660,6 +661,7 @@ class MTE:
         blurred = self.is_image_blurred(image_ref, \
                         size=size, thresh=10)
         if blurred[1]:
+            print("The image is blurred")
             return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
 
         kernel_size = 10
