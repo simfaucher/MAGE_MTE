@@ -257,7 +257,7 @@ class MTE:
                                     translations_ok = False
 
                             if translations_ok:
-                                response.flag = MTEResponse.CAPTURE.name
+                                response.flag = MTEResponse.CAPTURE
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
 

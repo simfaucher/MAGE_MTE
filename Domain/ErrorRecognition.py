@@ -7,6 +7,7 @@ class ErrorRecognition(Enum):
     """Potential error during recognition."""
 
     SUCCESS = 0
+    ERROR = 10
     ENGINE_IS_NOT_INITIALIZED = 11
     MISMATCH_REF = 12
     # GREEN
