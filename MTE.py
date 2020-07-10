@@ -188,9 +188,9 @@ class MTE:
                 resolution_valid = self.set_mte_parameters(image.shape[1]/image.shape[0])
                 if resolution_valid:
                     to_send = {
-                        "status" : self.learning(image).value,
-                        "mte_parameters" : self.reference.change_parameters_type_for_sending()
+                        "status" : self.learning(image).value
                     }
+                    to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
