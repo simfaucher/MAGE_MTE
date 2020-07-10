@@ -33,8 +33,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -50,8 +50,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-VIDEO_PATH = "videos/demo.mp4"
-LEARNING_IMAGE_PATH = "videos/capture.png"
+# VIDEO_PATH = "videos/demo.mp4"
+# LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -119,8 +119,7 @@ class Client:
                 else:
                     image = cv2.imread(LEARNING_IMAGE_PATH)
                 data = json.dumps({
-                    "mode": self.mode.value,
-                    "shape": image.shape
+                    "mode": self.mode.value
                 })
             elif self.mode == MTEMode.INITIALIZE_MTE:
                 temp = self.learning_data.to_dict()
@@ -129,7 +128,6 @@ class Client:
             elif self.mode == MTEMode.MOTION_TRACKING:
                 data = json.dumps({
                     "mode": self.mode.value,
-                    "shape": image.shape,
                     "id_ref" : self.learning_data.id_ref
                 })
             elif self.mode == MTEMode.CLEAR_MTE:
