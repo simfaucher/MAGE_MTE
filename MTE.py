@@ -304,6 +304,7 @@ class MTE:
         center = (translation_value[0]*scale_value[0]+size/3, \
             translation_value[1]*scale_value[1]+int((size*(1/self.format_resolution))/3))
         direction = ""
+        direction_int = 0
         size_h = int(size*(1/self.format_resolution))
         if center[1] < size_h*(1/3):
             direction += "N"
@@ -317,6 +318,23 @@ class MTE:
             direction += "E"
         else:
             direction += "C"
+
+        if direction == "NC":
+            direction_int = 1
+        elif direction == "SC":
+            direction_int = 5
+        elif direction == "NE":
+            direction_int = 2
+        elif direction == "CE":
+            direction_int = 3
+        elif direction == "SE":
+            direction_int = 4
+        elif direction == "SW":
+            direction_int = 6
+        elif direction == "CW":
+            direction_int = 7
+        elif direction == "NW":
+            direction_int = 8
         # center_kp = cv2.KeyPoint(center[0], center[1], 8)
         # to_draw = cv2.drawKeypoints(self.debug, [center_kp], \
         # np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -324,7 +342,7 @@ class MTE:
         #                     (255, 0, 0), 2)
         # cv2.imshow("Direction", to_draw)
         # cv2.waitKey(1)
-        return direction
+        return direction_int
 
     def red_width_small(self):
         """Critical recognition behaviour for an image (_, 380).
