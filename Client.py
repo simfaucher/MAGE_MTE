@@ -275,7 +275,7 @@ class Client:
                 size = 400
             elif key == ord("2") or key == ord("é"):
                 self.mode = MTEMode.INITIALIZE_MTE
-            elif key == ord("3") or key == ord("\"):
+            elif key == ord("3") or key == ord("\""):
                 self.mode = MTEMode.MOTION_TRACKING
             elif key == ord("4") or key == ord("'"):
                 self.mode = MTEMode.CLEAR_MTE
