@@ -2,12 +2,13 @@
     Response type for client
 """
 from Domain.MTEResponse import MTEResponse
+from Domain.UserInformation import UserInformation
 
 class ResponseData:
     """This will be the response send to the client"""
 
     def __init__(self, size: [int, int], response: MTEResponse, translation_x: float, \
-                 translation_y: float, direction: str, \
+                 translation_y: float, direction: UserInformation, \
                  scale_w: float, scale_h: float, status=None):
         self.requested_image_size = size
         self.flag = response.name
@@ -15,7 +16,10 @@ class ResponseData:
             "translations" : (translation_x, translation_y),
             "scales" : (scale_h, scale_w)
         }
-        self.user_information = direction
+        if direction is None:
+            self.user_information = UserInformation.CENTERED
+        else:
+            self.user_information = direction
         if status is not None:
             self.status = status.value
         else:
@@ -40,6 +44,6 @@ class ResponseData:
                 "translations" : self.target_data["translations"],
                 "scales" : self.target_data["scales"]
             },
-            "user_information" : self.user_information,
+            "user_information" : self.user_information.value,
             "status" : self.status
         }
