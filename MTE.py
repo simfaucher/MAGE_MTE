@@ -187,10 +187,12 @@ class MTE:
                 self.resolution_change_allowed = 3
                 resolution_valid = self.set_mte_parameters(image.shape[1]/image.shape[0])
                 if resolution_valid:
+                    status = self.learning(image)
                     to_send = {
-                        "status" : self.learning(image).value
+                        "status": status.value,
+                        "mte_parameters": {}
                     }
-                    if to_send["status"] == ErrorLearning.SUCCESS:
+                    if status == ErrorLearning.SUCCESS:
                         to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
                     to_send = {

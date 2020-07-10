@@ -46,5 +46,5 @@ class ResponseData:
                 "scales" : self.target_data["scales"]
             },
             "user_information" : self.user_information.value,
-            "status" : self.status
+            "status" : self.status.value
         }
