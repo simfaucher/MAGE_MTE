@@ -16,6 +16,7 @@ import numpy as np
 from imutils.video import FPS
 import imagezmq
 
+from Domain.MTEMode import MTEMode
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
 from Domain.MTEAlgo import MTEAlgo
@@ -154,11 +155,13 @@ class MTE:
             self.format_resolution = 4/3
         else:
             print("What kind of format is that ?")
+            return False
 
         self.validation_width = self.width_small
         self.validation_height = int(self.validation_width*(1/self.format_resolution))
         self.sift_engine.set_parameters(self.width_small, self.width_medium,\
                                         self.width_large, self.format_resolution)
+        return True
 
     def listen_images(self):
         """Receive a frame and an action from client then compute required operation
@@ -176,17 +179,22 @@ class MTE:
             if "error" in data and data["error"]:
                 continue
 
-            if data["mode"] == 1:
+            if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
-                self.set_mte_parameters(image.shape[1]/image.shape[0])
-                to_send = {
-                    "status" : self.learning(image).value,
-                    "mte_parameters" : self.reference.change_parameters_type_for_sending()
-                }
+                resolution_valid = self.set_mte_parameters(image.shape[1]/image.shape[0])
+                if resolution_valid:
+                    to_send = {
+                        "status" : self.learning(image).value,
+                        "mte_parameters" : self.reference.change_parameters_type_for_sending()
+                    }
+                else:
+                    to_send = {
+                        "status" : ErrorLearning.INVALID_FORMAT.value
+                    }
 
-            elif data["mode"] == 2:
+            elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
                 self.format_resolution = data["mte_parameters"]["ratio"]
                 self.set_mte_parameters(self.format_resolution)
                 init_status = self.reference.initialiaze_control_assist\
@@ -202,7 +210,7 @@ class MTE:
                     "status" : init_status
                 }
 
-            elif data["mode"] == 3:
+            elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if self.reference.id_ref is None:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
@@ -253,12 +261,12 @@ class MTE:
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
 
-            elif data["mode"] == 4:
+            elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
                 to_send = {
                     "status" : self.reference.clean_control_assist(data["id_ref"])
                 }
             else:
-                # Impossible 
+                # Impossible
                 to_send = {
                     "status" : 1
                 }

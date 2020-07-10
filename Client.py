@@ -270,16 +270,16 @@ class Client:
             if self.mode == MTEMode.VALIDATION_REFERENCE or self.mode == MTEMode.INITIALIZE_MTE\
                 or self.mode == MTEMode.CLEAR_MTE:
                 self.mode = MTEMode.NEUTRAL
-            if key == ord("1"):
+            if key == ord("0"):
                 self.mode = MTEMode.NEUTRAL
-            elif key == ord("2"):
+            elif key == ord("1"):
                 self.mode = MTEMode.VALIDATION_REFERENCE
                 size = 400
-            elif key == ord("3"):
+            elif key == ord("2"):
                 self.mode = MTEMode.INITIALIZE_MTE
-            elif key == ord("4"):
+            elif key == ord("3"):
                 self.mode = MTEMode.MOTION_TRACKING
-            elif key == ord("5"):
+            elif key == ord("4"):
                 self.mode = MTEMode.CLEAR_MTE
             elif key == ord("q"):
                 sys.exit("User ended program.")
