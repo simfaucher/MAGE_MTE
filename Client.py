@@ -21,7 +21,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = True
+MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -114,7 +114,9 @@ class Client:
 
             # print("Sending frame")
             if self.mode == MTEMode.VALIDATION_REFERENCE:
-                if not MODE_CAMERA:
+                if MODE_CAMERA:
+                    image = full_image
+                else:
                     image = cv2.imread(LEARNING_IMAGE_PATH)
                 data = json.dumps({
                     "mode": self.mode.value,
