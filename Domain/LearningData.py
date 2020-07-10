@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
+from Domain.ErrorInitialize import ErrorInitialize
 
 class LearningData:
     """Data class and function."""
@@ -53,7 +54,7 @@ class LearningData:
             },
             "ml_validation" : Pykson().from_json(parameters["ml_validation"], LearningKnowledge)
         }
-        return 0
+        return ErrorInitialize.SUCCESS.value
 
     def clean_control_assist(self, id_ref):
         """ Clear the memory from the given reference."""
@@ -94,26 +95,28 @@ class LearningData:
         """ Return a dictionnary containing the data after learning.
         Used to bypass JSON.dumps limitations.
         """
-
-        return {
-            "ratio" : self.mte_parameters["ratio"],
-            "size_small" : {
-                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"])\
-                    .tolist(),
-                "descriptors" : self.mte_parameters["size_small"]["descriptors"].tolist()
-            },
-            "size_medium" : {
-                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"])\
-                    .tolist(),
-                "descriptors" : self.mte_parameters["size_medium"]["descriptors"].tolist()
-            },
-            "size_large" : {
-                "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"])\
-                    .tolist(),
-                "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
-            },
-            "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
-        }
+        if self.mte_parameters is None:
+            return None
+        else:
+            return {
+                "ratio" : self.mte_parameters["ratio"],
+                "size_small" : {
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"])\
+                        .tolist(),
+                    "descriptors" : self.mte_parameters["size_small"]["descriptors"].tolist()
+                },
+                "size_medium" : {
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"])\
+                        .tolist(),
+                    "descriptors" : self.mte_parameters["size_medium"]["descriptors"].tolist()
+                },
+                "size_large" : {
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"])\
+                        .tolist(),
+                    "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
+                },
+                "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
+           }
 
     def to_dict(self):
         """ Return all informations as a dictionnary.

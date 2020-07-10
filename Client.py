@@ -14,6 +14,7 @@ import imagezmq
 
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
+from Domain.ErrorInitialize import ErrorInitialize
 from Domain.LearningData import LearningData
 from Domain.MTEMode import MTEMode
 
@@ -21,7 +22,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -153,7 +154,7 @@ class Client:
                         self.learning_data.id_ref = -1
                         self.learning_data.mte_parameters = reply["mte_parameters"]
                 elif self.mode == MTEMode.INITIALIZE_MTE:
-                    if not reply["status"]:
+                    if ErrorInitialize(reply["status"]) == ErrorInitialize.SUCCESS:
                         print("Initialize successfull.")
                     else:
                         print("Initialize failed.")
