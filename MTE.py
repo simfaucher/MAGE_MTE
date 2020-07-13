@@ -252,7 +252,7 @@ class MTE:
                         response = ResponseData(\
                                                 [self.width_small,\
                                                 self.width_small*self.format_resolution],\
-                                                MTEResponse.RED, 0, 0, "None", \
+                                                MTEResponse.RED, 0, 0, UserInformation.CENTERED, \
                                                 0, 0, ErrorRecognition.MISMATCH_SIZE_WITH_REF)
 
                     # If we can capture
