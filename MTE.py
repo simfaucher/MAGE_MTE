@@ -92,6 +92,7 @@ class MTE:
         self.reference = LearningData()
 
         self.debug = None
+        self.result_csv = None
 
     def init_log(self, name):
         """ This function creates and initializes a writer.
@@ -99,14 +100,14 @@ class MTE:
         In : name -> String being the name of the csv file that will be created, can be a path
         Out : Writer object pointing to name.csv
         """
-        result_csv = open(name+'.csv', 'w')
+        self.result_csv = open(name+'.csv', 'w')
         metrics = ['Success', 'Number of keypoints', 'Number of matches',
                    'Distance Kirsh', 'Distance Canny', 'Distance Color',
                    'Translation x', 'Translation y',
                    'Scale x', 'Scale y',
                    'Flag', 'Code', 'Direction',
                    'Blurred']
-        writer = csv.DictWriter(result_csv, fieldnames=metrics)
+        writer = csv.DictWriter(self.result_csv, fieldnames=metrics)
         writer.writeheader()
         return writer
 
@@ -259,15 +260,8 @@ class MTE:
                         is_blurred = self.is_image_blurred(image, \
                             size=int(response.requested_image_size[0]/18), thresh=10)
                         # if the image is not blurred else we just return green
-                        if not is_blurred[1]:
-                            translations_ok = True
-                            for trans in results.translations:
-                                if SIFTEngine.HOMOGRAPHY_MIN_TRANS > trans or \
-                                    SIFTEngine.HOMOGRAPHY_MAX_TRANS < trans:
-                                    translations_ok = False
-
-                            if translations_ok:
-                                response.flag = MTEResponse.CAPTURE
+                        if not is_blurred[1] and response.user_information == UserInformation.CENTERED:
+                            response.flag = MTEResponse.CAPTURE
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
 
@@ -275,6 +269,7 @@ class MTE:
                 to_send = {
                     "status" : self.reference.clean_control_assist(data["id_ref"])
                 }
+                self.result_csv = self.result_csv.close()
             else:
                 # Impossible
                 to_send = {
@@ -304,34 +299,44 @@ class MTE:
         mean = np.mean(magnitude)
         return (mean, mean <= thresh)
 
-    def compute_direction(self, translation_value, scale_value, size):
+    def compute_direction(self, translation_value, scale_value, size_w):
         """Return a string representing a cardinal direction.
 
         Keyword arguments:
         translation -> tuple containing homographic estimations of x,y
-        size -> the width of the current image
+        size_w -> the width of the current image
         """
-        center = (translation_value[0]*scale_value[0]+size/3, \
-            translation_value[1]*scale_value[1]+int((size*(1/self.format_resolution))/3))
+
+        divider = 20
+        center = (translation_value[0]*scale_value[0]+size_w/3, \
+            translation_value[1]*scale_value[1]+int((size_w*(1/self.format_resolution))/3))
 
         direction = UserInformation.CENTERED
-        
-        size_h = int(size*(1/self.format_resolution))
-        if center[1] < size_h*(1/3):
-            if center[0] < size*(1/3):
-                direction == UserInformation.UP_LEFT
-            elif center[0] > size*(2/3):
-                direction == UserInformation.UP_RIGHT
-            else:
-                direction == UserInformation.UP
 
-        elif center[1] > size_h*(2/3):
-            if center[0] < size*(1/3):
-                direction == UserInformation.DOWN_LEFT
-            elif center[0] > size*(2/3):
-                direction == UserInformation.DOWN_RIGHT
+        size_h = int(size_w*(1/self.format_resolution))
+        if center[1] < (size_h/2 - size_h/divider):
+            if center[0] < (size_w/2 - size_w/divider):
+                direction = UserInformation.UP_LEFT
+            elif center[0] > (size_w/2 + size_w/divider):
+                direction = UserInformation.UP_RIGHT
             else:
-                direction == UserInformation.DOWN
+                direction = UserInformation.UP
+
+        elif center[1] > (size_h/2 + size_h/divider):
+            if center[0] < (size_w/2 - size_w/divider):
+                direction = UserInformation.DOWN_LEFT
+            elif center[0] > (size_w/2 + size_w/divider):
+                direction = UserInformation.DOWN_RIGHT
+            else:
+                direction = UserInformation.DOWN
+
+        else:
+            if center[0] < (size_w/2 - size_w/divider):
+                direction = UserInformation.LEFT
+            elif center[0] > (size_w/2 + size_w/divider):
+                direction = UserInformation.RIGHT
+            else:
+                direction = UserInformation.CENTERED
 
         # center_kp = cv2.KeyPoint(center[0], center[1], 8)
         # to_draw = cv2.drawKeypoints(self.debug, [center_kp], \

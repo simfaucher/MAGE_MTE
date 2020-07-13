@@ -15,6 +15,7 @@ import imagezmq
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
 from Domain.ErrorInitialize import ErrorInitialize
+from Domain.UserInformation import UserInformation
 from Domain.LearningData import LearningData
 from Domain.MTEMode import MTEMode
 
@@ -22,7 +23,7 @@ from Domain.MTEMode import MTEMode
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 # T1.1
@@ -34,8 +35,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -51,8 +52,8 @@ LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/demo.mp4"
-# LEARNING_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -213,8 +214,8 @@ class Client:
                             print("Flag {} : {}".format(response["flag"], \
                                 ErrorRecognition(response["status"]).name))
                             # Display target on image
-                            cv2.putText(to_draw, "Direction: {}".format(response\
-                                ["user_information"]), (20, 100),\
+                            cv2.putText(to_draw, "Direction: {}".format(UserInformation(response\
+                                ["user_information"]).name), (20, 100),\
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             # Center point
                             x_coordinate = (full_image.shape[1]/image.shape[1]) * \
