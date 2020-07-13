@@ -269,8 +269,12 @@ class MTE:
                     self.fill_log(log_writer, results, response, is_blurred)
 
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
+                status = self.reference.clean_control_assist(data["id_ref"])
+                if status != 0:
+                    id_ref = self.reference.id_ref
                 to_send = {
-                    "status" : self.reference.clean_control_assist(data["id_ref"])
+                    "status" : status,
+                    "id_ref" : id_ref
                 }
                 self.result_csv = self.result_csv.close()
             else:
