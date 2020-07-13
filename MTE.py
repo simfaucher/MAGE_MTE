@@ -32,7 +32,6 @@ from Repository import Repository
 from MLValidation import MLValidation
 from SIFTEngine import SIFTEngine
 from D2NetEngine import D2NetEngine
-from VCLikeEngine import VCLikeEngine
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
@@ -78,8 +77,6 @@ class MTE:
                                             max_sum_edges=resize_width + self.resize_height,\
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
-        elif self.mte_algo == MTEAlgo.VC_LIKE:
-            self.vc_like_engine = VCLikeEngine()
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
@@ -775,13 +772,7 @@ class MTE:
 
         fps = FPS().start()
         nb_matches = 0
-        if self.mte_algo == MTEAlgo.VC_LIKE:
-            nb_kp = 300
-            nb_matches = 150
-            success, scales, skews, translation, transformed = self.vc_like_engine.\
-                find_target(image, learning_data)
-            # cv2.imshow("VC-like engine", transformed)
-        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
+        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.d2net_engine.recognition(image, self.reference, self.mte_algo)
             scale_x, scale_y = scales
