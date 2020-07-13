@@ -100,24 +100,12 @@ class Client:
 
         # First size for MTE
         size = 400
-        equalize = "hsv"
         while self.cap.isOpened():
             # Sending
             success, full_image = self.cap.read()
 
             if not success:
                 break
-                        
-            if equalize == "yuv":
-                equalized = cv2.cvtColor(full_image, cv2.COLOR_BGR2YUV)
-                equalized[:, :, 0] = cv2.equalizeHist(equalized[:, :, 0])
-                cv2.imshow("yuv", equalized)
-                full_image = cv2.cvtColor(equalized, cv2.COLOR_YUV2BGR)
-            elif equalize == "hsv":
-                equalized = cv2.cvtColor(full_image, cv2.COLOR_BGR2HSV)
-                equalized[:, :, 2] = cv2.equalizeHist(equalized[:, :, 2])
-                cv2.imshow("hsv", equalized)
-                full_image = cv2.cvtColor(equalized, cv2.COLOR_HSV2BGR)
 
             image = imutils.resize(full_image, width=size)
 
@@ -298,16 +286,6 @@ class Client:
                 if CAPTURE_DEMO:
                     out.release()
                     out = None
-            elif key == ord("h") or key == ord("H"):
-                equalize = "hsv"
-                cv2.destroyWindow("yuv")
-            elif key == ord("y") or key == ord("Y"):
-                equalize = "yuv"
-                cv2.destroyWindow("hsv")
-            elif key == ord("n") or key == ord("N"):
-                equalize = ""
-                cv2.destroyWindow("yuv")
-                cv2.destroyWindow("hsv")
             # print(reply)
 
         # Release all
