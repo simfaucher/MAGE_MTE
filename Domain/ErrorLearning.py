@@ -1,8 +1,15 @@
 """
     Return code for learning call.
 """
-SUCCESS = 0
-ERROR = 1
-GAUSSIAN_BLUR_FAILURE = 21
-VERTICAL_BLUR_FAILURE = 22
-HORIZONTAL_BLUR_FAILURE = 23
+from enum import Enum
+
+class ErrorLearning(Enum):
+    """Potential error when learning a reference."""
+
+    SUCCESS = 0
+    ERROR = 10
+    INVALID_FORMAT = 11
+    ERROR_REFERENCE_IS_BLURRED = 12
+    GAUSSIAN_BLUR_FAILURE = 21
+    VERTICAL_BLUR_FAILURE = 22
+    HORIZONTAL_BLUR_FAILURE = 23

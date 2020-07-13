@@ -2,16 +2,10 @@
     Engine using SIFT to detect keypoints.
     Some parameters for validation are written here.
 """
-import os
-import sys
-import time
-from copy import deepcopy
-import json
 import numpy as np
 import cv2
 
 from Domain.MTEAlgo import MTEAlgo
-from Domain.SiftData import SiftData
 from skimage.feature import match_descriptors
 from skimage.measure import ransac
 from skimage.transform import ProjectiveTransform
@@ -38,40 +32,47 @@ class SIFTEngine:
     # HOMOGRAPHY_MIN_TRANS = -500
     # HOMOGRAPHY_MAX_TRANS = 500
 
-    def __init__(self, maxRansac, format_resolution, width1, width2, width3):
+    def __init__(self, maxRansac):
         self.sift = cv2.xfeatures2d.SIFT_create()
         self.ransacmax = maxRansac
-        self.format_resolution = format_resolution
-        self.img380 = None
-        self.img640 = None
+        self.img_small = None
+        self.img_medium = None
         self.display = None
-        self.width1 = width1
-        self.width2 = width2
-        self.width3 = width3
-        self.resized_width = self.width1
-        self.resized_height = int(self.resized_width * (1/self.format_resolution))
+        self.width_small = None
+        self.width_medium = None
+        self.width_large = None
+        self.resized_width = None
+        self.resized_height = None
+        self.format_resolution = None
+    
+    def set_parameters(self, width_small, width_medium, width_large, format_resolution):
+        self.width_small = width_small
+        self.width_medium = width_medium
+        self.width_large = width_large
+        self.resized_width = width_small
+        self.resized_height = int(self.resized_width * (1/format_resolution))
+        self.format_resolution = format_resolution
 
-    def learn(self, learning_data, crop_image=True, crop_margin=1/6):
+    def learn(self, image_ref, learning_data, crop_image=True, crop_margin=1/6):
         """Learn the sift keypoints of the image given through learning_data.
         It does not return a result but but changes values inside learning_data.
         """
 
-        if learning_data.sift_data is None:
+        if learning_data.id_ref is None:
             dim = (self.resized_width, self.resized_height)
-            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_380, des_380, image_ref = self.compute_sift(img, crop_image, crop_margin)
-            self.img380 = image_ref
+            img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+            keypoints_small, des_small, self.img_small = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (self.width2, int(self.width2 * (1/self.format_resolution)))
-            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_640, des_640, self.img640 = self.compute_sift(img, crop_image, crop_margin)
+            dim = (self.width_medium, int(self.width_medium * (1/self.format_resolution)))
+            img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+            keypoints_medium, des_medium, self.img_medium = self.compute_sift(img, crop_image, crop_margin)
 
-            dim = (self.width3, int(self.width3 * (1/self.format_resolution)))
-            img = cv2.resize(learning_data.full_image, dim, interpolation=cv2.INTER_AREA)
-            keypoints_1730, des_1730, _ = self.compute_sift(img, crop_image, crop_margin)
+            dim = (self.width_large, int(self.width_large * (1/self.format_resolution)))
+            img = cv2.resize(image_ref, dim, interpolation=cv2.INTER_AREA)
+            keypoints_large, des_large, _ = self.compute_sift(img, crop_image, crop_margin)
 
-            learning_data.sift_data = SiftData(keypoints_380, des_380, image_ref, \
-                keypoints_640, des_640, keypoints_1730, des_1730)
+            learning_data.fill_with_engine_for_learning(self.format_resolution, keypoints_small, des_small, \
+                keypoints_medium, des_medium, keypoints_large, des_large)
 
     def recognition(self, image, learning_data, modeAlgo):
         scale_x = 1
@@ -82,17 +83,17 @@ class SIFTEngine:
         t_y = 0
 
         sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
-            learning_data.sift_data, debug=True, mode=modeAlgo)
+            learning_data.mte_parameters, debug=True, mode=modeAlgo)
         homography_success = False
 
         if sift_success:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            if image.shape[1] == self.width1:
-                height, width = self.img380.shape[:2]
+            if image.shape[1] == self.width_small:
+                height, width = self.img_small.shape[:2]
             else:
-                height, width = self.img640.shape[:2]
+                height, width = self.img_medium.shape[:2]
 
             pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, homography_matrix)
@@ -132,10 +133,10 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
-                if image.shape[1] == self.width1:
-                    self.display = np.hstack((self.img380, warped_image))
+                if image.shape[1] == self.width_small:
+                    self.display = np.hstack((self.img_small, warped_image))
                 else:
-                    self.display = np.hstack((self.img640, warped_image))
+                    self.display = np.hstack((self.img_medium, warped_image))
 
                 cv2.imshow("Comparison", self.display)
                 cv2.waitKey(1)
@@ -185,19 +186,23 @@ class SIFTEngine:
     def apply_sift(self, image, sift_data, crop_image=False, crop_margin=1/6, debug=False, mode=MTEAlgo.SIFT_KNN):
         h, w = image.shape[:2]
 
-        if w == self.width1:
-            sift_data.switch_380()
-        elif w == self.width2:
-            sift_data.switch_640()
+        if w == self.width_small:
+            keypoints = sift_data["size_small"]["keypoints"]
+            descriptors = sift_data["size_small"]["descriptors"]
+        elif w == self.width_medium:
+            keypoints = sift_data["size_medium"]["keypoints"]
+            descriptors = sift_data["size_medium"]["descriptors"]
         else:
-            sift_data.switch_1730()
+            keypoints = sift_data["size_large"]["keypoints"]
+            descriptors = sift_data["size_large"]["descriptors"]
+
         kp_img, des_img, image = self.compute_sift(image, crop_image, crop_margin)
         kp_base = cv2.KeyPoint_convert(kp_img)
 
         if mode == MTEAlgo.SIFT_KNN:
             flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
 
-            matches = flann.knnMatch(des_img, sift_data.des, k=2)
+            matches = flann.knnMatch(des_img, descriptors, k=2)
 
             # Need to draw only good matches, so create a mask
             good_matches = []
@@ -211,10 +216,10 @@ class SIFTEngine:
                 except ValueError:
                     pass
         elif mode == MTEAlgo.SIFT_RANSAC:
-            matches = match_descriptors(des_img, sift_data.des, cross_check=True)
-            left = [kp_base[loop].pt[:] for loop in matches[:,0]]
+            matches = match_descriptors(des_img, descriptors, cross_check=True)
+            left = [kp_base[loop].pt[:] for loop in matches[:, 0]]
             keypoints_left = np.asarray(left)
-            right = [sift_data.kp_base[loop].pt[:] for loop in matches[:,1]]
+            right = [cv2.KeyPoint_convert(keypoints)[loop].pt[:] for loop in matches[:, 1]]
             keypoints_right = np.asarray(right)
             np.random.seed(0)
             model, inliers = ransac(
@@ -235,7 +240,7 @@ class SIFTEngine:
         if success:
             if mode == MTEAlgo.SIFT_KNN:
                 dst_pts = np.float32([kp_img[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-                src_pts = np.float32([sift_data.kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                src_pts = np.float32([keypoints[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
             elif mode == MTEAlgo.SIFT_RANSAC:
                 dst_pts = np.float32([loop.pt for loop in inlier_keypoints_left]).reshape(-1, 1, 2)
                 src_pts = np.float32([loop.pt for loop in inlier_keypoints_right]).reshape(-1, 1, 2)
