@@ -101,18 +101,18 @@ class LearningData:
             return {
                 "ratio" : self.mte_parameters["ratio"],
                 "size_small" : {
-                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"])\
-                        .tolist(),
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]\
+                        ["keypoints"]).tolist(),
                     "descriptors" : self.mte_parameters["size_small"]["descriptors"].tolist()
                 },
                 "size_medium" : {
-                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"])\
-                        .tolist(),
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]\
+                        ["keypoints"]).tolist(),
                     "descriptors" : self.mte_parameters["size_medium"]["descriptors"].tolist()
                 },
                 "size_large" : {
-                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"])\
-                        .tolist(),
+                    "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]\
+                        ["keypoints"]).tolist(),
                     "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
                 },
                 "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
@@ -127,3 +127,9 @@ class LearningData:
             "id_ref" : self.id_ref,
             "mte_parameters" : self.mte_parameters
         }
+
+    def is_empty(self):
+        """ Return a bool indicating if we can
+        initialize the data
+        """
+        return self.id_ref is None and self.mte_parameters is None

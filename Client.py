@@ -259,7 +259,8 @@ class Client:
                     if reply["status"] == 0:
                         print("Clear successfull.")
                     else:
-                        print("clear failed.")
+                        print("Clear failed.")
+                        print("Server have ref {}".format("id_ref"))
 
                 cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)

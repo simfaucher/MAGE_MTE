@@ -12,7 +12,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-
+from pykson import Pykson
 from imutils.video import FPS
 import imagezmq
 
@@ -208,6 +208,11 @@ class MTE:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
+                elif not self.reference.is_empty():
+                    to_send = {
+                        "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
+                    }
+                    # Pas de retour d'id car MTEMode.CLEAr_MTE s'en occupe
                 else:
                     self.format_resolution = data["mte_parameters"]["ratio"]
                     self.set_mte_parameters(self.format_resolution)
@@ -220,11 +225,20 @@ class MTE:
                         log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
                         log_path = os.path.join(log_location, log_name)
                         log_writer = self.init_log(log_path)
+                    if os.path.isfile('temporaryData.txt'):
+                        os.remove('temporaryData.txt')
+                    with open('temporaryData.txt', 'w') as json_file:
+                        json.dump(Pykson().to_json(self.reference), json_file)
+
                     to_send = {
                         "status" : init_status
                     }
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
+                if os.path.isfile('temporaryData.txt'):
+                    with open('temporaryData.txt') as json_file:
+                        data = json.load(json_file)
+                        self.reference = Pykson().from_json(data, LearningData)
                 if self.reference.id_ref is None:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
@@ -252,7 +266,7 @@ class MTE:
                         response = ResponseData(\
                                                 [self.width_small,\
                                                 self.width_small*self.format_resolution],\
-                                                MTEResponse.RED, 0, 0, "None", \
+                                                MTEResponse.RED, 0, 0, UserInformation.CENTERED, \
                                                 0, 0, ErrorRecognition.MISMATCH_SIZE_WITH_REF)
 
                     # If we can capture
@@ -263,7 +277,8 @@ class MTE:
                         is_blurred = self.is_image_blurred(image, \
                             size=int(response.requested_image_size[0]/18), thresh=10)
                         # if the image is not blurred else we just return green
-                        if not is_blurred[1] and response.user_information == UserInformation.CENTERED:
+                        if not is_blurred[1] and \
+                               response.user_information == UserInformation.CENTERED:
                             response.flag = MTEResponse.CAPTURE
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
@@ -272,6 +287,10 @@ class MTE:
                 status = self.reference.clean_control_assist(data["id_ref"])
                 if status != 0:
                     id_ref = self.reference.id_ref
+                else:
+                    id_ref = -1
+                    if os.path.isfile('temporaryData.txt'):
+                        os.remove('temporaryData.txt')
                 to_send = {
                     "status" : status,
                     "id_ref" : id_ref
@@ -348,8 +367,6 @@ class MTE:
         # center_kp = cv2.KeyPoint(center[0], center[1], 8)
         # to_draw = cv2.drawKeypoints(self.debug, [center_kp], \
         # np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.putText(to_draw, "Direction: "+direction.value, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #                     (255, 0, 0), 2)
         # cv2.imshow("Direction", to_draw)
         # cv2.waitKey(1)
         return direction
