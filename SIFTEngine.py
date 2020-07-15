@@ -74,7 +74,7 @@ class SIFTEngine:
             learning_data.fill_with_engine_for_learning(self.format_resolution, keypoints_small, des_small, \
                 keypoints_medium, des_medium, keypoints_large, des_large)
 
-    def recognition(self, image, learning_data, modeAlgo):
+    def recognition(self, image_init, learning_data, modeAlgo):
         scale_x = 1
         scale_y = 1
         skew_x = 0
@@ -82,7 +82,7 @@ class SIFTEngine:
         t_x = 0
         t_y = 0
 
-        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
+        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image_init, \
             learning_data.mte_parameters, debug=True, mode=modeAlgo)
         homography_success = False
 
@@ -91,9 +91,9 @@ class SIFTEngine:
             matches_mask = mask.ravel().tolist()
 
             if image.shape[1] == self.width_small:
-                height, width = self.img_small.shape[:2]
+                height, width = self.crop_image(image_init, 1/6).shape[:2]
             else:
-                height, width = self.img_medium.shape[:2]
+                height, width = self.crop_image(image_init, 1/6).shape[:2]
 
             pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, homography_matrix)
@@ -133,13 +133,13 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
-                if image.shape[1] == self.width_small:
-                    self.display = np.hstack((self.img_small, warped_image))
-                else:
-                    self.display = np.hstack((self.img_medium, warped_image))
+                # if image.shape[1] == self.width_small:
+                #     self.display = np.hstack((self.img_small, warped_image))
+                # else:
+                #     self.display = np.hstack((self.img_medium, warped_image))
 
-                cv2.imshow("Comparison", self.display)
-                cv2.waitKey(1)
+                # cv2.imshow("Comparison", self.display)
+                # cv2.waitKey(1)
 
             else:
                 print("SIFT distored")

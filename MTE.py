@@ -119,29 +119,40 @@ class MTE:
                 response -> data that will be sent to client
                 is blurred -> is the current image blurred
         """
-        if not isinstance(recognition.dist_roi, int):
-            distance_kirsh = recognition.dist_roi[0]
-            distance_canny = recognition.dist_roi[1]
-            distance_color = recognition.dist_roi[2]
-        else:
-            distance_kirsh = ""
-            distance_canny = ""
-            distance_color = ""
+        if self.result_csv is not None:
+            if not isinstance(recognition.dist_roi, int):
+                distance_kirsh = recognition.dist_roi[0]
+                distance_canny = recognition.dist_roi[1]
+                distance_color = recognition.dist_roi[2]
+            else:
+                distance_kirsh = ""
+                distance_canny = ""
+                distance_color = ""
 
-        writer.writerow({'Success' : recognition.success,
-                         'Number of keypoints' : recognition.nb_kp,
-                         'Number of matches': recognition.nb_match,
-                         'Distance Kirsh' : distance_kirsh,
-                         'Distance Canny' : distance_canny,
-                         'Distance Color' : distance_color,
-                         'Translation x' : recognition.translations[0],
-                         'Translation y' : recognition.translations[1],
-                         'Scale x' : recognition.scales[0],
-                         'Scale y' : recognition.scales[1],
-                         'Flag' : response.flag,
-                         'Code' : response.status,
-                         'Direction' : response.user_information,
-                         'Blurred' : is_blurred})
+            writer.writerow({'Success' : recognition.success,
+                             'Number of keypoints' : recognition.nb_kp,
+                             'Number of matches': recognition.nb_match,
+                             'Distance Kirsh' : distance_kirsh,
+                             'Distance Canny' : distance_canny,
+                             'Distance Color' : distance_color,
+                             'Translation x' : recognition.translations[0],
+                             'Translation y' : recognition.translations[1],
+                             'Scale x' : recognition.scales[0],
+                             'Scale y' : recognition.scales[1],
+                             'Flag' : response.flag,
+                             'Code' : response.status,
+                             'Direction' : response.user_information,
+                             'Blurred' : is_blurred})
+
+    def create_log(self):
+        log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
+        if not os.path.exists(log_location):
+            os.makedirs(log_location)
+        log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
+        log_path = os.path.join(log_location, log_name)
+        log_writer = self.init_log(log_path)
+        
+        return log_writer
 
     def set_mte_parameters(self, ratio):
         """Edit values for globals parameters of the motion tracking engine."""
@@ -199,33 +210,34 @@ class MTE:
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
                     }
+                self.reference.clean_control_assist(self.reference.id_ref)
 
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
-                if data["id_ref"] is None:
+                if data["mte_parameters"]["ratio"] is None:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
-                elif not self.reference.is_empty():
+                elif not self.reference.is_empty() and self.reference.id_ref != data["id_ref"]:
                     to_send = {
                         "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
                     }
-                    # Pas de retour d'id car MTEMode.CLEAr_MTE s'en occupe
+                    # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
                 else:
                     self.format_resolution = data["mte_parameters"]["ratio"]
                     self.set_mte_parameters(self.format_resolution)
                     init_status = self.reference.initialiaze_control_assist\
                         (data["id_ref"], data["mte_parameters"])
                     if init_status == 0:
-                        log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
-                        if not os.path.exists(log_location):
-                            os.makedirs(log_location)
-                        log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
-                        log_path = os.path.join(log_location, log_name)
-                        log_writer = self.init_log(log_path)
+                        log_writer = self.create_log()
                     if os.path.isfile('temporaryData.txt'):
                         os.remove('temporaryData.txt')
                     with open('temporaryData.txt', 'w') as json_file:
-                        json.dump(Pykson().to_json(self.reference), json_file)
+                        to_save_parameters = self.reference.change_parameters_type_for_sending()
+                        to_save = {
+                            "id_ref" : data["id_ref"],
+                            "mte_parameters" : to_save_parameters
+                        }
+                        json.dump(to_save, json_file)
 
                     to_send = {
                         "status" : init_status
@@ -234,8 +246,11 @@ class MTE:
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if os.path.isfile('temporaryData.txt'):
                     with open('temporaryData.txt') as json_file:
-                        data = json.load(json_file)
-                        self.reference = Pykson().from_json(data, LearningData)
+                        data_restored = json.load(json_file)
+                        self.format_resolution = data_restored["mte_parameters"]["ratio"]
+                        self.set_mte_parameters(self.format_resolution)
+                        self.reference.initialiaze_control_assist(data_restored["id_ref"], data_restored["mte_parameters"])
+                        log_writer = self.create_log()
                 if self.reference.id_ref is None:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
@@ -292,7 +307,8 @@ class MTE:
                     "status" : status,
                     "id_ref" : id_ref
                 }
-                self.result_csv = self.result_csv.close()
+                if self.result_csv is not None:
+                    self.result_csv = self.result_csv.close()
             else:
                 # Impossible
                 to_send = {

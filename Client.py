@@ -35,8 +35,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -52,8 +52,8 @@ LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/demo.mp4"
-# LEARNING_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -88,6 +88,8 @@ class Client:
         self.mode = MTEMode.NEUTRAL
         self.pov_id = 8
         self.learning_data = LearningData()
+        if os.path.isfile('temporaryData.txt'):
+            self.learning_data.id_ref = -1
         time.sleep(2.0)  # allow camera sensor to warm up
 
     def run(self):
@@ -157,6 +159,8 @@ class Client:
                 elif self.mode == MTEMode.INITIALIZE_MTE:
                     if ErrorInitialize(reply["status"]) == ErrorInitialize.SUCCESS:
                         print("Initialize successfull.")
+                    elif ErrorInitialize(reply["status"]) == ErrorInitialize.NEED_TO_CLEAR_MTE:
+                        print("Need to clear MTE first.")
                     else:
                         print("Initialize failed.")
                 elif self.mode == MTEMode.MOTION_TRACKING:

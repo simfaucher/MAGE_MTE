@@ -132,4 +132,4 @@ class LearningData:
         """ Return a bool indicating if we can
         initialize the data
         """
-        return self.id_ref is None and self.mte_parameters is None
+        return self.id_ref is None
