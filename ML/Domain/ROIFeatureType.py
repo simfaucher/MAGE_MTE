@@ -16,5 +16,7 @@ class ROIFeatureType(Enum):
     RAW_PIXELS_64_4 = "raw_pixels_64_4"
     RAW_PIXELS_4_64 = "raw_pixels_4_64"
     COMPOSITE_PROFILE = "composite_profile"
+    COMPOSITE_PROFILE_64 = "composite_profile_64"
+    COMPOSITE_PROFILE_128 = "composite_profile_128"
     COLOR_HIST = "color_hist"
     # HOG = "hog"

@@ -44,7 +44,8 @@ class VCLikeEngine:
         if learning_data.vc_like_data is None:
             dataset = self.generate_dataset(learning_data.resized_image)
             learning_settings = self.learn_ml_data(dataset)
-            learning_settings2 = self.learn_ml_data2(dataset)
+            # learning_settings2 = self.learn_ml_data2(dataset)
+            learning_settings2 = {}
 
             learning_data.vc_like_data = VCLikeData(learning_settings, learning_settings2)
 
@@ -53,18 +54,20 @@ class VCLikeEngine:
 
         dataset = []
         # Scale levels
-        s1 = [0.5, 0.75, 0.85]
-        s2 = np.arange(0.9, 1.1, 0.01)
-        s3 = [1.15, 1.25, 1.5]
-        scales = itertools.chain(s1, s2, s3)
+        # s1 = [0.5, 0.75, 0.85]
+        # s2 = np.arange(0.9, 1.1, 0.01)
+        # s3 = [1.15, 1.25, 1.5]
+        # scales = itertools.chain(s1, s2, s3)
+        scales = np.arange(0.9, 1.1, 0.05)
         for scale in scales:
             scale = round(scale, 2)
 
             # Rotation levels
-            a1 = range(-40, -11, 10)
-            a2 = range(-10, 11, 1)
-            a3 = range(20, 41, 10)
-            angles = itertools.chain(a1, a2, a3)
+            # a1 = range(-40, -11, 10)
+            # a2 = range(-10, 11, 1)
+            # a3 = range(20, 41, 10)
+            # angles = itertools.chain(a1, a2, a3)
+            angles = [0, ]
             for angle in angles:
                 # scaled = self.scale_image(image, scale)
                 M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
@@ -247,47 +250,53 @@ class VCLikeEngine:
             match1 = self.box_learner.scan(image)
 
         success1 = match1.success
-        success2 = False
+        # success2 = False
 
         scale = 1
         angle = 0
+        translation = (0, 0)
 
         if success1:
             # scale = 1 + float(100 - matches1[0].predicted_class)/100
             scale = 1 / (match1.predicted_class / 100)
-            print("Scale success, class: {}".format(match1.predicted_class))
+            print("Scale success, class: {}, distance: {}".format(match1.predicted_class, match1.roi_distances[0]))
+
+            translation = (match1.anchor.x - learning_settings.sights[0].anchor.x, \
+                match1.anchor.y - learning_settings.sights[0].anchor.y)
+
+            self.last_position_found = match1.anchor
 
             # Data for plotting
 
-            M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, scale)
-            scaled = cv2.warpAffine(image, M, (w, h))
+            # M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, scale)
+            # scaled = cv2.warpAffine(image, M, (w, h))
 
-            # scaled = self.scale_image(image, scale)
+            # # scaled = self.scale_image(image, scale)
 
-            # cv2.imshow("Scaled", scaled)
+            # # cv2.imshow("Scaled", scaled)
 
-            # Rotation
-            learning_settings2 = learning_data.vc_like_data.learning_settings2
-            # success2, matches2 = self.ml_validation(learning_settings2, self.box_learner2, scaled)
-            self.box_learner2.get_knn_contexts(learning_settings2.sights[0])
-            match2 = self.box_learner2.optimised_scan(image, anchor_point=match1.anchor)
+            # # Rotation
+            # learning_settings2 = learning_data.vc_like_data.learning_settings2
+            # # success2, matches2 = self.ml_validation(learning_settings2, self.box_learner2, scaled)
+            # self.box_learner2.get_knn_contexts(learning_settings2.sights[0])
+            # match2 = self.box_learner2.optimised_scan(image, anchor_point=match1.anchor)
 
-            if not match2.success:
-                match2 = self.box_learner2.scan(image)
+            # if not match2.success:
+            #     match2 = self.box_learner2.scan(image)
 
-            success2 = match2.success
+            # success2 = match2.success
 
-            if success2:
-                angle = -1 * (match2.predicted_class - 100)
+            # if success2:
+            #     angle = -1 * (match2.predicted_class - 100)
 
-                # Save this position for next turn
-                self.last_position_found = match2.anchor
+            #     # Save this position for next turn
+            #     self.last_position_found = match2.anchor
 
-                # Data for plotting
+            #     # Data for plotting
 
-                print("Rotation success, class: {}".format(match2.predicted_class - 100))
-            else:
-                print("Rotation fail")
+            #     print("Rotation success, class: {}".format(match2.predicted_class - 100))
+            # else:
+            #     print("Rotation fail")
         else:
             print("Scale fail")
 
@@ -298,7 +307,8 @@ class VCLikeEngine:
         # cv2.imshow("Transformed", transformed)
         # cv2.waitKey(100)
 
-        return (success1 and success2), scale, angle, transformed
+        # return (success1 and success2), (scale, scale), (angle, angle), transformed
+        return success1, (scale, scale), (angle, angle), translation, transformed
 
 if __name__ == "__main__":
     image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")

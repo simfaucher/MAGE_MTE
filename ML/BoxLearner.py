@@ -196,8 +196,8 @@ class BoxLearner():
 
         step = Step()
         if pixel_scan:
-            step.x = 7
-            step.y = 7
+            step.x = 3
+            step.y = 3
         elif anchor_point:
             step.x = self.sight.search_box.step.x
             step.y = self.sight.search_box.step.y
@@ -333,8 +333,8 @@ class BoxLearner():
 
             roi_mask = sight_mask[roi_y1: roi_y2, roi_x1: roi_x2]
             features = BoxLearner.extract_pixels_features(roi_mask, ROIFeatureType(roi.feature_type))
-            # if "C" in self.sight.name:
-            #     cv2.imshow("roi_mask"+str(k), roi_mask) # Debug
+            if "Scale finder" in self.sight.name: 
+                cv2.imshow("roi_mask"+str(k), roi_mask) # Debug
 
             distances, indices = self.knn_contexts[k].kneighbors(features)
             # neighbours_classes = self.knn_contexts[k].predict(features)
@@ -396,7 +396,7 @@ class BoxLearner():
 
         # cv2.circle(debug_image, (self.sight.anchor.x, self.sight.anchor.y), 2, (0, 255, 255))
         # cv2.imshow("debug_image", debug_image) # Debug
-        # cv2.waitKey(0) # Debug
+        cv2.waitKey(1) # Debug
 
         return match
 
@@ -472,13 +472,21 @@ class BoxLearner():
             resized = cv2.resize(image, (4, 64))
             return resized.reshape(1, 4*64*nb_layers).astype(np.float32)
 
-        # Composite profile
-        elif features_type == ROIFeatureType.COMPOSITE_PROFILE:
+        # Composite profiles
+        elif features_type == ROIFeatureType.COMPOSITE_PROFILE \
+            or features_type == ROIFeatureType.COMPOSITE_PROFILE_64:
             resized3 = cv2.resize(image, (32, 32))
             mean1 = np.mean(resized3, axis=0)
             mean2 = np.mean(resized3, axis=1)
             resized = np.concatenate((mean1.flatten(), mean2.flatten()))
             return resized.reshape(1, (32+32)*nb_layers).astype(np.float32)
+
+        elif features_type == ROIFeatureType.COMPOSITE_PROFILE_128:
+            resized3 = cv2.resize(image, (64, 64))
+            mean1 = np.mean(resized3, axis=0)
+            mean2 = np.mean(resized3, axis=1)
+            resized = np.concatenate((mean1.flatten(), mean2.flatten()))
+            return resized.reshape(1, (64+64)*nb_layers).astype(np.float32)
 
         # Color histograms
         elif features_type == ROIFeatureType.COLOR_HIST:

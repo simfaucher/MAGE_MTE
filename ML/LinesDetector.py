@@ -43,6 +43,8 @@ class LinesDetector():
         self.input_image = input_image
         self.algo = algo
 
+        self.dilation_kernel = np.ones((3, 3), np.uint8)
+
     def detect(self):
         # Initialize mask
         height, width = self.input_image.shape[:2]
@@ -57,8 +59,9 @@ class LinesDetector():
             mask = self.get_lsd_mask(grey, lines, LSD_THICKNESS)
         elif self.algo == ImageFilterType.CANNY:
             # Find lines with Canny
-            smoothed = cv2.GaussianBlur(grey, (7, 7), 2)
+            smoothed = cv2.GaussianBlur(grey, (7, 7), 2) #TODO: supprimer/garder ?
             mask = cv2.Canny(smoothed, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
+            mask = cv2.dilate(mask, self.dilation_kernel, iterations=1)
         elif self.algo == ImageFilterType.EMBOSS:
             # Find lines with embossing
             mask = cv2.filter2D(grey, -1, EMBOSS_KERNEL)
