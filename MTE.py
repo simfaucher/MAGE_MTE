@@ -92,7 +92,27 @@ class MTE:
         self.reference = LearningData()
 
         self.debug = None
+        self.server_csv = None
         self.result_csv = None
+
+    def init_server_csv(self):
+        """ This function create a log for the global activity of the server."""
+        
+        if not os.path.exists("logs_server"):
+            os.makedirs("logs_server")
+        log_location = os.path.join("logs_server", datetime.now().strftime("%m%d%Y_%H%M%S"))
+        self.server_csv = open(log_location+'.csv', 'w')
+        metrics = ['Timestamp', 'Action', 'Ref Client']
+        writer = csv.DictWriter(self.server_csv, fieldnames=metrics)
+        writer.writeheader()
+        return writer
+
+    def fill_server_log(self, writer, action, ref):
+        """This function fill server's logs."""
+
+        writer.writerow({'Timestamp' : datetime.now(),
+                         'Action' : action,
+                         'Ref Client': ref})
 
     def init_log(self, name):
         """ This function creates and initializes a writer.
@@ -101,11 +121,11 @@ class MTE:
         Out : Writer object pointing to name.csv
         """
         self.result_csv = open(name+'.csv', 'w')
-        metrics = ['Success', 'Number of keypoints', 'Number of matches',
+        metrics = ['Success', 'Flag', 'Code', 'Direction', 
+                   'Number of keypoints', 'Number of matches',
                    'Distance Kirsh', 'Distance Canny', 'Distance Color',
                    'Translation x', 'Translation y',
                    'Scale x', 'Scale y',
-                   'Flag', 'Code', 'Direction',
                    'Blurred']
         writer = csv.DictWriter(self.result_csv, fieldnames=metrics)
         writer.writeheader()
@@ -185,6 +205,7 @@ class MTE:
         containing the operations' results.
         """
 
+        server_log_writter = self.init_server_csv()
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
 
@@ -211,13 +232,14 @@ class MTE:
                         "status" : ErrorLearning.INVALID_FORMAT.value
                     }
                 self.reference.clean_control_assist(self.reference.id_ref)
+                data["id_ref"] = None
 
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
                 if data["mte_parameters"]["ratio"] is None:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
-                elif not self.reference.is_empty() and self.reference.id_ref != data["id_ref"]:
+                elif (not self.reference.is_empty()) and self.reference.id_ref != data["id_ref"]:
                     to_send = {
                         "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
                     }
@@ -316,6 +338,8 @@ class MTE:
                 }
                 print("{} is an unknown mode.".format(data["mode"]))
 
+            self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
+                data["id_ref"])
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
