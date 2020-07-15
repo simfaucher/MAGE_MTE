@@ -6,11 +6,13 @@ import os
 import sys
 import time
 import json
+import csv
 import numpy as np
 import cv2
 import imutils
 from imutils.video import FPS
 import imagezmq
+from datetime import datetime
 
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
@@ -78,12 +80,7 @@ class Client:
         # self.sender = imagezmq.ImageSender(connect_to='tcp://10.1.162.31:5555')
         self.sender = imagezmq.ImageSender()
 
-        if MODE_CAMERA:
-            self.cap = cv2.VideoCapture(0)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        else:
-            self.cap = cv2.VideoCapture(VIDEO_PATH)
+        self.cap = cv2.VideoCapture(VIDEO_PATH)
 
         self.mode = MTEMode.NEUTRAL
         self.pov_id = 8
@@ -91,6 +88,117 @@ class Client:
         if os.path.isfile('temporaryData.txt'):
             self.learning_data.id_ref = -1
         time.sleep(2.0)  # allow camera sensor to warm up
+
+    def test(self, video_path, learning_image_path):
+        self.cap.release()
+        self.cap = cv2.VideoCapture(video_path)
+        if not os.path.exists("test_client"):
+            os.makedirs("test_client")
+        log_location = os.path.join("test_client", datetime.now().strftime("%m%d%Y_%H%M%S"))
+        client_csv = open(log_location+'.csv', 'w')
+        metrics = ['Action', 'Duree', 'Resultat']
+        writer = csv.DictWriter(client_csv, fieldnames=metrics)
+        writer.writeheader()
+
+        size = 400
+        self.mode = MTEMode.VALIDATION_REFERENCE
+        image = cv2.imread(learning_image_path)
+        data = json.dumps({
+            "mode": self.mode.value
+        })
+        t0 = time.time()
+        reply = json.loads(self.sender.send_image(data, image).decode())
+        t1 = time.time()
+        writer.writerow({'Duree' : t1-t0,
+                         'Action' : self.mode,
+                         'Resultat': ErrorLearning(reply["status"])})
+        if ErrorLearning(reply["status"]) != ErrorLearning.SUCCESS:
+            print("Error during learning : {}".format(ErrorLearning(reply["status"])\
+                .name))
+            return False
+        else:
+            print("Learning successfull")
+            self.learning_data.id_ref = -1
+            self.learning_data.mte_parameters = reply["mte_parameters"]
+
+        self.mode = MTEMode.INITIALIZE_MTE
+        temp = self.learning_data.to_dict()
+        temp["mode"] = self.mode.value
+        data = json.dumps(temp)
+        image = imutils.resize(image, width=size)
+        t0 = time.time()
+        reply = json.loads(self.sender.send_image(data, image).decode())
+        t1 = time.time()
+        writer.writerow({'Duree' : t1-t0,
+                         'Action' : self.mode,
+                         'Resultat': ErrorInitialize(reply["status"])})
+        if ErrorInitialize(reply["status"]) == ErrorInitialize.SUCCESS:
+            print("Initialize successfull.")
+        elif ErrorInitialize(reply["status"]) == ErrorInitialize.NEED_TO_CLEAR_MTE:
+            print("Need to clear MTE first.")
+            return False
+        else:
+            print("Initialize failed.")
+            return False
+
+        self.mode = MTEMode.MOTION_TRACKING
+        while self.cap.isOpened():
+            # Sending
+            success, full_image = self.cap.read()
+
+            if not success:
+                break
+
+            image = imutils.resize(full_image, width=size)
+            data = json.dumps({
+                "mode": self.mode.value,
+                "id_ref" : self.learning_data.id_ref
+            })
+
+            t0 = time.time()
+            reply = json.loads(self.sender.send_image(data, image).decode())
+            t1 = time.time()
+            writer.writerow({'Duree' : t1-t0,
+                             'Action' : reply["flag"],
+                             'Resultat': ErrorRecognition(reply["status"])})
+            my_shift = t1-t0
+            t_position = self.cap.get(cv2.CAP_PROP_POS_MSEC)
+            n_position = t_position + my_shift*1000
+            self.cap.set(cv2.CAP_PROP_POS_MSEC, n_position)
+            response = reply
+            prev_size = size
+            if not prev_size == size:
+                print("Change of size {} -> {}".format(prev_size, size))
+            if ErrorRecognition(reply["status"]) == \
+                ErrorRecognition.ENGINE_IS_NOT_INITIALIZED:
+                print("Error. You must first initialize the engine.")
+                return False
+            elif ErrorRecognition(reply["status"]) == ErrorRecognition.MISMATCH_REF:
+                print("The reference id is invalid.")
+                return False
+            else:
+                size = response["requested_image_size"][0]
+
+        self.mode = MTEMode.CLEAR_MTE
+        data = json.dumps({
+            "mode": self.mode.value,
+            "id_ref" : self.learning_data.id_ref
+        })
+        t0 = time.time()
+        reply = json.loads(self.sender.send_image(data, image).decode())
+        t1 = time.time()
+        writer.writerow({'Duree' : t1-t0,
+                         'Action' : self.mode,
+                         'Resultat': reply["status"]})
+        if reply["status"] == 0:
+            print("Clear successfull.")
+        else:
+            print("Clear failed.")
+            print("Server have ref {}".format("id_ref"))
+            return False
+
+        self.cap.release()
+        return True
 
     def run(self):
         """ Constant loop on camera or video, depending of the parameters."""
@@ -302,4 +410,4 @@ class Client:
 
 if __name__ == "__main__":
     acd = Client()
-    acd.run()
+    acd.test(VIDEO_PATH, LEARNING_IMAGE_PATH)
