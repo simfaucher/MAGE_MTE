@@ -14,6 +14,7 @@ from imutils.video import FPS
 import imagezmq
 from datetime import datetime
 
+from Patience import Patience
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
 from Domain.ErrorInitialize import ErrorInitialize
@@ -107,7 +108,15 @@ class Client:
             "mode": self.mode.value
         })
         t0 = time.time()
-        reply = json.loads(self.sender.send_image(data, image).decode())
+        try:
+            with Patience(3):
+                reply = json.loads(self.sender.send_image(data, image).decode())
+        except Patience.Timeout:
+            writer.writerow({'Duree' : "Timeout",
+                         'Action' : self.mode,
+                         'Resultat': "Timeout"})
+            return False
+
         t1 = time.time()
         writer.writerow({'Duree' : t1-t0,
                          'Action' : self.mode,
@@ -127,7 +136,13 @@ class Client:
         data = json.dumps(temp)
         image = imutils.resize(image, width=size)
         t0 = time.time()
-        reply = json.loads(self.sender.send_image(data, image).decode())
+        try:
+            with Patience(3):
+                reply = json.loads(self.sender.send_image(data, image).decode())
+        except Patience.Timeout:
+            writer.writerow({'Duree' : "Timeout",
+                         'Action' : self.mode,
+                         'Resultat': "Timeout"})
         t1 = time.time()
         writer.writerow({'Duree' : t1-t0,
                          'Action' : self.mode,
@@ -156,7 +171,13 @@ class Client:
             })
 
             t0 = time.time()
-            reply = json.loads(self.sender.send_image(data, image).decode())
+            try:
+                with Patience(3):
+                    reply = json.loads(self.sender.send_image(data, image).decode())
+            except Patience.Timeout:
+                writer.writerow({'Duree' : "Timeout",
+                                 'Action' : self.mode,
+                                 'Resultat': "Timeout"})
             t1 = time.time()
             writer.writerow({'Duree' : t1-t0,
                              'Action' : reply["flag"],
@@ -185,7 +206,13 @@ class Client:
             "id_ref" : self.learning_data.id_ref
         })
         t0 = time.time()
-        reply = json.loads(self.sender.send_image(data, image).decode())
+        try:
+            with Patience(3):
+                reply = json.loads(self.sender.send_image(data, image).decode())
+        except Patience.Timeout:
+            writer.writerow({'Duree' : "Timeout",
+                         'Action' : self.mode,
+                         'Resultat': "Timeout"})
         t1 = time.time()
         writer.writerow({'Duree' : t1-t0,
                          'Action' : self.mode,
