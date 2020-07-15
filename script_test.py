@@ -1,6 +1,8 @@
-from MTE import MTE
 from Client import Client
 
-for i in range(1):
-    server = MTE()
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
+
+for i in range(100):
     client = Client()
+    client.test(VIDEO_PATH, LEARNING_IMAGE_PATH)
