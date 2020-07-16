@@ -14,7 +14,7 @@ from imutils.video import FPS
 import imagezmq
 from datetime import datetime
 
-from Patience import Patience
+from Domain.Patience import Patience
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
 from Domain.ErrorInitialize import ErrorInitialize
