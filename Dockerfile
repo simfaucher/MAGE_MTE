@@ -10,4 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV PATH="/opt/gtk/bin:$PATH"
 COPY . .
 
-CMD [ "python", "./Server.py" ]
+CMD [ "python", "-u", "./MTE.py" ]
