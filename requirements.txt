@@ -9,7 +9,7 @@ numpy==1.15.1
 h5py==2.6.0
 pytz==2020.1
 scikit-image==0.17.2
-tqdm #mandatory ????
+tqdm
 
 -f https://download.pytorch.org/whl/torch_stable.html
 torch==1.5.0+cu101
