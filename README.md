@@ -50,6 +50,7 @@ conda install scikit-image
 
 ## Running the programs
 
+### Launch
 
 The activating step should be executed each time you wish to run the project:
 
@@ -73,6 +74,17 @@ Run the client in another terminal with the Anaconda environment `(mte-env)` act
 ```shell
 python Client.py
 ```
+
+### Usage of the programs
+
+The server is by default in prelearning mode. Press the 2 key with the `Debug` window activated to learn the current image of the video stream.
+The learning mode is printed in the server command window and then the server goes back to prelearning mode.
+
+You can then press the 3 key on the `Debug` window to launch the recognition mode. The `Transformed` window should appear. When the recognition works, the image is warped to match the learning image and printed in the `Transformed` window. When it fails, the resized image of the video stream is showed. The state of the recognition is also printed in the client command window.
+
+To quit the programs, first press the Q key on the `Debug` window and then press CTRL+C on the server command window.
+
+### Deactivation
 
 Note: If you want to deactivate the environment to go back to your regular shell, just type:
 
