@@ -138,8 +138,8 @@ class SIFTEngine:
                 else:
                     self.display = np.hstack((self.img_medium, warped_image))
 
-                cv2.imshow("Comparison", self.display)
-                cv2.waitKey(1)
+                # cv2.imshow("Comparison", self.display)
+                # cv2.waitKey(1)
 
             else:
                 print("SIFT distored")
