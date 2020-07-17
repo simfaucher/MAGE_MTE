@@ -273,7 +273,7 @@ class Test():
                     # Scan optimisé (step=1)
                     best_match, matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
-                    if not best_match.success:
+                    if best_match.success:
                         # Calcul du scale
                         pt_tl = Point2D()
                         pt_tl.x = best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x
@@ -287,6 +287,8 @@ class Test():
                         multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br)
                         self.scale = multiscale_match.predicted_class
 
+                        #TODO: passage à SIFT
+                    else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 1
                 
