@@ -88,7 +88,8 @@ class Client:
         self.learning_data = LearningData()
         if os.path.isfile('temporaryData.txt'):
             self.learning_data.id_ref = -1
-        time.sleep(2.0)  # allow camera sensor to warm up
+        if MODE_CAMERA:
+            time.sleep(2.0)  # allow camera sensor to warm up
 
     def test(self, video_path, learning_image_path):
         self.cap.release()
@@ -111,10 +112,12 @@ class Client:
         try:
             with Patience(3):
                 reply = json.loads(self.sender.send_image(data, image).decode())
-        except Patience.Timeout:
+        except:
+            print("Raised valid")
             writer.writerow({'Duree' : "Timeout",
-                         'Action' : self.mode,
-                         'Resultat': "Timeout"})
+                             'Action' : self.mode,
+                             'Resultat': "Timeout"})
+            client_csv.close()
             return False
 
         t1 = time.time()
@@ -124,6 +127,7 @@ class Client:
         if ErrorLearning(reply["status"]) != ErrorLearning.SUCCESS:
             print("Error during learning : {}".format(ErrorLearning(reply["status"])\
                 .name))
+            client_csv.close()                
             return False
         else:
             print("Learning successfull")
@@ -139,10 +143,14 @@ class Client:
         try:
             with Patience(3):
                 reply = json.loads(self.sender.send_image(data, image).decode())
-        except Patience.Timeout:
+        except:
+            print("Raised init")
             writer.writerow({'Duree' : "Timeout",
                          'Action' : self.mode,
                          'Resultat': "Timeout"})
+            client_csv.close()
+            return False
+
         t1 = time.time()
         writer.writerow({'Duree' : t1-t0,
                          'Action' : self.mode,
@@ -151,9 +159,11 @@ class Client:
             print("Initialize successfull.")
         elif ErrorInitialize(reply["status"]) == ErrorInitialize.NEED_TO_CLEAR_MTE:
             print("Need to clear MTE first.")
+            client_csv.close()
             return False
         else:
             print("Initialize failed.")
+            client_csv.close()
             return False
 
         self.mode = MTEMode.MOTION_TRACKING
@@ -174,18 +184,21 @@ class Client:
             try:
                 with Patience(3):
                     reply = json.loads(self.sender.send_image(data, image).decode())
-            except Patience.Timeout:
+            except:
+                print("Raised tracking")
                 writer.writerow({'Duree' : "Timeout",
                                  'Action' : self.mode,
                                  'Resultat': "Timeout"})
+                return False
+
             t1 = time.time()
             writer.writerow({'Duree' : t1-t0,
                              'Action' : reply["flag"],
                              'Resultat': ErrorRecognition(reply["status"])})
             my_shift = t1-t0
-            t_position = self.cap.get(cv2.CAP_PROP_POS_MSEC)
-            n_position = t_position + my_shift*1000
-            self.cap.set(cv2.CAP_PROP_POS_MSEC, n_position)
+            t_position = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+            n_position = t_position + int(my_shift*30)
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, n_position)
             response = reply
             prev_size = size
             if not prev_size == size:
@@ -209,10 +222,12 @@ class Client:
         try:
             with Patience(3):
                 reply = json.loads(self.sender.send_image(data, image).decode())
-        except Patience.Timeout:
+        except:
+            print("Raised clear")
             writer.writerow({'Duree' : "Timeout",
                          'Action' : self.mode,
                          'Resultat': "Timeout"})
+            client_csv.close()
         t1 = time.time()
         writer.writerow({'Duree' : t1-t0,
                          'Action' : self.mode,
