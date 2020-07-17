@@ -293,6 +293,9 @@ class Test():
                         self.mode = 1
                 
                 #TODO: boîte jaune (SIFT)
+                """ elif mode 3
+                    si self.sclale == 100
+                        calcul des descripteurs des 2 images (avec videos/ref)""" 
 
                 self.last_match = best_match
                 
