@@ -14,8 +14,6 @@ import json
 import glob
 import statistics
 
-# from numba import jit
-
 import cv2
 import numpy as np
 
@@ -100,8 +98,10 @@ class BoxLearner():
             self.learning_classes.append(classes)
 
     # @jit
-    def scan(self, input_image, start_point: Point2D = None, scan_opti=True):
+    def scan(self, input_image, start_point: Point2D = None, scan_opti=True, output_matches=False):
         self.input_image = input_image
+
+        debug_image = self.input_image.copy() # Debug
 
         matches = []
 
@@ -135,18 +135,35 @@ class BoxLearner():
                 if not self.is_position_valid(input_image, point_tl, point_br):
                     continue
 
-                match = self.find_target(point_tl, point_br, skip_tolerance=True)
+                match = self.find_target(point_tl, point_br, skip_tolerance=False)
 
                 # debug_image = input_image[point_tl.y: point_br.y, point_tl.x: point_br.x]
                 # cv2.imshow("Scaning", debug_image)
                 # print("Scaning distance: {}".format(match.max_distance))
                 # cv2.waitKey(0)
 
+                # cv2.rectangle(debug_image, (point_tl.x, point_tl.y), (point_br.x, point_br.y), (0, 255, 0)) # Debug
+                match.power_of_recognition = self.get_recognition_flag(match)
+                color = (0, 255, 0)
+                if match.power_of_recognition == RecognitionFlag.ORANGE.value:
+                    color = (0, 255, 255)
+                elif match.power_of_recognition == RecognitionFlag.RED.value:
+                    color = (0, 0, 255)
+                cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
+
                 if match.success:
                     matches.append(match)
 
         # Get the best match
-        best_match = self.get_best_match(matches)
+        if len(matches) > 0:
+            best_match = self.get_best_match(matches)
+
+            cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
+            print("Max distance: {}".format(best_match.max_distance))
+        else:
+            best_match = LearnerMatch()
+            best_match.success = False
+            best_match.power_of_recognition = RecognitionFlag.RED
 
         # print("===============") # Debug
         # print("sum_distances"+ str(best_match.sum_distances)) # Debug
@@ -175,7 +192,8 @@ class BoxLearner():
         # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
-        # cv2.waitKey(0) # Debug
+        cv2.imshow("Debug", debug_image) # Debug
+        cv2.waitKey(0) # Debug
         # cv2.destroyAllWindows()
         # End debug
 
@@ -188,10 +206,13 @@ class BoxLearner():
 
         best_match.reduced = True
 
+        if output_matches:
+            return best_match, matches
+
         return best_match
 
     # @jit
-    def optimised_scan(self, input_image, best_match: LearnerMatch = None, anchor_point: Point2D = None, pixel_scan=False):
+    def optimised_scan(self, input_image, best_match: LearnerMatch = None, anchor_point: Point2D = None, pixel_scan=False, output_matches=False):
         self.input_image = input_image
 
         step = Step()
@@ -304,6 +325,133 @@ class BoxLearner():
         #     cv2.waitKey(0) # Debug
         #     cv2.destroyAllWindows()
         # End debug
+
+        if output_matches:
+            return best_match, matches
+
+        return best_match
+
+    # @jit
+    def optimised_scan_sequenced(self, input_image, best_match: LearnerMatch = None, pixel_scan=False, output_matches=False):
+        self.input_image = input_image
+
+        debug_image = self.input_image.copy() # Debug
+
+        step = Step()
+        if pixel_scan:
+            step.x = 1
+            step.y = 1
+        else:
+            step.x = 3
+            step.y = 3
+
+        # Get the position from the best match of a normal scan
+        if best_match is not None:
+            anchor_point_tl = Point2D()
+            anchor_point_tl.x = best_match.anchor.x - self.sight.anchor.x
+            anchor_point_tl.y = best_match.anchor.y - self.sight.anchor.y
+        # Default mode
+        else:
+            anchor_point_tl = Point2D()
+            anchor_point_tl.x = 0
+            anchor_point_tl.y = 0
+
+        hit_in = 0
+
+        matches = []
+        for i in range(-4, 5):
+            for j in range(-4, 5):
+                point_tl = Point2D()
+                point_tl.x = anchor_point_tl.x + i * step.x
+                point_tl.y = anchor_point_tl.y + j * step.y
+
+                point_br = Point2D()
+                point_br.x = point_tl.x + self.sight.width
+                point_br.y = point_tl.y + self.sight.height
+
+                # Debug
+                # if i == -4 and j == -4:
+                #     print("ROS opti first pt tl + anchor : x:{}, y:{}".format(point_tl.x + self.sight.anchor.x, point_tl.y + self.sight.anchor.y))
+                # if i == 4 and j == 4:
+                #     print("ROS opti last pt tl + anchor : x:{}, y:{}".format(point_tl.x + self.sight.anchor.x, point_tl.y + self.sight.anchor.y))
+
+                if not self.is_position_valid(input_image, point_tl, point_br):
+                    continue
+
+                match = self.find_target(point_tl, point_br)
+
+                # debug_image = input_image[point_tl.y: point_br.y, point_tl.x: point_br.x]
+                # cv2.imshow("Scaning", debug_image)
+                # print("Scaning distance: {}".format(match.max_distance))
+                # cv2.waitKey(0)
+
+                match.power_of_recognition = self.get_recognition_flag(match)
+                color = (0, 255, 0)
+                if match.power_of_recognition == RecognitionFlag.ORANGE.value:
+                    color = (0, 255, 255)
+                elif match.power_of_recognition == RecognitionFlag.RED.value:
+                    color = (0, 0, 255)
+                cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
+
+                if match.success:
+                    matches.append(match)
+
+                    if step.x == 1 and step.y == 1:
+                        hit_in += 1
+
+        # Get the best match
+
+        # Get the best match
+        if len(matches) > 0:
+            best_match = self.get_best_match(matches)
+            best_match.hit_in = hit_in
+            if best_match.anchor is not None:
+                anchor_point_tl.x = best_match.anchor.x - self.sight.anchor.x
+                anchor_point_tl.y = best_match.anchor.y - self.sight.anchor.y
+
+            cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
+            print("Max distance: {}".format(best_match.max_distance))
+        else:
+            best_match = LearnerMatch()
+            best_match.success = False
+            best_match.power_of_recognition = RecognitionFlag.RED
+
+        # Find the recognition flag
+        best_match.power_of_recognition = self.get_recognition_flag(best_match)
+
+        # Debug
+        # if best_match.success:
+        #     sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
+        #         :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
+        #             best_match.anchor.x - self.sight.anchor.x\
+        #                 :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
+        #     for k, roi in enumerate(self.sight.roi):
+        #         image_filter = ImageFilterType(roi.image_filter_type)
+
+        #         detector = LinesDetector(sight_image, image_filter)
+        #         mask = detector.detect()
+
+        #         x = int(roi.x)
+        #         y = int(roi.y)
+        #         width = int(roi.width)
+        #         height = int(roi.height)
+
+        #         roi_mask = mask[y:y+height, x:x+width]
+        #         cv2.imshow("ROI"+str(k), roi_mask)
+        #         cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
+
+        #     cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
+        #     print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
+
+        #     cv2.waitKey(0) # Debug
+        #     cv2.destroyAllWindows()
+        # End debug
+
+        cv2.imshow("Debug", debug_image) # Debug
+        cv2.waitKey(0) # Debug
+
+        if output_matches:
+            return best_match, matches
 
         return best_match
 
@@ -463,6 +611,22 @@ class BoxLearner():
         elif features_type == ROIFeatureType.RAW_PIXELS_16:
             resized = cv2.resize(image, (16, 16))
             return resized.reshape(1, 16*16*nb_layers).astype(np.float32)
+
+        elif features_type == ROIFeatureType.RAW_PIXELS_32:
+            resized = cv2.resize(image, (32, 32))
+            return resized.reshape(1, 32*32*nb_layers).astype(np.float32)
+
+        elif features_type == ROIFeatureType.RAW_PIXELS_64:
+            resized = cv2.resize(image, (64, 64))
+            return resized.reshape(1, 64*64*nb_layers).astype(np.float32)
+
+        elif features_type == ROIFeatureType.RAW_PIXELS_128:
+            resized = cv2.resize(image, (128, 128))
+            return resized.reshape(1, 128*128*nb_layers).astype(np.float32)
+
+        elif features_type == ROIFeatureType.RAW_PIXELS_85_48:
+            resized = cv2.resize(image, (85, 48))
+            return resized.reshape(1, 85*48*nb_layers).astype(np.float32)
 
         elif features_type == ROIFeatureType.RAW_PIXELS_64_4:
             resized = cv2.resize(image, (64, 4))

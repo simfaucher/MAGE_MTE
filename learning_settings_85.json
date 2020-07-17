@@ -1,0 +1,42 @@
+{
+    "recognition_selector": {
+        "uncertainty": 0
+    },
+    "sights": [
+        {
+            "name": "A",
+            "width": 85,
+            "height": 48,
+            "anchor": {
+                "x": 45,
+                "y": 22
+            },
+            "search_box": {
+                "step": {
+                    "x": 7,
+                    "y": 7
+                },
+                "iteration": {
+                    "x": 13,
+                    "y": 7
+                },
+				"anchor": {
+					"x": 0,
+					"y": 0
+				}
+            },
+            "roi": [
+                {
+                    "name": "Sketch",
+                    "filter": "color",
+                    "feature_type": "raw_pixels_85_48",
+                    "tolerance": 500000,
+                    "width": 85,
+                    "height": 48,
+                    "x": 0,
+                    "y": 0
+                }
+            ]
+        }
+    ]
+}

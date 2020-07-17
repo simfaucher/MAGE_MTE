@@ -89,6 +89,10 @@ class LinesDetector():
             mask = self.input_image.copy()
             mask[mask >= 128] = 255
             mask[mask < 128] = 0
+        elif self.algo == ImageFilterType.COLOR:
+            mask = self.input_image.copy()
+        elif self.algo == ImageFilterType.HSV:
+            mask = cv2.cvtColor(self.input_image, cv2.COLOR_BGR2HSV)
         else:
             mask = grey
 
