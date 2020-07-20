@@ -13,6 +13,7 @@ from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+import math
 from pykson import Pykson
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
@@ -33,8 +34,12 @@ from imutils.video import FPS
 LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
 
-REFERENCE_IMAGE_PATH = "videos/short_magnetron_ref.png"
-VIDEO_PATH = "videos/short_magnetron.mp4"
+REFERENCE_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+FLANN_INDEX_KDTREE = 0
+INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+SEARCH_PARAMS = dict(checks=50)
+FLANN_THRESH = 0.7
 
 class Test():
     def __init__(self):
@@ -207,15 +212,17 @@ class Test():
         if not cap.isOpened(): 
             print("Error opening video stream or file")
 
+        sift = cv2.xfeatures2d.SIFT_create()
+
         # Read until video is completed
         while cap.isOpened():
             # Capture frame-by-frame
-            success, image = cap.read()
+            success, image_full = cap.read()
 
             if success:
                 fps = FPS().start() # Debug
 
-                image = cv2.resize(image, (176, 97))
+                image = cv2.resize(image_full, (176, 97))
 
                 # Boîte verte
                 if self.mode <= 0 or self.nb_frames >= 10:
@@ -239,7 +246,21 @@ class Test():
 
                         #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                         #TODO: et cible à peu près au centre de l'image
-                        self.mode = 1
+                        number_of_green_around = 0
+                        x1 = best_match.anchor.x
+                        y1 = best_match.anchor.y
+                        for m in matches:
+                            x2 = m.anchor.x
+                            y2 = m.anchor.y
+                            if m.success:
+                                print("Close from best")
+                            if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                                number_of_green_around += 1
+                        if (number_of_green_around >= 2) and\
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
+                            self.mode = 1
+                            print("Switching to mode {}".format(self.mode))
 
                 # Boîte orange
                 elif self.mode == 1:
@@ -263,13 +284,27 @@ class Test():
 
                         #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                         #TODO: et cible à peu près au centre de l'image
-                        self.mode = 2
+                        number_of_green_around = 0
+                        x1 = best_match.anchor.x
+                        y1 = best_match.anchor.y
+                        for m in matches:
+                            x2 = m.anchor.x
+                            y2 = m.anchor.y
+                            if m.success:
+                                print("Close from best")
+                            if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                                number_of_green_around += 1
+                        if (number_of_green_around >= 4) and\
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
+                            self.mode = 2
+                            print("Switching to mode {}".format(self.mode))
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 0
 
                 # Boîte rose
-                else:
+                elif self.mode == 2:
                     # Scan optimisé (step=1)
                     best_match, matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
@@ -288,10 +323,41 @@ class Test():
                         self.scale = multiscale_match.predicted_class
 
                         #TODO: passage à SIFT
+                        number_of_green_around = 0
+                        x1 = best_match.anchor.x
+                        y1 = best_match.anchor.y
+                        for m in matches:
+                            x2 = m.anchor.x
+                            y2 = m.anchor.y
+                            if m.success:
+                                print("Close from best")
+                            if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                                number_of_green_around += 1
+                        if (number_of_green_around >= 6) and\
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
+                            self.mode = 3
+                            print("Switching to mode {}".format(self.mode))
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 1
                 
+                elif self.mode == 3:
+                    print("Captureeeeeeeeeee")
+                    _, des_ref = sift.detectAndCompute(cv2.imread(REFERENCE_IMAGE_PATH), None)
+                    _, des_cap = sift.detectAndCompute(image_full, None)
+                    flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
+                    matches = flann.knnMatch(des_cap, des_ref, k=2)
+                    # Need to draw only good matches, so create a mask
+                    good_matches = []
+                    # ratio test as per Lowe's paper
+                    for i, pair in enumerate(matches):
+                        try:
+                            m, n = pair
+                            if m.distance < FLANN_THRESH*n.distance:
+                                good_matches.append(m)
+                        except ValueError:
+                            pass
                 #TODO: boîte jaune (SIFT)
                 """ elif mode 3
                     si self.sclale == 100
@@ -314,8 +380,8 @@ class Test():
                 # cv2.imshow('Original image', image)
 
                 # Press Q on keyboard to  exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                # if cv2.waitKey(1) & 0xFF == ord('q'):
+                #     break
 
             # Break the loop
             else: 
