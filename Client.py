@@ -143,6 +143,11 @@ class Client:
             to_draw = full_image.copy()
             if self.mode != MTEMode.NEUTRAL:
                 fps = FPS().start()
+                try:
+                    with Patience(3):
+                        reply = json.loads(self.sender.send_image(data, image).decode())
+                except:
+                    print("Timeout")
                 reply = json.loads(self.sender.send_image(data, image).decode())
                 fps.update()
                 fps.stop()
