@@ -250,8 +250,8 @@ class BoxLearner():
 
         while step.x >= 1 and step.y >= 1:
             matches = []
-            for i in range(-4, 4):
-                for j in range(-4, 4):
+            for i in range(-4, 5):
+                for j in range(-4, 5):
                     point_tl = Point2D()
                     point_tl.x = anchor_point_tl.x + i * step.x
                     point_tl.y = anchor_point_tl.y + j * step.y
@@ -349,7 +349,7 @@ class BoxLearner():
             step.y = 3
 
         # Get the position from the best match of a normal scan
-        if best_match is not None:
+        if best_match is not None and best_match.anchor is not None:
             anchor_point_tl = Point2D()
             anchor_point_tl.x = best_match.anchor.x - self.sight.anchor.x
             anchor_point_tl.y = best_match.anchor.y - self.sight.anchor.y
@@ -362,8 +362,8 @@ class BoxLearner():
         hit_in = 0
         green_matches = 0
         matches = []
-        for i in range(-4, 4):
-            for j in range(-4, 4):
+        for i in range(-4, 5):
+            for j in range(-4, 5):
                 point_tl = Point2D()
                 point_tl.x = anchor_point_tl.x + i * step.x
                 point_tl.y = anchor_point_tl.y + j * step.y
