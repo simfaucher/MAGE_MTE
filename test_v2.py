@@ -34,8 +34,8 @@ from imutils.video import FPS
 LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
 
-REFERENCE_IMAGE_PATH = "videos/capture.png"
-VIDEO_PATH = "videos/demo.mp4"
+REFERENCE_IMAGE_PATH = "videos/capture4.png"
+VIDEO_PATH = "videos/demo4.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
@@ -227,7 +227,7 @@ class Test():
                 # Boîte verte
                 if self.mode <= 0 or self.nb_frames >= 10:
                     # Scan global
-                    best_match, matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
+                    best_match, matches, green_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -240,32 +240,33 @@ class Test():
                         pt_br.y = pt_tl.y + self.box_learner_85_multiscale.sight.height
 
                         self.box_learner_85_multiscale.input_image = image
-                        multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br)
+                        multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
                         self.scale = multiscale_match.predicted_class
 
                         #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                         #TODO: et cible à peu près au centre de l'image
                         number_of_green_around = 0
+                        green_count = 0
                         x1 = best_match.anchor.x
                         y1 = best_match.anchor.y
                         for m in matches:
                             x2 = m.anchor.x
                             y2 = m.anchor.y
                             if m.success:
-                                print("Close from best")
+                                green_count += 1
                             if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
                                 number_of_green_around += 1
-                        if (number_of_green_around >= 2) and\
+                        if (number_of_green_around >= 3) and\
                             math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
                             math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
                             self.mode = 1
-                            print("Switching to mode {}".format(self.mode))
+                    prev_mode = 0
 
                 # Boîte orange
                 elif self.mode == 1:
                     # Scan optimisé (step=3)
-                    best_match, matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
+                    best_match, matches, green_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -278,35 +279,35 @@ class Test():
                         pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
 
                         self.box_learner_64_multiscale.input_image = image
-                        multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br)
+                        multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
                         self.scale = multiscale_match.predicted_class
 
                         #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                         #TODO: et cible à peu près au centre de l'image
                         number_of_green_around = 0
+                        green_count = 0
                         x1 = best_match.anchor.x
                         y1 = best_match.anchor.y
                         for m in matches:
                             x2 = m.anchor.x
                             y2 = m.anchor.y
                             if m.success:
-                                print("Close from best")
+                                green_count += 1
                             if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
                                 number_of_green_around += 1
                         if (number_of_green_around >= 4) and\
-                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
-                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/20)) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/20)):
                             self.mode = 2
-                            print("Switching to mode {}".format(self.mode))
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 0
-
+                    prev_mode = 1
                 # Boîte rose
                 elif self.mode == 2:
                     # Scan optimisé (step=1)
-                    best_match, matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
+                    best_match, matches, green_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -319,50 +320,50 @@ class Test():
                         pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
 
                         self.box_learner_64_multiscale.input_image = image
-                        multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br)
+                        multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
                         self.scale = multiscale_match.predicted_class
 
                         #TODO: passage à SIFT
                         number_of_green_around = 0
+                        green_count = 0
                         x1 = best_match.anchor.x
                         y1 = best_match.anchor.y
                         for m in matches:
                             x2 = m.anchor.x
                             y2 = m.anchor.y
                             if m.success:
-                                print("Close from best")
+                                green_count += 1
                             if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
                                 number_of_green_around += 1
                         if (number_of_green_around >= 6) and\
-                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/10)) and\
-                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/10)):
-                            self.mode = 3
-                            print("Switching to mode {}".format(self.mode))
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/20)) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/20)):
+                            self.mode = 2
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 1
-                
+                    prev_mode = 2
                 elif self.mode == 3:
-                    print("Captureeeeeeeeeee")
-                    _, des_ref = sift.detectAndCompute(cv2.imread(REFERENCE_IMAGE_PATH), None)
-                    _, des_cap = sift.detectAndCompute(image_full, None)
-                    flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
-                    matches = flann.knnMatch(des_cap, des_ref, k=2)
-                    # Need to draw only good matches, so create a mask
-                    good_matches = []
-                    # ratio test as per Lowe's paper
-                    for i, pair in enumerate(matches):
-                        try:
-                            m, n = pair
-                            if m.distance < FLANN_THRESH*n.distance:
-                                good_matches.append(m)
-                        except ValueError:
-                            pass
-                #TODO: boîte jaune (SIFT)
-                """ elif mode 3
-                    si self.sclale == 100
-                        calcul des descripteurs des 2 images (avec videos/ref)""" 
-
+                    self.mode = 0
+                    if self.scale == 100:
+                        _, des_ref = sift.detectAndCompute(cv2.imread(REFERENCE_IMAGE_PATH), None)
+                        _, des_cap = sift.detectAndCompute(image_full, None)
+                        flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
+                        matches_knn = flann.knnMatch(des_cap, des_ref, k=2)
+                        # Need to draw only good matches, so create a mask
+                        good_matches = []
+                        # ratio test as per Lowe's paper
+                        for i, pair in enumerate(matches_knn):
+                            try:
+                                m, n = pair
+                                if m.distance < FLANN_THRESH*n.distance:
+                                    good_matches.append(m)
+                            except ValueError:
+                                pass
+                        if len(good_matches) > 40:
+                            print('\x1b[6;30;42m' + 'Déctection réussie' + '\x1b[0m')
+                            cv2.waitKey(0)
+                    prev_mode = 3
                 self.last_match = best_match
                 
                 if self.nb_frames >= 10:
@@ -372,10 +373,14 @@ class Test():
 
                 fps.update() # Debug
                 fps.stop() # Debug
-
-                print("Scale: {}".format(self.scale)) # Debug
-                print("FPS: {}".format(fps.fps())) # Debug
-
+                if best_match.success:
+                    print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}".\
+                        format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches))
+                else:
+                    print("Step = {}, Failure".\
+                        format(prev_mode))
+                # print("Scale: {}".format(self.scale)) # Debug
+                # print("FPS: {}".format(fps.fps())) # Debug
                 # Display the resulting frame
                 # cv2.imshow('Original image', image)
 

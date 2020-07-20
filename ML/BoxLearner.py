@@ -116,6 +116,7 @@ class BoxLearner():
             search_box.anchor.x = 0
             search_box.anchor.y = 0
 
+        green_matches = 0
         for i in range(0, search_box.iteration.x):
             for j in range(0, search_box.iteration.y):
                 point_tl = Point2D()
@@ -149,6 +150,8 @@ class BoxLearner():
                     color = (0, 255, 255)
                 elif match.power_of_recognition == RecognitionFlag.RED.value:
                     color = (0, 0, 255)
+                elif match.power_of_recognition == RecognitionFlag.GREEN.value:
+                    green_matches += 1
                 cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
 
                 if match.success:
@@ -159,7 +162,7 @@ class BoxLearner():
             best_match = self.get_best_match(matches)
 
             cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
-            print("Max distance: {}".format(best_match.max_distance))
+            # print("Max distance: {}".format(best_match.max_distance))
         else:
             best_match = LearnerMatch()
             best_match.success = False
@@ -193,7 +196,7 @@ class BoxLearner():
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
         cv2.imshow("Debug", debug_image) # Debug
-        # cv2.waitKey(0) # Debug
+        cv2.waitKey(0) # Debug
         # cv2.destroyAllWindows()
         # End debug
 
@@ -207,7 +210,7 @@ class BoxLearner():
         best_match.reduced = True
 
         if output_matches:
-            return best_match, matches
+            return best_match, matches, green_matches
 
         return best_match
 
@@ -247,8 +250,8 @@ class BoxLearner():
 
         while step.x >= 1 and step.y >= 1:
             matches = []
-            for i in range(-4, 5):
-                for j in range(-4, 5):
+            for i in range(-4, 4):
+                for j in range(-4, 4):
                     point_tl = Point2D()
                     point_tl.x = anchor_point_tl.x + i * step.x
                     point_tl.y = anchor_point_tl.y + j * step.y
@@ -357,10 +360,10 @@ class BoxLearner():
             anchor_point_tl.y = 0
 
         hit_in = 0
-
+        green_matches = 0
         matches = []
-        for i in range(-4, 5):
-            for j in range(-4, 5):
+        for i in range(-4, 4):
+            for j in range(-4, 4):
                 point_tl = Point2D()
                 point_tl.x = anchor_point_tl.x + i * step.x
                 point_tl.y = anchor_point_tl.y + j * step.y
@@ -391,6 +394,8 @@ class BoxLearner():
                     color = (0, 255, 255)
                 elif match.power_of_recognition == RecognitionFlag.RED.value:
                     color = (0, 0, 255)
+                elif match.power_of_recognition == RecognitionFlag.GREEN.value:
+                    green_matches += 1
                 cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
 
                 if match.success:
@@ -410,7 +415,7 @@ class BoxLearner():
                 anchor_point_tl.y = best_match.anchor.y - self.sight.anchor.y
 
             cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
-            print("Max distance: {}".format(best_match.max_distance))
+            # print("Max distance: {}".format(best_match.max_distance))
         else:
             best_match = LearnerMatch()
             best_match.success = False
@@ -451,7 +456,7 @@ class BoxLearner():
         cv2.waitKey(0) # Debug
 
         if output_matches:
-            return best_match, matches
+            return best_match, matches, green_matches
 
         return best_match
 

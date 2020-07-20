@@ -27,3 +27,4 @@ class LearnerMatch(JsonObject):
     roi_classes = ListField(int)
     predicted_class = IntegerField()
     reduced = BooleanField()
+    reds = IntegerField()
