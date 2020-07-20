@@ -36,8 +36,13 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
+<<<<<<< HEAD
 # VIDEO_PATH = "videos/T1.3/Zoom/VID_20200302_144507.mp4"
 # LEARNING_IMAGE_PATH = "videos/T1.3/Zoom/vlcsnap-2020-03-02-16h01m23s741.png"
+=======
+VIDEO_PATH = "videos/VID_20200302_144507.mp4"
+LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
+>>>>>>> origin/master
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
