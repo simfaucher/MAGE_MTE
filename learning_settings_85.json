@@ -30,7 +30,7 @@
                     "name": "Sketch",
                     "filter": "color",
                     "feature_type": "raw_pixels_85_48",
-                    "tolerance": 500000,
+                    "tolerance": 800000,
                     "width": 85,
                     "height": 48,
                     "x": 0,

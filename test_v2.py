@@ -213,6 +213,12 @@ class Test():
             print("Error opening video stream or file")
 
         sift = cv2.xfeatures2d.SIFT_create()
+        result_csv = open('logV2.csv', 'w')
+        metrics = ['Step', 'X', 'Y',
+                   'Scale', 'Dist', 'Nb Success',
+                   'Green']
+        writer = csv.DictWriter(result_csv, fieldnames=metrics)
+        writer.writeheader()
 
         # Read until video is completed
         while cap.isOpened():
@@ -338,6 +344,7 @@ class Test():
                         if (number_of_green_around >= 6) and\
                             math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=image.shape[1]*(1/20)) and\
                             math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=image.shape[0]*(1/20)):
+                            print("Sift")
                             self.mode = 2
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
@@ -376,9 +383,17 @@ class Test():
                 if best_match.success:
                     print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}".\
                         format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches))
+                    writer.writerow({'Step' : prev_mode,
+                                     'X' : best_match.anchor.x,
+                                     'Y' : best_match.anchor.y,
+                                     'Scale' : self.scale,
+                                     'Dist' : best_match.max_distance,
+                                     'Nb Success' : len(matches),
+                                     'Green' : green_matches})
                 else:
                     print("Step = {}, Failure".\
                         format(prev_mode))
+                    writer.writerow({'Step' : prev_mode})
                 # print("Scale: {}".format(self.scale)) # Debug
                 # print("FPS: {}".format(fps.fps())) # Debug
                 # Display the resulting frame
@@ -394,6 +409,7 @@ class Test():
 
         # When everything done, release the video capture object
         cap.release()
+        result_csv.close()
 
         # Closes all the frames
         cv2.destroyAllWindows()
