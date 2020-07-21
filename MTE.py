@@ -212,10 +212,11 @@ class MTE:
             data = json.loads(msg)
 
             if "error" in data and data["error"]:
+                print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 to_send = {
                     "status" : -1
                 }
-                self.image_hub.send_reply(json.dumps(to_send).encode())
+                # self.image_hub.send_reply(json.dumps(to_send).encode())
                 continue
 
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
