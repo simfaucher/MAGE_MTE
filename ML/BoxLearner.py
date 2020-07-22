@@ -196,7 +196,7 @@ class BoxLearner():
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
         cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(0) # Debug
+        cv2.waitKey(1) # Debug
         # cv2.destroyAllWindows()
         # End debug
 
@@ -453,7 +453,7 @@ class BoxLearner():
         # End debug
 
         cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(0) # Debug
+        cv2.waitKey(1) # Debug
 
         if output_matches:
             return best_match, matches, green_matches

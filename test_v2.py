@@ -6,6 +6,7 @@ import operator
 import glob
 import math
 import json
+import time
 from datetime import datetime
 import csv
 from copy import deepcopy
@@ -220,12 +221,15 @@ class Test():
         writer = csv.DictWriter(result_csv, fieldnames=metrics)
         writer.writeheader()
 
+        t00 = time.time()
+        ite = 0
         # Read until video is completed
         while cap.isOpened():
             # Capture frame-by-frame
             success, image_full = cap.read()
 
             if success:
+                t0 = time.time()
                 fps = FPS().start() # Debug
 
                 image = cv2.resize(image_full, (176, 97))
@@ -399,6 +403,18 @@ class Test():
                     print("Step = {}, Failure".\
                         format(prev_mode))
                     writer.writerow({'Step' : prev_mode})
+                
+                ite += 1
+                t1 = time.time()
+                my_shift = t1-t0
+                to_skip = math.floor(my_shift*30)
+                if fps.fps() < 30 and to_skip > 0:
+                    for cpt in range(to_skip):
+                        cap.grab()
+                # t_position = cap.get(cv2.CAP_PROP_POS_FRAMES)
+                # n_position = t_position + math.ceil(my_shift*30)
+                # cap.set(cv2.CAP_PROP_POS_FRAMES, n_position)
+                # print("[{}] je suis à {} je passe a {} par ajout de {} à {} fps".format(my_shift, t_position, n_position, my_shift*30, fps.fps()))
                 # print("Scale: {}".format(self.scale)) # Debug
                 # print("FPS: {}".format(fps.fps())) # Debug
                 # Display the resulting frame
@@ -411,7 +427,9 @@ class Test():
             # Break the loop
             else: 
                 break
-
+        
+        print("Durée = {}".format(time.time() - t00))
+        print("Ité = {}".format(ite))
         # When everything done, release the video capture object
         cap.release()
         result_csv.close()
