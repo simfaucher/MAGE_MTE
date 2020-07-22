@@ -278,6 +278,7 @@ class MTE:
                         self.set_mte_parameters(self.format_resolution)
                         self.reference.initialiaze_control_assist(data_restored["id_ref"], data_restored["mte_parameters"])
                         log_writer = self.create_log()
+                        data = data_restored
                 if self.reference.id_ref is None:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
