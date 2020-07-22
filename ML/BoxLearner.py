@@ -117,6 +117,8 @@ class BoxLearner():
             search_box.anchor.y = 0
 
         green_matches = 0
+        light_green_matches = 0
+        orange_matches = 0
         for i in range(0, search_box.iteration.x):
             for j in range(0, search_box.iteration.y):
                 point_tl = Point2D()
@@ -148,10 +150,13 @@ class BoxLearner():
                 color = (0, 255, 0)
                 if match.power_of_recognition == RecognitionFlag.ORANGE.value:
                     color = (0, 255, 255)
+                    orange_matches += 1
                 elif match.power_of_recognition == RecognitionFlag.RED.value:
                     color = (0, 0, 255)
                 elif match.power_of_recognition == RecognitionFlag.GREEN.value:
                     green_matches += 1
+                elif match.power_of_recognition == RecognitionFlag.LIGHTGREEN.value:
+                    light_green_matches += 1
                 cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
 
                 if match.success:
@@ -196,7 +201,7 @@ class BoxLearner():
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
         cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(1) # Debug
+        cv2.waitKey(0) # Debug
         # cv2.destroyAllWindows()
         # End debug
 
@@ -210,7 +215,7 @@ class BoxLearner():
         best_match.reduced = True
 
         if output_matches:
-            return best_match, matches, green_matches
+            return best_match, matches, green_matches, light_green_matches, orange_matches
 
         return best_match
 
@@ -361,6 +366,8 @@ class BoxLearner():
 
         hit_in = 0
         green_matches = 0
+        light_green_matches = 0
+        orange_matches = 0
         matches = []
         for i in range(-4, 5):
             for j in range(-4, 5):
@@ -392,10 +399,13 @@ class BoxLearner():
                 color = (0, 255, 0)
                 if match.power_of_recognition == RecognitionFlag.ORANGE.value:
                     color = (0, 255, 255)
+                    orange_matches += 1
                 elif match.power_of_recognition == RecognitionFlag.RED.value:
                     color = (0, 0, 255)
                 elif match.power_of_recognition == RecognitionFlag.GREEN.value:
                     green_matches += 1
+                elif match.power_of_recognition == RecognitionFlag.LIGHTGREEN.value:
+                    light_green_matches += 1
                 cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
 
                 if match.success:
@@ -453,10 +463,10 @@ class BoxLearner():
         # End debug
 
         cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(1) # Debug
+        cv2.waitKey(0) # Debug
 
         if output_matches:
-            return best_match, matches, green_matches
+            return best_match, matches, green_matches, light_green_matches, orange_matches
 
         return best_match
 

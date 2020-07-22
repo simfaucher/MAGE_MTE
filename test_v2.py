@@ -36,7 +36,7 @@ LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
 
 REFERENCE_IMAGE_PATH = "videos/capture.png"
-VIDEO_PATH = "videos/erreur.mp4"
+VIDEO_PATH = "videos/clamp.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
@@ -217,16 +217,20 @@ class Test():
         result_csv = open('logV2.csv', 'w')
         metrics = ['Step', 'X', 'Y',
                    'Scale', 'Dist', 'Nb Success',
-                   'Green']
+                   'Green', 'L Green', 'Orange', 'Capture']
         writer = csv.DictWriter(result_csv, fieldnames=metrics)
         writer.writeheader()
 
+        mode_skip = "fixe"
+        to_skip = 1/2
         t00 = time.time()
         ite = 0
         # Read until video is completed
         while cap.isOpened():
             # Capture frame-by-frame
             success, image_full = cap.read()
+            capture = False
+            not_centered = False
 
             if success:
                 t0 = time.time()
@@ -238,7 +242,7 @@ class Test():
                 if self.mode <= 0 or self.nb_frames >= 10:
                     prev_mode = 0
                     # Scan global
-                    best_match, matches, green_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
+                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -277,7 +281,7 @@ class Test():
                 elif self.mode == 1:
                     prev_mode = 1
                     # Scan optimisé (step=3)
-                    best_match, matches, green_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
+                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -300,8 +304,9 @@ class Test():
                         green_count = 0
                         x1 = best_match.anchor.x
                         y1 = best_match.anchor.y
-                        if not math.isclose(x1, image.shape[1]/2, rel_tol=1/10) and\
-                            math.isclose(y1, image.shape[0]/2, rel_tol=1/10):
+                        if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                            not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
+                            not_centered = True
                             self.mode = 0
                         else: 
                             for m in matches:
@@ -321,7 +326,7 @@ class Test():
                 elif self.mode == 2:
                     prev_mode = 2
                     # Scan optimisé (step=1)
-                    best_match, matches, green_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
+                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -341,9 +346,10 @@ class Test():
                         green_count = 0
                         x1 = best_match.anchor.x
                         y1 = best_match.anchor.y
-                        if not math.isclose(x1, image.shape[1]/2, rel_tol=1/10) and\
-                            math.isclose(y1, image.shape[0]/2, rel_tol=1/10):
+                        if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                            not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
                             self.mode = 0
+                            not_centered = True
                         else:
                             for m in matches:
                                 x2 = m.anchor.x
@@ -354,6 +360,7 @@ class Test():
                                     number_of_green_around += 1
                             if number_of_green_around >= 6:
                                 print("Sift")
+                                capture = True
                                 self.mode = 2
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
@@ -390,31 +397,34 @@ class Test():
                 fps.update() # Debug
                 fps.stop() # Debug
                 if best_match.success:
-                    print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}".\
-                        format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches))
+                    print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
+                        format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
                     writer.writerow({'Step' : prev_mode,
                                      'X' : best_match.anchor.x,
                                      'Y' : best_match.anchor.y,
                                      'Scale' : self.scale,
                                      'Dist' : best_match.max_distance,
                                      'Nb Success' : len(matches),
-                                     'Green' : green_matches})
+                                     'Green' : green_matches,
+                                     'L Green' : light_green_matches,
+                                     'Orange' : orange_matches,
+                                     'Capture' : capture})
                 else:
                     print("Step = {}, Failure".\
                         format(prev_mode))
                     writer.writerow({'Step' : prev_mode})
-                
+
                 ite += 1
                 t1 = time.time()
-                my_shift = t1-t0
-                to_skip = math.floor(my_shift*30)
-                if fps.fps() < 30 and to_skip > 0:
-                    for cpt in range(to_skip):
+                if mode_skip == "fixe":
+                    for cpt in range(int((1/to_skip)-1)):
                         cap.grab()
-                # t_position = cap.get(cv2.CAP_PROP_POS_FRAMES)
-                # n_position = t_position + math.ceil(my_shift*30)
-                # cap.set(cv2.CAP_PROP_POS_FRAMES, n_position)
-                # print("[{}] je suis à {} je passe a {} par ajout de {} à {} fps".format(my_shift, t_position, n_position, my_shift*30, fps.fps()))
+                else:
+                    my_shift = t1-t0
+                    to_skip = math.floor(my_shift*30)
+                    if fps.fps() < 30 and to_skip > 0:
+                        for cpt in range(to_skip):
+                            cap.grab()
                 # print("Scale: {}".format(self.scale)) # Debug
                 # print("FPS: {}".format(fps.fps())) # Debug
                 # Display the resulting frame
