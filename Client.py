@@ -89,8 +89,7 @@ class Client:
         self.mode = MTEMode.NEUTRAL
         self.pov_id = 8
         self.learning_data = LearningData()
-        if os.path.isfile('temporaryData.txt'):
-            self.learning_data.id_ref = -1
+
         time.sleep(2.0)  # allow camera sensor to warm up
 
     def run(self):

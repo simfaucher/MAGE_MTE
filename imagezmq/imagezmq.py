@@ -365,7 +365,9 @@ class SerializingSocket(zmq.Socket):
             dtype=str(A.dtype),
             shape=A.shape,
         )
+        print(md)
         self.send_json(md, flags | zmq.SNDMORE)
+        # print(A)
         return self.send(A, flags, copy=copy, track=track)
 
     def send_jpg(self,
@@ -409,6 +411,7 @@ class SerializingSocket(zmq.Socket):
         """
 
         md = self.recv_json(flags=flags)
+        # print("md = {}".format(md[:300]))
         msg = self.recv(flags=flags, copy=copy, track=track)
         A = np.frombuffer(msg, dtype=md['dtype'])
         return (md['msg'], A.reshape(md['shape']))
