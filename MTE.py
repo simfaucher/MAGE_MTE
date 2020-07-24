@@ -8,6 +8,7 @@ import math
 import argparse
 import csv
 import json
+import time
 from datetime import datetime
 import cv2
 import numpy as np
@@ -216,10 +217,12 @@ class MTE:
                 continue
 
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
+                t0 = time.time()
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
                 resolution_valid = self.set_mte_parameters(image.shape[1]/image.shape[0])
+                t1 = time.time()
                 if resolution_valid:
                     status = self.learning(image)
                     to_send = {
@@ -234,7 +237,8 @@ class MTE:
                     }
                 self.reference.clean_control_assist(self.reference.id_ref)
                 data["id_ref"] = None
-
+                t2 = time.time()
+                print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
                 if data["mte_parameters"]["ratio"] is None:
                     to_send = {

@@ -18,3 +18,7 @@ Docker* // Docker scripts and docker-compose files (in this example in 'Docker' 
 test*
 packages*
 videos*
+framing*
+images
+video*
+temp*
