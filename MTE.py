@@ -732,7 +732,7 @@ class MTE:
         """
 
         size = int(image_ref.shape[1]/18)
-        blurred = self.is_image_blurred(image_ref, \
+        blurred = self.is_image_blurred(self.sift_engine.crop_image(image_ref, 1/3), \
                         size=size, thresh=10)
         if blurred[1]:
             print("The image is blurred")
