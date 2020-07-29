@@ -111,11 +111,6 @@ class Client:
 
             image = imutils.resize(full_image, width=size)
 
-            if CAPTURE_DEMO and out is None:
-                demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
-                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
-                                      10, (640*2, image.shape[0]))
-
             # print("Sending frame")
             if self.mode == MTEMode.VALIDATION_REFERENCE:
                 if MODE_CAMERA:
@@ -273,6 +268,12 @@ class Client:
 
                 cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+            if CAPTURE_DEMO and out is None:
+                demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
+                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
+                                      30, (640*2, image.shape[0]))
+
 
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
