@@ -8,6 +8,7 @@
     Copyright (c) 2019 Altran Technologies
 """
 
+import os
 import math
 import time
 import json
@@ -33,7 +34,14 @@ from ML.Domain.LearnerMatch import LearnerMatch
 
 from ML.LinesDetector import LinesDetector
 
+CAPTURE_DEMO = True
+
 class BoxLearner():
+    demo_path = os.path.join(".", 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+    out = cv2.VideoWriter(demo_path, \
+            cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, \
+            (176, 97))
+
     def __init__(self, sights: list, uncertainty: float = 0):
         self.sight = None
         self.sights = sights
@@ -104,6 +112,7 @@ class BoxLearner():
         debug_image = self.input_image.copy() # Debug
 
         matches = []
+        all_matches = []
 
         search_box = self.sight.search_box
 
@@ -159,6 +168,7 @@ class BoxLearner():
                     light_green_matches += 1
                 cv2.circle(debug_image, (int((point_br.x + point_tl.x) / 2), int((point_br.y + point_tl.y) / 2)), 2, color, 1) # Debug
 
+                all_matches.append(match)
                 if match.success:
                     matches.append(match)
 
@@ -204,6 +214,8 @@ class BoxLearner():
         cv2.waitKey(0) # Debug
         # cv2.destroyAllWindows()
         # End debug
+        if CAPTURE_DEMO:
+            self.out.write(debug_image)
 
         # Optimised scan to find pixel sensitive best position
         if best_match.success and scan_opti:
@@ -215,7 +227,7 @@ class BoxLearner():
         best_match.reduced = True
 
         if output_matches:
-            return best_match, matches, green_matches, light_green_matches, orange_matches
+            return best_match, matches, all_matches, green_matches, light_green_matches, orange_matches
 
         return best_match
 
@@ -464,6 +476,8 @@ class BoxLearner():
 
         cv2.imshow("Debug", debug_image) # Debug
         cv2.waitKey(0) # Debug
+        if CAPTURE_DEMO:
+            self.out.write(debug_image)
 
         if output_matches:
             return best_match, matches, green_matches, light_green_matches, orange_matches

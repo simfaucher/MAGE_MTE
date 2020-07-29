@@ -34,13 +34,19 @@ from imutils.video import FPS
 
 LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
+CAPTURE_DEMO = True
 
-REFERENCE_IMAGE_PATH = "videos/capture.png"
-VIDEO_PATH = "videos/clamp.mp4"
+REFERENCE_IMAGE_PATH = "videos/capture2.png"
+VIDEO_PATH = "videos/demo2.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
 FLANN_THRESH = 0.7
+HOMOGRAPHY_MIN_SCALE = 0.75
+HOMOGRAPHY_MAX_SCALE = 1.25
+HOMOGRAPHY_MAX_SKEW = 0.13
+HOMOGRAPHY_MIN_TRANS = -25
+HOMOGRAPHY_MAX_TRANS = 50
 
 class Test():
     def __init__(self):
@@ -52,6 +58,7 @@ class Test():
         self.mode = 0
         self.scale = 100
         self.nb_frames = 0
+        self.my_settings = self.load_ml_settings(LEARNING_SETTINGS_85)
 
     def load_data(self, json_data):
         try:
@@ -205,6 +212,29 @@ class Test():
                 roi.images.append(image)
         
         # cv2.waitKey(0) # Debug
+    def mean_best(self, matches, best_match):
+        min_means = 9999999
+        ite_x = self.my_settings.sights[0].search_box.iteration.x
+        ite_y = self.my_settings.sights[0].search_box.iteration.y
+        for i in range(1, ite_x-1):
+            for j in range(1, ite_y-1):
+                if matches[i*ite_y + j].success:
+                    temp = (matches[(i-1)*ite_y + j-1].max_distance +\
+                            matches[(i-1)*ite_y + j].max_distance +\
+                            matches[(i-1)*ite_y + j+1].max_distance +\
+                            matches[(i)*ite_y + j-1].max_distance +\
+                            matches[(i)*ite_y + j].max_distance +\
+                            matches[(i)*ite_y + j+1].max_distance +\
+                            matches[(i+1)*ite_y + j-1].max_distance +\
+                            matches[(i+1)*ite_y + j].max_distance +\
+                            matches[(i+1)*ite_y + j+1].max_distance) / 9
+                    if temp < min_means:
+                        min_means = temp
+                        best_match = matches[(i)*ite_y + j]
+        # for m in matches:
+        #     print(m.anchor.x)
+            # if m.anchor.x == 1
+        return best_match
 
     def main(self):
         cap = cv2.VideoCapture(VIDEO_PATH)
@@ -222,6 +252,7 @@ class Test():
         writer.writeheader()
 
         mode_skip = "fixe"
+        # mode_skip = "stonk"
         to_skip = 1/2
         t00 = time.time()
         ite = 0
@@ -229,9 +260,8 @@ class Test():
         while cap.isOpened():
             # Capture frame-by-frame
             success, image_full = cap.read()
-            capture = False
             not_centered = False
-
+            capture = False
             if success:
                 t0 = time.time()
                 fps = FPS().start() # Debug
@@ -241,9 +271,10 @@ class Test():
                 # Boîte verte
                 if self.mode <= 0 or self.nb_frames >= 10:
                     prev_mode = 0
+                    validation_count = 0
                     # Scan global
-                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
-
+                    best_match, matches, all_matches, green_matches, light_green_matches, orange_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
+                    best_match = self.mean_best(all_matches, best_match)
                     if best_match.success:
                         # Calcul du scale
                         pt_tl = Point2D()
@@ -276,6 +307,8 @@ class Test():
                             math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=1/10) and\
                             math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=1/10):
                             self.mode = 1
+                        else:
+                            self.mode = 0
 
                 # Boîte orange
                 elif self.mode == 1:
@@ -359,34 +392,68 @@ class Test():
                                 if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
                                     number_of_green_around += 1
                             if number_of_green_around >= 6:
-                                print("Sift")
-                                capture = True
-                                self.mode = 2
+                                self.mode = 3
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                         self.mode = 1
 
                 elif self.mode == 3:
                     prev_mode = 3
-                    self.mode = 0
-                    if self.scale == 100:
-                        _, des_ref = sift.detectAndCompute(cv2.imread(REFERENCE_IMAGE_PATH), None)
-                        _, des_cap = sift.detectAndCompute(image_full, None)
-                        flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
-                        matches_knn = flann.knnMatch(des_cap, des_ref, k=2)
-                        # Need to draw only good matches, so create a mask
-                        good_matches = []
-                        # ratio test as per Lowe's paper
-                        for i, pair in enumerate(matches_knn):
-                            try:
-                                m, n = pair
-                                if m.distance < FLANN_THRESH*n.distance:
-                                    good_matches.append(m)
-                            except ValueError:
-                                pass
-                        if len(good_matches) > 40:
-                            print('\x1b[6;30;42m' + 'Déctection réussie' + '\x1b[0m')
-                            cv2.waitKey(0)
+                    self.mode = 2
+                    validation_count += 1
+                    capture = (validation_count >= 3)
+                    # if self.scale in (90, 95, 100, 105, 110):
+                    #     kp_ref, des_ref = sift.detectAndCompute(self.reference_image, None)
+                    #     kp_stream, des_cap = sift.detectAndCompute(image, None)
+                    #     flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
+                    #     matches_knn = flann.knnMatch(des_cap, des_ref, k=2)
+                    #     # Need to draw only good matches, so create a mask
+                    #     good_matches = []
+                    #     # ratio test as per Lowe's paper
+                    #     for i, pair in enumerate(matches_knn):
+                    #         try:
+                    #             m, n = pair
+                    #             if m.distance < FLANN_THRESH*n.distance:
+                    #                 good_matches.append(m)
+                    #         except ValueError:
+                    #             pass
+
+                    #     success = len(good_matches) > 11
+                    #     print("Nb match = {}".format(len(good_matches)))
+                    #     print("Nb kp  = {}".format(len(kp_stream)))
+
+                    #     dst_pts = []
+                    #     src_pts = []
+                    #     if success:
+                    #         dst_pts = np.float32([kp_stream[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                    #         src_pts = np.float32([kp_ref[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                    #         homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+                    #         height, width = image.shape[:2]
+                    #         pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
+                    #         dst = cv2.perspectiveTransform(pts, homography_matrix)
+                    #         scale_x = float(homography_matrix[0][0])
+                    #         scale_y = float(homography_matrix[1][1])
+                    #         skew_x = float(homography_matrix[0][1])
+                    #         skew_y = float(homography_matrix[1][0])
+                    #         t_x = float(homography_matrix[0][2])
+                    #         t_y = float(homography_matrix[1][2])
+
+                    #         homography_matrix, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+                    #         warped_image = cv2.warpPerspective(image, homography_matrix, (width, height))
+                    #         display = np.hstack((self.reference_image, warped_image))
+
+                    #         scale_ok = HOMOGRAPHY_MIN_SCALE <= scale_x <= HOMOGRAPHY_MAX_SCALE \
+                    #             and HOMOGRAPHY_MIN_SCALE <= scale_y <= HOMOGRAPHY_MAX_SCALE
+                    #         skew_ok = 0 <= abs(skew_x) <= HOMOGRAPHY_MAX_SKEW \
+                    #             and 0 <= abs(skew_y) <= HOMOGRAPHY_MAX_SKEW
+                    #         homography_success = scale_ok and skew_ok
+                    #         color = (0, 0, 255)
+                    #         if homography_success:
+                    #             print("Capture faite et valide")
+                    #             color = (0, 255, 0)
+                    #         cv2.imshow("Comparison", cv2.copyMakeBorder(display, 2, 2, 2, 2, cv2.BORDER_CONSTANT, None, color))
+                    #         cv2.waitKey(1)
+
                 self.last_match = best_match
                 
                 if self.nb_frames >= 10:
@@ -399,12 +466,13 @@ class Test():
                 if best_match.success:
                     print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
                         format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
+                    lenght = len(matches)
                     writer.writerow({'Step' : prev_mode,
                                      'X' : best_match.anchor.x,
                                      'Y' : best_match.anchor.y,
                                      'Scale' : self.scale,
-                                     'Dist' : best_match.max_distance,
-                                     'Nb Success' : len(matches),
+                                     'Dist' : int(best_match.max_distance),
+                                     'Nb Success' : lenght,
                                      'Green' : green_matches,
                                      'L Green' : light_green_matches,
                                      'Orange' : orange_matches,

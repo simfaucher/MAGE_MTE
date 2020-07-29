@@ -152,6 +152,7 @@ allFrame/
 *.png
 *.ods
 *.PNG
+benchV2/
 
 # Temp
 !videos/VID_20200302_144507.mp4

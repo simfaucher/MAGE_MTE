@@ -29,8 +29,8 @@
                 {
                     "name": "Sketch",
                     "filter": "color",
-                    "feature_type": "raw_pixels_64",
-                    "tolerance": 600000,
+                    "feature_type": "composite_profile_64",
+                    "tolerance": 4000,
                     "width": 64,
                     "height": 64,
                     "x": 0,
