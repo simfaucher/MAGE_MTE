@@ -344,8 +344,8 @@ class MTE:
                 }
                 print("{} is an unknown mode.".format(data["mode"]))
 
-            # self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
-            #     data["id_ref"])
+            self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
+                data["id_ref"])
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):

@@ -111,6 +111,11 @@ class Client:
 
             image = imutils.resize(full_image, width=size)
 
+            if CAPTURE_DEMO and out is None:
+                demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
+                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
+                                      10, (640*2, image.shape[0]))
+
             # print("Sending frame")
             if self.mode == MTEMode.VALIDATION_REFERENCE:
                 if MODE_CAMERA:
