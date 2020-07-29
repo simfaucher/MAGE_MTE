@@ -21,7 +21,7 @@ from Domain.LearningData import LearningData
 from Domain.MTEMode import MTEMode
 
 
-CAPTURE_DEMO = False
+CAPTURE_DEMO = True
 DEMO_FOLDER = "demo/"
 
 MODE_CAMERA = False
@@ -53,7 +53,7 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-VIDEO_PATH = "videos/demo.mp4"
+VIDEO_PATH = "videos/clamp.mp4"
 LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
@@ -272,9 +272,9 @@ class Client:
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
                 out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
-                                      30, (640*2, image.shape[0]))
-
-
+                                      30, (to_draw.shape[1], to_draw.shape[0]))
+            if CAPTURE_DEMO:
+                out.write(to_draw)
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
 
