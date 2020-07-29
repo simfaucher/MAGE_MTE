@@ -37,7 +37,7 @@ LEARNING_SETTINGS_64 = "learning_settings_64.json"
 CAPTURE_DEMO = True
 
 REFERENCE_IMAGE_PATH = "videos/capture.png"
-VIDEO_PATH = "videos/clamp.mp4"
+VIDEO_PATH = "videos/demo3.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
@@ -251,6 +251,11 @@ class Test():
         writer = csv.DictWriter(result_csv, fieldnames=metrics)
         writer.writeheader()
 
+        demo_path = os.path.join(".", 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+        out = cv2.VideoWriter(demo_path, \
+                cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, \
+                (176, 97))
+
         mode_skip = "fixe"
         # mode_skip = "stonk"
         to_skip = 1/2
@@ -274,7 +279,7 @@ class Test():
                     prev_mode = 0
                     validation_count = 0
                     # Scan global
-                    best_match, matches, all_matches, green_matches, light_green_matches, orange_matches = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
+                    best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
                     best_match = self.mean_best(all_matches, best_match)
                     if best_match.success:
                         # Calcul du scale
@@ -316,7 +321,7 @@ class Test():
                 elif self.mode == 1:
                     prev_mode = 1
                     # Scan optimisé (step=3)
-                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
+                    best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -361,7 +366,7 @@ class Test():
                 elif self.mode == 2:
                     prev_mode = 2
                     # Scan optimisé (step=1)
-                    best_match, matches, green_matches, light_green_matches, orange_matches = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
+                    best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
                     if best_match.success:
                         # Calcul du scale
@@ -404,58 +409,26 @@ class Test():
                     self.mode = 2
                     validation_count += 1
                     capture = (validation_count >= 3)
-                    # if self.scale in (90, 95, 100, 105, 110):
-                    #     kp_ref, des_ref = sift.detectAndCompute(self.reference_image, None)
-                    #     kp_stream, des_cap = sift.detectAndCompute(image, None)
-                    #     flann = cv2.FlannBasedMatcher(INDEX_PARAMS, SEARCH_PARAMS)
-                    #     matches_knn = flann.knnMatch(des_cap, des_ref, k=2)
-                    #     # Need to draw only good matches, so create a mask
-                    #     good_matches = []
-                    #     # ratio test as per Lowe's paper
-                    #     for i, pair in enumerate(matches_knn):
-                    #         try:
-                    #             m, n = pair
-                    #             if m.distance < FLANN_THRESH*n.distance:
-                    #                 good_matches.append(m)
-                    #         except ValueError:
-                    #             pass
-
-                    #     success = len(good_matches) > 11
-                    #     print("Nb match = {}".format(len(good_matches)))
-                    #     print("Nb kp  = {}".format(len(kp_stream)))
-
-                    #     dst_pts = []
-                    #     src_pts = []
-                    #     if success:
-                    #         dst_pts = np.float32([kp_stream[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-                    #         src_pts = np.float32([kp_ref[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-                    #         homography_matrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-                    #         height, width = image.shape[:2]
-                    #         pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
-                    #         dst = cv2.perspectiveTransform(pts, homography_matrix)
-                    #         scale_x = float(homography_matrix[0][0])
-                    #         scale_y = float(homography_matrix[1][1])
-                    #         skew_x = float(homography_matrix[0][1])
-                    #         skew_y = float(homography_matrix[1][0])
-                    #         t_x = float(homography_matrix[0][2])
-                    #         t_y = float(homography_matrix[1][2])
-
-                    #         homography_matrix, _ = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-                    #         warped_image = cv2.warpPerspective(image, homography_matrix, (width, height))
-                    #         display = np.hstack((self.reference_image, warped_image))
-
-                    #         scale_ok = HOMOGRAPHY_MIN_SCALE <= scale_x <= HOMOGRAPHY_MAX_SCALE \
-                    #             and HOMOGRAPHY_MIN_SCALE <= scale_y <= HOMOGRAPHY_MAX_SCALE
-                    #         skew_ok = 0 <= abs(skew_x) <= HOMOGRAPHY_MAX_SKEW \
-                    #             and 0 <= abs(skew_y) <= HOMOGRAPHY_MAX_SKEW
-                    #         homography_success = scale_ok and skew_ok
-                    #         color = (0, 0, 255)
-                    #         if homography_success:
-                    #             print("Capture faite et valide")
-                    #             color = (0, 255, 0)
-                    #         cv2.imshow("Comparison", cv2.copyMakeBorder(display, 2, 2, 2, 2, cv2.BORDER_CONSTANT, None, color))
-                    #         cv2.waitKey(1)
-
+                if best_match.anchor is not None:
+                    x1 = best_match.anchor.x
+                    y1 = best_match.anchor.y
+                    cv2.circle(to_display, (x1, y1), 2, (0, 255, 0), 2) # Debug
+                    upper_left_conner = (int(x1-image.shape[1]/4), \
+                                                    int(y1-image.shape[0]/4))
+                    lower_right_corner = (int(x1+image.shape[1]/4), \
+                                                    int(y1+image.shape[0]/4))
+                    to_display = cv2.rectangle(to_display, upper_left_conner,\
+                                                        lower_right_corner, (255, 0, 0), thickness=1)
+                    # Scaled display
+                    upper_left_conner = (int(x1-(image.shape[1]/4)*(self.scale/100)), \
+                                                    int(y1-(image.shape[0]/4)*(self.scale/100)))
+                    lower_right_corner = (int(x1+(image.shape[1]/4)*(self.scale/100)), \
+                                                    int(y1+(image.shape[0]/4)*(self.scale/100)))
+                    to_display = cv2.rectangle(to_display, upper_left_conner,\
+                                                        lower_right_corner, (255, 255, 255), thickness=1)
+                cv2.imshow("Debug", cv2.resize(to_display, (800,600))) # Debug
+                out.write(to_display)
+                cv2.waitKey(0) # Debug
                 self.last_match = best_match
                 
                 if self.nb_frames >= 10:

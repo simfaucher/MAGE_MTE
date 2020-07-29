@@ -37,10 +37,10 @@ from ML.LinesDetector import LinesDetector
 CAPTURE_DEMO = True
 
 class BoxLearner():
-    demo_path = os.path.join(".", 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
-    out = cv2.VideoWriter(demo_path, \
-            cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, \
-            (176, 97))
+    # demo_path = os.path.join(".", 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
+    # out = cv2.VideoWriter(demo_path, \
+    #         cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, \
+    #         (176, 97))
 
     def __init__(self, sights: list, uncertainty: float = 0):
         self.sight = None
@@ -176,7 +176,7 @@ class BoxLearner():
         if len(matches) > 0:
             best_match = self.get_best_match(matches)
 
-            cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
+            # cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
             # print("Max distance: {}".format(best_match.max_distance))
         else:
             best_match = LearnerMatch()
@@ -210,12 +210,12 @@ class BoxLearner():
         # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
         # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
-        cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(0) # Debug
+        # cv2.imshow("Debug", debug_image) # Debug
+        # cv2.waitKey(0) # Debug
         # cv2.destroyAllWindows()
         # End debug
-        if CAPTURE_DEMO:
-            self.out.write(debug_image)
+        # if CAPTURE_DEMO:
+        #     self.out.write(debug_image)
 
         # Optimised scan to find pixel sensitive best position
         if best_match.success and scan_opti:
@@ -227,7 +227,7 @@ class BoxLearner():
         best_match.reduced = True
 
         if output_matches:
-            return best_match, matches, all_matches, green_matches, light_green_matches, orange_matches
+            return best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, debug_image
 
         return best_match
 
@@ -436,7 +436,7 @@ class BoxLearner():
                 anchor_point_tl.x = best_match.anchor.x - self.sight.anchor.x
                 anchor_point_tl.y = best_match.anchor.y - self.sight.anchor.y
 
-            cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
+            # cv2.circle(debug_image, (best_match.anchor.x, best_match.anchor.y), 2, (0, 255, 0), 2) # Debug
             # print("Max distance: {}".format(best_match.max_distance))
         else:
             best_match = LearnerMatch()
@@ -474,13 +474,13 @@ class BoxLearner():
         #     cv2.destroyAllWindows()
         # End debug
 
-        cv2.imshow("Debug", debug_image) # Debug
-        cv2.waitKey(0) # Debug
-        if CAPTURE_DEMO:
-            self.out.write(debug_image)
+        # cv2.imshow("Debug", debug_image) # Debug
+        # cv2.waitKey(0) # Debug
+        # if CAPTURE_DEMO:
+        #     self.out.write(debug_image)
 
         if output_matches:
-            return best_match, matches, green_matches, light_green_matches, orange_matches
+            return best_match, matches, green_matches, light_green_matches, orange_matches, debug_image
 
         return best_match
 
