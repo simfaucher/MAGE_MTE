@@ -36,8 +36,8 @@ LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
 CAPTURE_DEMO = True
 
-REFERENCE_IMAGE_PATH = "videos/capture2.png"
-VIDEO_PATH = "videos/demo2.mp4"
+REFERENCE_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/clamp.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)
@@ -245,7 +245,7 @@ class Test():
 
         sift = cv2.xfeatures2d.SIFT_create()
         result_csv = open('logV2.csv', 'w')
-        metrics = ['Step', 'X', 'Y',
+        metrics = ['Frame Id', 'Step', 'X', 'Y',
                    'Scale', 'Dist', 'Nb Success',
                    'Green', 'L Green', 'Orange', 'Capture']
         writer = csv.DictWriter(result_csv, fieldnames=metrics)
@@ -254,6 +254,7 @@ class Test():
         mode_skip = "fixe"
         # mode_skip = "stonk"
         to_skip = 1/2
+        frame_id = 0
         t00 = time.time()
         ite = 0
         # Read until video is completed
@@ -301,11 +302,12 @@ class Test():
                             y2 = m.anchor.y
                             if m.success:
                                 green_count += 1
-                            if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                            if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 15) and m.success:
                                 number_of_green_around += 1
+                        ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
                         if (number_of_green_around >= 3) and\
-                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=1/10) and\
-                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=1/10):
+                            math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
+                            math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
                             self.mode = 1
                         else:
                             self.mode = 0
@@ -464,10 +466,11 @@ class Test():
                 fps.update() # Debug
                 fps.stop() # Debug
                 if best_match.success:
-                    print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
-                        format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
+                    print("Frame ID = {}, Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
+                        format(frame_id, prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
                     lenght = len(matches)
-                    writer.writerow({'Step' : prev_mode,
+                    writer.writerow({'Frame Id' : frame_id,
+                                     'Step' : prev_mode,
                                      'X' : best_match.anchor.x,
                                      'Y' : best_match.anchor.y,
                                      'Scale' : self.scale,
@@ -483,6 +486,7 @@ class Test():
                     writer.writerow({'Step' : prev_mode})
 
                 ite += 1
+                frame_id += 1
                 t1 = time.time()
                 if mode_skip == "fixe":
                     for cpt in range(int((1/to_skip)-1)):
