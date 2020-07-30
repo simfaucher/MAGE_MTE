@@ -215,7 +215,7 @@ class MTE:
             if "error" in data and data["error"]:
                 print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 continue
-
+            
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
                 t0 = time.time()
                 self.rollback = 0
@@ -240,6 +240,12 @@ class MTE:
                 t2 = time.time()
                 print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
+                with open('temporaryData.txt', 'w') as json_file:
+                        to_save_parameters = self.reference.change_parameters_type_for_sending()
+                        to_save = {
+                            "mte_parameters" : to_save_parameters
+                        }
+                        json.dump(to_save, json_file)
                 if data["mte_parameters"]["ratio"] is None:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
