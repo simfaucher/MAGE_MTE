@@ -279,6 +279,7 @@ class MTE:
                         self.reference.initialiaze_control_assist(data_restored["id_ref"], data_restored["mte_parameters"])
                         log_writer = self.create_log()
                         data = data_restored
+                        data["mode"] = MTEMode.MOTION_TRACKING
                 if self.reference.id_ref is None:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
