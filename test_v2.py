@@ -17,6 +17,8 @@ import cv2
 import math
 from pykson import Pykson
 
+from Domain.MTEResponse import MTEResponse
+
 from ML.Domain.LearningKnowledge import LearningKnowledge
 from ML.Domain.Image import Image
 from ML.Domain.ImageClass import ImageClass
@@ -260,16 +262,19 @@ class Test():
         # mode_skip = "stonk"
         to_skip = 1/2
         frame_id = 0
-        t00 = time.time()
+        begin_total_time = time.time()
         ite = 0
+        begin_timeout = time.time()
+        timeout_limit_sec = 7
         # Read until video is completed
         while cap.isOpened():
             # Capture frame-by-frame
             success, image_full = cap.read()
             not_centered = False
             capture = False
+            response_type = MTEResponse.ORANGE
             if success:
-                t0 = time.time()
+                begin_frame_computing = time.time()
                 fps = FPS().start() # Debug
 
                 image = cv2.resize(image_full, (176, 97))
@@ -281,6 +286,8 @@ class Test():
                     # Scan global
                     best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
                     best_match = self.mean_best(all_matches, best_match)
+                    if len(matches) == 0:
+                        response_type = MTEResponse.TARGET_LOST
                     if best_match.success:
                         # Calcul du scale
                         pt_tl = Point2D()
@@ -315,11 +322,16 @@ class Test():
                             math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
                             self.mode = 1
                         else:
+                            if (time.time() - begin_timeout) > timeout_limit_sec:
+                                response_type = MTEResponse.TARGET_LOST
+                            elif (time.time() - begin_timeout) > (timeout_limit_sec / 2):
+                                response_type = MTEResponse.RED
                             self.mode = 0
 
                 # Boîte orange
                 elif self.mode == 1:
                     prev_mode = 1
+                    response_type = MTEResponse.GREEN
                     # Scan optimisé (step=3)
                     best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
@@ -347,6 +359,8 @@ class Test():
                         if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
                             not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
                             not_centered = True
+                            response_type = MTEResponse.ORANGE
+                            begin_timeout = time.time()
                             self.mode = 0
                         else: 
                             for m in matches:
@@ -360,11 +374,14 @@ class Test():
                                 self.mode = 2
                     else:
                         #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
+                        response_type = MTEResponse.ORANGE
+                        begin_timeout = time.time()
                         self.mode = 0
 
                 # Boîte rose
                 elif self.mode == 2:
                     prev_mode = 2
+                    response_type = MTEResponse.GREEN
                     # Scan optimisé (step=1)
                     best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
@@ -388,8 +405,10 @@ class Test():
                         y1 = best_match.anchor.y
                         if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
                             not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
-                            self.mode = 0
+                            begin_timeout = time.time()
+                            response_type = MTEResponse.ORANGE
                             not_centered = True
+                            self.mode = 0
                         else:
                             for m in matches:
                                 x2 = m.anchor.x
@@ -409,6 +428,10 @@ class Test():
                     self.mode = 2
                     validation_count += 1
                     capture = (validation_count >= 3)
+                    if capture:
+                        response_type = MTEResponse.CAPTURE
+
+
                 if best_match.anchor is not None:
                     x1 = best_match.anchor.x
                     y1 = best_match.anchor.y
@@ -426,7 +449,7 @@ class Test():
                                                     int(y1+(image.shape[0]/4)*(self.scale/100)))
                     to_display = cv2.rectangle(to_display, upper_left_conner,\
                                                         lower_right_corner, (255, 255, 255), thickness=1)
-                cv2.imshow("Debug", cv2.resize(to_display, (800,600))) # Debug
+                cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
                 out.write(to_display)
                 cv2.waitKey(0) # Debug
                 self.last_match = best_match
@@ -460,12 +483,12 @@ class Test():
 
                 ite += 1
                 frame_id += 1
-                t1 = time.time()
+                end_frame_computing = time.time()
                 if mode_skip == "fixe":
                     for cpt in range(int((1/to_skip)-1)):
                         cap.grab()
                 else:
-                    my_shift = t1-t0
+                    my_shift = end_frame_computing-begin_frame_computing
                     to_skip = math.floor(my_shift*30)
                     if fps.fps() < 30 and to_skip > 0:
                         for cpt in range(to_skip):
@@ -483,7 +506,7 @@ class Test():
             else: 
                 break
         
-        print("Durée = {}".format(time.time() - t00))
+        print("Durée = {}".format(time.time() - begin_total_time))
         print("Ité = {}".format(ite))
         # When everything done, release the video capture object
         cap.release()
