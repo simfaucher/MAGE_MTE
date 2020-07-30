@@ -50,7 +50,7 @@ class MTE:
          resize_width=640, ransacount=300):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
-        self.image_hub.zmq_socket.RCVTIMEO = 3000
+        self.image_hub.zmq_socket.RCVTIMEO = 3600000
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         self.repo = Repository()
