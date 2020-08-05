@@ -91,3 +91,30 @@ Note: If you want to deactivate the environment to go back to your regular shell
 ```shell
 conda deactivate
 ```
+
+## Usage of Docker
+
+### Installing
+
+To use the MTE in its Docker environment, first install Docker following the instructions on its [website](https://www.docker.com/get-started/ "Docker website").
+
+Be sure to be at the root of the project and build the image :
+
+```shell
+docker build .
+```
+
+The output should print the image ID at the end of the build, something like ```Successfully built <imageID>```.
+
+### Running
+
+You can run the Motion tracking server by entering the following command and replacing ```imageID``` by the actual image ID you had at the installation:
+
+```shell
+docker run -p 5555:5555 <imageID>
+```
+
+If you lost the image ID, you can find it running:
+```shell
+docker image list
+```
