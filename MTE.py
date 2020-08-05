@@ -213,7 +213,7 @@ class MTE:
             data = json.loads(msg)
 
             if "error" in data and data["error"]:
-                print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
+                # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 continue
 
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
@@ -238,7 +238,7 @@ class MTE:
                 self.reference.clean_control_assist(self.reference.id_ref)
                 data["id_ref"] = None
                 t2 = time.time()
-                print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
+                # print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
                 if data["mte_parameters"]["ratio"] is None:
                     to_send = {
