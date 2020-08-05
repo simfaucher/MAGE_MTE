@@ -19,6 +19,7 @@ from Domain.ErrorInitialize import ErrorInitialize
 from Domain.UserInformation import UserInformation
 from Domain.LearningData import LearningData
 from Domain.MTEMode import MTEMode
+from Domain.MTEResponse import MTEResponse
 
 
 CAPTURE_DEMO = True
@@ -181,24 +182,24 @@ class Client:
                     else:
                         size = response["requested_image_size"][0]
                         to_draw = full_image
-                        if response["flag"] == "ORANGE":
+                        if MTEResponse(response["flag"]) == MTEResponse.ORANGE:
                             color_box = (0, 165, 255)
-                        elif response["flag"] == "GREEN":
+                        elif MTEResponse(response["flag"]) == MTEResponse.GREEN:
                             color_box = (0, 255, 0)
-                        elif response["flag"] == "RED":
+                        elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             color_box = (0, 0, 255)
-                        elif response["flag"] == "TARGET_LOST":
+                        elif MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
                             color_box = (50, 50, 50)
                         else:
                             color_box = (255, 255, 255)
 
                         cv2.putText(to_draw, "Size: {}".format(prev_size), (20, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                        cv2.putText(to_draw, response["flag"], \
+                        cv2.putText(to_draw, MTEResponse(response["flag"]).name, \
                             (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_box, 2)
 
-                        if response["flag"] != "RED" and \
-                            response["flag"] != "TARGET_LOST":
+                        if MTEResponse(response["flag"]) != MTEResponse.RED and \
+                            MTEResponse(response["flag"]) != MTEResponse.TARGET_LOST:
                             cv2.putText(to_draw, "Trans. x: {:.2f}".format(response\
                                 ["target_data"]["translations"][0]),\
                                 (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -215,12 +216,12 @@ class Client:
                         if not prev_size == size:
                             print("Change of size {} -> {}".format(prev_size, size))
 
-                        if response["flag"] == "TARGET_LOST":
+                        if MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
                             print("Flag TARGET_LOST")
-                        elif response["flag"] == "RED":
+                        elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
                         else:
-                            print("Flag {} : {}".format(response["flag"], \
+                            print("Flag {} : {}".format(MTEResponse(response["flag"]).name, \
                                 ErrorRecognition(response["status"]).name))
                             # Display target on image
                             cv2.putText(to_draw, "Direction: {}".format(UserInformation(response\

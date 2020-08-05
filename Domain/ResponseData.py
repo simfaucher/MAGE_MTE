@@ -40,7 +40,7 @@ class ResponseData:
 
         return {
             "requested_image_size" : self.requested_image_size,
-            "flag" : self.flag.name,
+            "flag" : self.flag.value,
             "target_data" : {
                 "translations" : self.target_data["translations"],
                 "scales" : self.target_data["scales"]
