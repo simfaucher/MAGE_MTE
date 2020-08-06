@@ -38,8 +38,8 @@ LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
 CAPTURE_DEMO = True
 
-REFERENCE_IMAGE_PATH = "videos/capture.png"
-VIDEO_PATH = "videos/demo3.mp4"
+REFERENCE_IMAGE_PATH = "videos/short_magnetron_ref.png"
+VIDEO_PATH = "videos/short_magnetron.mp4"
 FLANN_INDEX_KDTREE = 0
 INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
 SEARCH_PARAMS = dict(checks=50)

@@ -165,8 +165,12 @@ class MTE:
 
         self.validation_width = self.width_small
         self.validation_height = int(self.validation_width*(1/self.format_resolution))
-        self.sift_engine.set_parameters(self.width_small, self.width_medium,\
-                                        self.width_large, self.format_resolution)
+        if self.mte_algo in (MTEAlgo.SIFT_KNN, MTEAlgo.SIFT_RANSAC):
+            self.sift_engine.set_parameters(self.width_small, self.width_medium,\
+                                            self.width_large, self.format_resolution)
+        elif self.mte_algo == MTEAlgo.VC_LIKE:
+            self.vc_like_engine.set_parameters(self.format_resolution)
+
         return True
 
     def listen_images(self):
@@ -196,6 +200,7 @@ class MTE:
                         "status": status.value,
                         "mte_parameters": {}
                     }
+                    # self.reference.mte_parameters["ratio"] = self.format_resolution
                     if status == ErrorLearning.SUCCESS:
                         to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
@@ -637,6 +642,8 @@ class MTE:
 
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine.learn(self.reference, crop_image=True, crop_margin=self.crop_margin)
+        elif self.mte_algo == MTEAlgo.VC_LIKE:
+            self.vc_like_engine.learn(image_ref, self.reference)
         else:
             self.sift_engine.learn(image_ref, self.reference, \
                 crop_image=True, crop_margin=self.crop_margin)
@@ -758,7 +765,7 @@ class MTE:
             nb_kp = 300
             nb_matches = 150
             success, scales, skews, translation, transformed = self.vc_like_engine.\
-                find_target(image, learning_data)
+                find_target(image, self.reference)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
@@ -846,7 +853,7 @@ if __name__ == "__main__":
             return whole - frac if whole < 0 else whole + frac
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
+    ap.add_argument("-a", "--algo", required=False, default="VC_LIKE",\
         help="Feature detection algorithm (SIFT_KNN or SIFT_RANSAC). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")

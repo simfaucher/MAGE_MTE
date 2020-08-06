@@ -39,15 +39,23 @@ class VCLikeEngine:
             self.learning_settings2.recognition_selector.uncertainty)
 
         self.last_position_found = None
+        self.ratio = None
 
-    def learn(self, learning_data):
-        if learning_data.vc_like_data is None:
-            dataset = self.generate_dataset(learning_data.resized_image)
+    def learn(self, image, learning_data):
+        if learning_data.mte_parameters["vc_like_data"] is None:
+            dataset = self.generate_dataset(image)
             learning_settings = self.learn_ml_data(dataset)
             # learning_settings2 = self.learn_ml_data2(dataset)
             learning_settings2 = {}
 
-            learning_data.vc_like_data = VCLikeData(learning_settings, learning_settings2)
+            vc_like_data = VCLikeData()
+            vc_like_data.learning_settings = learning_settings
+            vc_like_data.learning_settings2 = learning_settings2
+
+            learning_data.fill_vc_like_learning_data(self.ratio, vc_like_data)
+    
+    def set_parameters(self, ratio):
+        self.ratio = ratio
 
     def generate_dataset(self, image):
         h, w = image.shape[:2]
@@ -235,7 +243,7 @@ class VCLikeEngine:
         h, w = image.shape[:2]
 
         # Scale
-        learning_settings = learning_data.vc_like_data.learning_settings
+        learning_settings = learning_data.mte_parameters["vc_like_data"].learning_settings
         # success1, matches1 = self.ml_validation(learning_settings, self.box_learner, image)
 
         self.box_learner.get_knn_contexts(learning_settings.sights[0])

@@ -9,6 +9,7 @@ import numpy as np
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
 from Domain.ErrorInitialize import ErrorInitialize
+from Domain.VCLikeData import VCLikeData
 
 class LearningData:
     """Data class and function."""
@@ -29,7 +30,8 @@ class LearningData:
                 "keypoints" : None,
                 "descriptors" : None
             },
-            "ml_validation" : None
+            "ml_validation" : None,
+            "vc_like_data": None
         }
 
     def initialiaze_control_assist(self, id_ref, parameters):
@@ -52,7 +54,8 @@ class LearningData:
                 "keypoints" : cv2.KeyPoint_convert(parameters["size_large"]["keypoints"]),
                 "descriptors" : np.array(parameters["size_large"]["descriptors"], dtype=np.float32)
             },
-            "ml_validation" : Pykson().from_json(parameters["ml_validation"], LearningKnowledge)
+            "ml_validation" : Pykson().from_json(parameters["ml_validation"], LearningKnowledge),
+            "vc_like_data": Pykson().from_json(parameters["vc_like_data"], VCLikeData)
         }
         return ErrorInitialize.SUCCESS.value
 
@@ -88,8 +91,18 @@ class LearningData:
                 "keypoints" : kp_large,
                 "descriptors" : desc_large
             },
-            "ml_validation" : None
+            "ml_validation" : None,
+            "vc_like_data": None
         }
+
+    def fill_vc_like_learning_data(self, ratio, vc_like_data):
+        """ Fill the class with informations that will be use
+        to make comparison.
+        """
+
+        self.id_ref = -1
+        self.mte_parameters["ratio"] = ratio
+        self.mte_parameters["vc_like_data"] = vc_like_data
 
     def change_parameters_type_for_sending(self):
         """ Return a dictionnary containing the data after learning.
@@ -98,25 +111,50 @@ class LearningData:
         if self.mte_parameters is None:
             return None
         else:
-            return {
+            to_send = {
                 "ratio" : self.mte_parameters["ratio"],
-                "size_small" : {
+                "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
+            }
+
+            if self.mte_parameters["size_small"]["keypoints"] is not None :
+                to_send["size_small"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"])\
                         .tolist(),
                     "descriptors" : self.mte_parameters["size_small"]["descriptors"].tolist()
-                },
-                "size_medium" : {
+                }
+            else:
+                to_send["size_small"] = {
+                    "keypoints" : [],
+                    "descriptors" : []
+                }
+
+            if self.mte_parameters["size_medium"]["keypoints"] is not None :
+                to_send["size_medium"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"])\
                         .tolist(),
                     "descriptors" : self.mte_parameters["size_medium"]["descriptors"].tolist()
-                },
-                "size_large" : {
+                }
+            else:
+                to_send["size_medium"] = {
+                    "keypoints" : [],
+                    "descriptors" : []
+                }
+
+            if self.mte_parameters["size_large"]["keypoints"] is not None :
+                to_send["size_large"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"])\
                         .tolist(),
                     "descriptors" : self.mte_parameters["size_large"]["descriptors"].tolist()
-                },
-                "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
-            }
+                }
+            else:
+                to_send["size_large"] = {
+                    "keypoints" : [],
+                    "descriptors" : []
+                }
+            
+            to_send["vc_like_data"] = json.loads(Pykson().to_json(self.mte_parameters["vc_like_data"]))
+
+            return to_send
 
     def to_dict(self):
         """ Return all informations as a dictionnary.
