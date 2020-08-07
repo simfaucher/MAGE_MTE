@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+import math
 import numpy as np
 import cv2
 import imutils
@@ -22,11 +23,13 @@ from Domain.MTEMode import MTEMode
 from Domain.MTEResponse import MTEResponse
 
 
-CAPTURE_DEMO = True
+CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
 MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
+
+FAST = False
 
 # T1.1
 # VIDEO_PATH = "videos/T1.1/VID_20200302_144048.mp4"
@@ -144,6 +147,7 @@ class Client:
             to_draw = full_image.copy()
             if self.mode != MTEMode.NEUTRAL:
                 fps = FPS().start()
+                begin_frame_computing = time.time()
                 try:
                     with Patience(3):
                         reply = json.loads(self.sender.send_image(data, image).decode())
@@ -151,6 +155,7 @@ class Client:
                     print("Timeout")
                 fps.update()
                 fps.stop()
+                end_frame_computing = time.time()
 
                 # Response
                 if self.mode == MTEMode.VALIDATION_REFERENCE:
@@ -282,6 +287,13 @@ class Client:
                 out.write(to_draw)
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
+
+            if FAST and self.mode == MTEMode.MOTION_TRACKING:
+                my_shift = end_frame_computing-begin_frame_computing
+                to_skip = math.floor(my_shift*30)
+                if fps.fps() < 30 and to_skip > 0:
+                    for cpt in range(to_skip):
+                        self.cap.grab()
 
             if self.mode == MTEMode.VALIDATION_REFERENCE or self.mode == MTEMode.INITIALIZE_MTE\
                 or self.mode == MTEMode.CLEAR_MTE:
