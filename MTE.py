@@ -275,7 +275,6 @@ class MTE:
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if (self.reference.id_ref is None) and (os.path.isfile('temporaryData.txt')):
-                    print("isse")
                     with open('temporaryData.txt') as json_file:
                         data_restored = json.load(json_file)
                         self.format_resolution = data_restored["mte_parameters"]["ratio"]
