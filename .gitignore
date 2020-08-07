@@ -152,6 +152,8 @@ allFrame/
 *.png
 *.ods
 *.PNG
+*.jpg
+*.JPG
 benchV2/
 
 # Temp

@@ -38,8 +38,6 @@ from D2NetEngine import D2NetEngine
 #     [0., 951.09864051, 359.47108905],  \
 #         [0., 0., 1.]])
 
-MIN_VALIDATION_COUNT = 5
-
 class MTE:
     """
     This class initializes a server that will listen to client
@@ -47,7 +45,7 @@ class MTE:
     """
 
     def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6,\
-         resize_width=640, ransacount=300):
+         resize_width=640, ransacount=300, force_capture = False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3600000
@@ -95,6 +93,11 @@ class MTE:
         self.debug = None
         self.server_csv = None
         self.result_csv = None
+        self.force_capture = force_capture
+        if force_capture:
+            self.min_validation_count = 3
+        else:
+            self.min_validation_count = 5
 
     def init_server_csv(self):
         """ This function create a log for the global activity of the server."""
@@ -312,15 +315,19 @@ class MTE:
 
                     # If we can capture
                     is_blurred = False
-                    if self.validation > MIN_VALIDATION_COUNT:
-                        self.validation = MIN_VALIDATION_COUNT
-                    if self.validation == MIN_VALIDATION_COUNT:
+                    if self.validation > self.min_validation_count:
+                        self.validation = self.min_validation_count
+                    if self.validation == self.min_validation_count:
                         is_blurred = self.is_image_blurred(image, \
                             size=int(response.requested_image_size[0]/18), thresh=10)
                         # if the image is not blurred else we just return green
-                        if not is_blurred[1] and \
-                               response.user_information == UserInformation.CENTERED:
-                            response.flag = MTEResponse.CAPTURE
+                        if self.force_capture:
+                            if response.user_information == UserInformation.CENTERED:
+                                response.flag = MTEResponse.CAPTURE
+                        else:
+                            if not is_blurred[1] and \
+                                response.user_information == UserInformation.CENTERED:
+                                response.flag = MTEResponse.CAPTURE
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
 
@@ -913,11 +920,11 @@ if __name__ == "__main__":
         help="Width of the input image (640 or 320). Default: 380")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
-    # ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
-    #     const=True, default=False,\
-    #     help="Activate the verification mode if set to True. Default: False")
+    ap.add_argument("-f", "--force", required=False, type=str2bool, nargs='?',\
+        const=True, default=False,\
+        help="Loosen up the condition for capture. Default: False")
     args = vars(ap.parse_args())
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
-         resize_width=args["width"], ransacount=args["ransacount"])
+         resize_width=args["width"], ransacount=args["ransacount"], force_capture=args["force"])
     mte.listen_images()

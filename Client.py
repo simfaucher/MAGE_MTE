@@ -54,7 +54,7 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-VIDEO_PATH = "videos/clamp.mp4"
+VIDEO_PATH = "videos/demo.mp4"
 LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
@@ -149,7 +149,6 @@ class Client:
                         reply = json.loads(self.sender.send_image(data, image).decode())
                 except:
                     print("Timeout")
-                reply = json.loads(self.sender.send_image(data, image).decode())
                 fps.update()
                 fps.stop()
 
@@ -270,7 +269,7 @@ class Client:
                         print("Clear successfull.")
                     else:
                         print("Clear failed.")
-                        print("Server have ref {}".format("id_ref"))
+                        print("Server have ref {}".format(response["id_ref"]))
 
                 cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
