@@ -253,6 +253,9 @@ class MTE:
                     }
                     # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
                 else:
+                    self.rollback = 0
+                    self.validation = 0
+                    self.resolution_change_allowed = 3
                     self.format_resolution = data["mte_parameters"]["ratio"]
                     self.set_mte_parameters(self.format_resolution)
                     init_status = self.reference.initialiaze_control_assist\
@@ -345,6 +348,9 @@ class MTE:
                 }
                 if self.result_csv is not None:
                     self.result_csv = self.result_csv.close()
+                self.rollback = 0
+                self.validation = 0
+                self.resolution_change_allowed = 3
             else:
                 # Impossible
                 to_send = {
