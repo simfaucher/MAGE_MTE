@@ -11,5 +11,4 @@ ENV PATH="/opt/gtk/bin:$PATH"
 COPY . .
 
 CMD [ "python", "-u", "./MTE.py" ]
-# CMD ["python", "-m cProfile", "./MTE.py" ]
 # CMD ["python", "./debug.py" ]

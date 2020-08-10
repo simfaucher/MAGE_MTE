@@ -90,10 +90,7 @@ class SIFTEngine:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            if image.shape[1] == self.width_small:
-                height, width = self.crop_image(image_init, 1/6).shape[:2]
-            else:
-                height, width = self.crop_image(image_init, 1/6).shape[:2]
+            height, width = self.crop_image(image_init, 1/6).shape[:2]
 
             pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, homography_matrix)

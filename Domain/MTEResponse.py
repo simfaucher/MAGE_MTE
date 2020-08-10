@@ -1,9 +1,9 @@
 from enum import Enum
 
 class MTEResponse(Enum):
-    TARGET_LOST = 1
-    RED = 2
+    CAPTURE = 1
+    GREEN = 2
     ORANGE = 3
-    GREEN = 4
-    CAPTURE = 5
+    RED = 4
+    TARGET_LOST = 5
     
