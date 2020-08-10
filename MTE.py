@@ -310,7 +310,7 @@ class MTE:
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
                         image = cv2.resize(image, target,\
                                  interpolation=cv2.INTER_AREA)
-                        print(image.shape)
+                        # print(image.shape)
                     results = RecognitionData(*self.recognition(image))
                     if image.shape[1] == self.width_small:
                         response = self.behaviour_width_small(results)

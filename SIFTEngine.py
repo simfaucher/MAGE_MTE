@@ -115,6 +115,8 @@ class SIFTEngine:
 
             # homography_success = scale_ok and skew_ok and translation_ok
             homography_success = scale_ok and skew_ok
+            print("homography_success = {} w/ scale  {} & skew = {}".format(homography_success, scale_ok, skew_ok))
+            print("scale = {} , skew = {}".format((scale_x, scale_y), (skew_x, skew_y)))
 
             if homography_success:
                 print("SIFT valid")
