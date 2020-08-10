@@ -235,6 +235,7 @@ class MTE:
                     if status == ErrorLearning.SUCCESS:
                         to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
+                    print("Invalid format.")
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
                     }
@@ -247,10 +248,12 @@ class MTE:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
+                    print("Error inside parameters for init.")
                 elif (not self.reference.is_empty()) and self.reference.id_ref != data["id_ref"]:
                     to_send = {
                         "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
                     }
+                    print("Engine already init with a different ref.")
                     # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
                 else:
                     self.rollback = 0
@@ -275,9 +278,11 @@ class MTE:
                     to_send = {
                         "status" : init_status
                     }
+                    print("Engine init success.")
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if (self.reference.id_ref is None) and (os.path.isfile('temporaryData.txt')):
+                    print("Restoring data from temporaryData.")
                     with open('temporaryData.txt') as json_file:
                         data_restored = json.load(json_file)
                         self.format_resolution = data_restored["mte_parameters"]["ratio"]
@@ -287,6 +292,7 @@ class MTE:
                         data = data_restored
                         data["mode"] = MTEMode.MOTION_TRACKING
                 if self.reference.id_ref is None:
+                    print("Engine is not initialized.")
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
                     }
@@ -338,10 +344,12 @@ class MTE:
                 status = self.reference.clean_control_assist(data["id_ref"])
                 if status != 0:
                     id_ref = self.reference.id_ref
+                    print("Clean failed wrong ref.")
                 else:
                     id_ref = -1
                     if os.path.isfile('temporaryData.txt'):
                         os.remove('temporaryData.txt')
+                    print("Clean success.")
                 to_send = {
                     "status" : status,
                     "id_ref" : id_ref
