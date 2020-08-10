@@ -218,6 +218,10 @@ class MTE:
                     self.set_mte_parameters(self.format_resolution)
                     init_status = self.reference.initialiaze_control_assist\
                         (data["id_ref"], data["mte_parameters"])
+                    
+                    if self.mte_algo == MTEAlgo.VC_LIKE:
+                        self.vc_like_engine.init_engine(self.reference)
+
                     if init_status == 0:
                         log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
                         if not os.path.exists(log_location):
@@ -644,6 +648,7 @@ class MTE:
             self.d2net_engine.learn(self.reference, crop_image=True, crop_margin=self.crop_margin)
         elif self.mte_algo == MTEAlgo.VC_LIKE:
             self.vc_like_engine.learn(image_ref, self.reference)
+            self.vc_like_engine.init_engine(self.reference)
         else:
             self.sift_engine.learn(image_ref, self.reference, \
                 crop_image=True, crop_margin=self.crop_margin)
@@ -681,9 +686,12 @@ class MTE:
             print("The image is blurred")
             return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
 
-        kernel_size = 10
+        # kernel_size = 10
+        # sigma = 3
+        # kernel = 15
+        kernel_size = 2
         sigma = 3
-        kernel = 15
+        kernel = 1
 
         kernel_v = np.zeros((kernel_size, kernel_size))
         kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
@@ -770,17 +778,14 @@ class MTE:
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.d2net_engine.recognition(image, self.reference, self.mte_algo)
-            scale_x, scale_y = scales
-            skew_x, skew_y = skews
-            scale = max(scale_x, scale_y)
-            skew = max(skew_x, skew_y)
         else:
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.sift_engine.recognition(image, self.reference, self.mte_algo)
-            scale_x, scale_y = scales
-            skew_x, skew_y = skews
-            scale = max(scale_x, scale_y)
-            skew = max(skew_x, skew_y)
+
+        scale_x, scale_y = scales
+        skew_x, skew_y = skews
+        scale = max(scale_x, scale_y)
+        skew = max(skew_x, skew_y)
 
         # ML validation
         ml_success = False

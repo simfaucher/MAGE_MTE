@@ -57,6 +57,7 @@ class LearningData:
             "ml_validation" : Pykson().from_json(parameters["ml_validation"], LearningKnowledge),
             "vc_like_data": Pykson().from_json(parameters["vc_like_data"], VCLikeData)
         }
+
         return ErrorInitialize.SUCCESS.value
 
     def clean_control_assist(self, id_ref):

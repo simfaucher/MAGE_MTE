@@ -1,5 +1,7 @@
 import sys
+import time
 import glob
+import math
 import itertools
 from copy import deepcopy
 import json
@@ -17,77 +19,73 @@ from ML.Domain.ROIFeature import ROIFeature
 from ML.Domain.ImageFilterType import ImageFilterType
 from ML.Domain.Point2D import Point2D
 from ML.Domain.ImageClass import ImageClass
+from ML.Domain.IndexedLearningKnowledge import IndexedLearningKnowledge
 
 from ML.LinesDetector import LinesDetector
 from ML.BoxLearner import BoxLearner
 
 from Domain.LearningData import LearningData
 from Domain.VCLikeData import VCLikeData
+from Domain.MTEResponse import MTEResponse
 
-CONFIG_VALIDATION_SIGHTS_FILENAME = "learning_settings_validation.json"
-CONFIG_VALIDATION_SIGHTS_2_FILENAME = "learning_settings_validation2.json"
-ROTATION_IMAGES_FOLDER = "images/rotation/*"
+LEARNING_SETTINGS_85 = "learning_settings_85.json"
+LEARNING_SETTINGS_64 = "learning_settings_64.json"
+CAPTURE_DEMO = True
+
+REFERENCE_IMAGE_PATH = "videos/short_magnetron_ref.png"
+VIDEO_PATH = "videos/short_magnetron.mp4"
+FLANN_INDEX_KDTREE = 0
+INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+SEARCH_PARAMS = dict(checks=50)
+FLANN_THRESH = 0.7
+HOMOGRAPHY_MIN_SCALE = 0.75
+HOMOGRAPHY_MAX_SCALE = 1.25
+HOMOGRAPHY_MAX_SKEW = 0.13
+HOMOGRAPHY_MIN_TRANS = -25
+HOMOGRAPHY_MAX_TRANS = 50
+TIMEOUT_LIMIT_SEC = 7
 
 class VCLikeEngine:
     def __init__(self):
-        self.learning_settings = self.load_ml_settings(CONFIG_VALIDATION_SIGHTS_FILENAME)
-        self.box_learner = BoxLearner(self.learning_settings.sights, \
-            self.learning_settings.recognition_selector.uncertainty)
+        self.reference_image = None
 
-        self.learning_settings2 = self.load_ml_settings(CONFIG_VALIDATION_SIGHTS_2_FILENAME)
-        self.box_learner2 = BoxLearner(self.learning_settings2.sights, \
-            self.learning_settings2.recognition_selector.uncertainty)
+        self.last_match = None
+        self.mode = 0
+        self.scale = 100
+        self.nb_frames = 0
+        self.my_settings = self.load_ml_settings(LEARNING_SETTINGS_85)
 
-        self.last_position_found = None
         self.ratio = None
 
-    def learn(self, image, learning_data):
-        if learning_data.mte_parameters["vc_like_data"] is None:
-            dataset = self.generate_dataset(image)
-            learning_settings = self.learn_ml_data(dataset)
-            # learning_settings2 = self.learn_ml_data2(dataset)
-            learning_settings2 = {}
+        # Box learners
+        self.box_learners_85_singlescale = {}
+        self.box_learners_64_singlescale = {}
+        self.box_learner_85_multiscale = None
+        self.box_learner_64_multiscale = None
+        
+        # self.to_skip = 1/2
 
-            vc_like_data = VCLikeData()
-            vc_like_data.learning_settings = learning_settings
-            vc_like_data.learning_settings2 = learning_settings2
+    # def learn(self, image, learning_data):
+    #     if learning_data.mte_parameters["vc_like_data"] is None:
+    #         dataset = self.generate_dataset(image)
+    #         learning_settings = self.learn_ml_data(dataset)
+    #         # learning_settings2 = self.learn_ml_data2(dataset)
+    #         learning_settings2 = {}
 
-            learning_data.fill_vc_like_learning_data(self.ratio, vc_like_data)
+    #         vc_like_data = VCLikeData()
+    #         vc_like_data.learning_settings = learning_settings
+    #         vc_like_data.learning_settings2 = learning_settings2
+
+    #         learning_data.fill_vc_like_learning_data(self.ratio, vc_like_data)
     
     def set_parameters(self, ratio):
         self.ratio = ratio
 
-    def generate_dataset(self, image):
-        h, w = image.shape[:2]
-
-        dataset = []
-        # Scale levels
-        # s1 = [0.5, 0.75, 0.85]
-        # s2 = np.arange(0.9, 1.1, 0.01)
-        # s3 = [1.15, 1.25, 1.5]
-        # scales = itertools.chain(s1, s2, s3)
-        scales = np.arange(0.9, 1.1, 0.05)
-        for scale in scales:
-            scale = round(scale, 2)
-
-            # Rotation levels
-            # a1 = range(-40, -11, 10)
-            # a2 = range(-10, 11, 1)
-            # a3 = range(20, 41, 10)
-            # angles = itertools.chain(a1, a2, a3)
-            angles = [0, ]
-            for angle in angles:
-                # scaled = self.scale_image(image, scale)
-                M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
-                transformed = cv2.warpAffine(image, M, (w, h))
-
-                dataset.append(({"scale": scale, "angle": angle}, transformed))
-
-                # ht, wt = transformed.shape[:2]
-                # cv2.imshow("Scale:{}, rotation:{}, width{}:, height:{}".format(scale, angle, ht, wt), transformed)
-                # cv2.waitKey(0)
-
-        return dataset
+    def load_data(self, json_data):
+        try:
+            return Pykson.from_json(json_data, LearningKnowledge, accept_unknown=True)
+        except TypeError as error:
+            sys.exit("Type error in {} with the attribute \"{}\". Expected {} but had {}.".format(error.args[0], error.args[1], error.args[2], error.args[3]))
 
     def load_ml_settings(self, filename):
         try:
@@ -101,43 +99,127 @@ class VCLikeEngine:
             return Pykson.from_json(json_data, LearningKnowledge, accept_unknown=True)
         except TypeError as error:
             sys.exit("Type error in {} with the attribute \"{}\". Expected {} but had {}.".format(error.args[0], error.args[1], error.args[2], error.args[3]))
+    
+    def generate_dataset(self, image):
+        h, w = image.shape[:2]
 
-    def learn_ml_data(self, dataset):
-        learning_settings = deepcopy(self.learning_settings)
+        dataset = []
+        # Scale levels
+        scales = [0.8, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2]
+        for scale in scales:
+            scale = round(scale, 2)
 
-        # for sight in learning_settings.sights:
-        #     for j, roi in enumerate(sight.roi):
-        #         roi.images = []
+            # Rotation levels
+            angles = [0, ]
+            for angle in angles:
+                M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
+                transformed = cv2.warpAffine(image, M, (w, h))
 
-        for i, data in enumerate(dataset):
-            attr, image = data[:]
-            class_id = int(attr["scale"]*100)
-            class_name = "scale: {}".format(attr["scale"])
+                dataset.append(({"scale": scale, "angle": angle}, transformed))
 
-            self.learn_image(learning_settings, class_id, class_name, image)
+                # ht, wt = transformed.shape[:2] # Debug
+                # cv2.imshow("Scale:{}, rotation:{}, width{}:, height:{}".format(scale, angle, ht, wt), transformed) # Debug
+                # cv2.waitKey(0) # Debug
 
-        return learning_settings
+        return dataset
+        
+    def learn(self, image, learning_data):
+        if learning_data.mte_parameters["vc_like_data"] is None:
+            vc_like_data = VCLikeData()
+            dataset = self.generate_dataset(image)
 
-    def learn_ml_data2(self, dataset, scale=100):
-        learning_settings2 = deepcopy(self.learning_settings2)
+            learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
+            learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
 
-        # for sight in self.learning_settings2.sights:
-        #     for j, roi in enumerate(sight.roi):
-        #         roi.images = []
+            # 85x48 learnings
+            # learning_settings_85_singlescale = {}
+            # self.box_learners_85_singlescale = {}
+            vc_like_data.learning_settings_85_multiscale = deepcopy(learning_settings_85)
 
-        for i, data in enumerate(dataset):
-            attr, image = data[:]
+            # 64x64 learnings
+            # learning_settings_64_singlescale = {}
+            # self.box_learners_64_singlescale = {}
+            vc_like_data.learning_settings_64_multiscale = deepcopy(learning_settings_64)
 
-            current_scale = int(attr["scale"]*100)
+            for i, data in enumerate(dataset):
+                attr, image = data[:]
 
-            if current_scale == scale:
-                class_id = int(attr["angle"]) + 100
-                class_name = "angle: {}".format(attr["angle"])
+                scale = int(attr["scale"]*100)
 
-                self.learn_image(learning_settings2, class_id, class_name, image)
+                class_id = scale
+                class_name = "scale: {}".format(scale)
 
-        return learning_settings2
+                # Create every 85x48 single-scale box learners
+                learning_settings_singlescale_85 = deepcopy(learning_settings_85)
+                self.learn_image(learning_settings_singlescale_85, class_id, class_name, image)
 
+                learning_settings_singlescale_85_indexed = IndexedLearningKnowledge()
+                learning_settings_singlescale_85_indexed.scale = scale
+                learning_settings_singlescale_85_indexed.learning_knowledge = learning_settings_singlescale_85
+                vc_like_data.learning_settings_85_singlescale.append(learning_settings_singlescale_85_indexed)
+
+                # box_learner_singlescale_85 = BoxLearner(learning_settings_singlescale_85.sights, 0)
+                # box_learner_singlescale_85.get_knn_contexts(learning_settings_singlescale_85.sights[0])
+
+                # self.box_learners_85_singlescale[scale] = box_learner_singlescale_85
+
+                # Add learning to the 85x48 multi-scale learning
+                self.learn_image(vc_like_data.learning_settings_85_multiscale, class_id, class_name, image)
+
+                # Create every 64x64 single-scale box learners
+                learning_settings_singlescale_64 = deepcopy(learning_settings_64)
+                self.learn_image(learning_settings_singlescale_64, class_id, class_name, image)
+                
+                learning_settings_singlescale_64_indexed = IndexedLearningKnowledge()
+                learning_settings_singlescale_64_indexed.scale = scale
+                learning_settings_singlescale_64_indexed.learning_knowledge = learning_settings_singlescale_64
+                vc_like_data.learning_settings_64_singlescale.append(learning_settings_singlescale_64_indexed)
+                
+                # box_learner_singlescale_64 = BoxLearner(learning_settings_singlescale_64.sights, 0)
+                # box_learner_singlescale_64.get_knn_contexts(learning_settings_singlescale_64.sights[0])
+
+                # self.box_learners_64_singlescale[scale] = box_learner_singlescale_64
+
+                # # Add learning to the 64x64 multi-scale learning
+                self.learn_image(vc_like_data.learning_settings_64_multiscale, class_id, class_name, image)
+            
+            # Create 85x48 multi-scale box learner
+            # self.box_learner_85_multiscale = BoxLearner(learning_settings_85_multiscale.sights, 0)
+            # self.box_learner_85_multiscale.get_knn_contexts(learning_settings_85_multiscale.sights[0])
+
+            # Create 64x64 multi-scale box learner
+            # self.box_learner_64_multiscale = BoxLearner(learning_settings_64_multiscale.sights, 0)
+            # self.box_learner_64_multiscale.get_knn_contexts(learning_settings_64_multiscale.sights[0])
+        
+            learning_data.fill_vc_like_learning_data(self.ratio, vc_like_data)
+    
+    def init_engine(self, learning_data):
+        # Create every 85x48 single-scale box learners
+        learning_settings_85_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_85_singlescale
+
+        for ls_indexed in learning_settings_85_singlescale_indexed:
+            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0)
+            box_learner_singlescale.get_knn_contexts(ls_indexed.learning_knowledge.sights[0])
+
+            self.box_learners_85_singlescale[ls_indexed.scale] = box_learner_singlescale
+
+        # Create every 64x64 single-scale box learners
+        learning_settings_64_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_64_singlescale
+
+        for ls_indexed in learning_settings_64_singlescale_indexed:
+            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0)
+            box_learner_singlescale.get_knn_contexts(ls_indexed.learning_knowledge.sights[0])
+
+            self.box_learners_64_singlescale[ls_indexed.scale] = box_learner_singlescale
+
+        # Create 85x48 multi-scale box learner
+        self.box_learner_85_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights, 0)
+        self.box_learner_85_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights[0])
+
+        # Create 64x64 multi-scale box learner
+        self.box_learner_64_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights, 0)
+        self.box_learner_64_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights[0])
+        
     def learn_image(self, learning_settings, class_id, class_name, img):
         # Learn ML data
 
@@ -157,7 +239,7 @@ class VCLikeEngine:
             pt_br.y = pt_tl.y + sight.height
 
             sight_image = img[pt_tl.y: pt_br.y, pt_tl.x: pt_br.x]
-            # cv2.imshow("Sight", sight_image)
+            # cv2.imshow("Sight", sight_image) # Debug
 
             for j, roi in enumerate(sight.roi):
                 image = Image()
@@ -170,7 +252,7 @@ class VCLikeEngine:
 
                 detector = LinesDetector(sight_image, image_filter)
                 mask = detector.detect()
-                # cv2.imshow("Sight mask", mask)
+                # cv2.imshow("Sight mask", mask) # Debug
 
                 x = int(roi.x)
                 y = int(roi.y)
@@ -178,7 +260,7 @@ class VCLikeEngine:
                 height = int(roi.height)
 
                 roi_mask = mask[y:y+height, x:x+width]
-                # cv2.imshow("ROI"+str(j), roi_mask)
+                # cv2.imshow("ROI"+str(j), roi_mask) # Debug
 
                 # Feature extraction
                 feature_vector = roi.feature_type
@@ -191,132 +273,276 @@ class VCLikeEngine:
                 image.features.append(feature)
 
                 roi.images.append(image)
+        
+        # cv2.waitKey(0) # Debug
 
-    def ml_validation(self, learning_settings, box_learner, image):
-        success = len(learning_settings.sights) > 0
+    def mean_best(self, matches, best_match):
+        min_means = 9999999
+        ite_x = self.my_settings.sights[0].search_box.iteration.x
+        ite_y = self.my_settings.sights[0].search_box.iteration.y
+        for i in range(1, ite_x-1):
+            for j in range(1, ite_y-1):
+                if matches[i*ite_y + j].success:
+                    temp = (matches[(i-1)*ite_y + j-1].max_distance +\
+                            matches[(i-1)*ite_y + j].max_distance +\
+                            matches[(i-1)*ite_y + j+1].max_distance +\
+                            matches[(i)*ite_y + j-1].max_distance +\
+                            matches[(i)*ite_y + j].max_distance +\
+                            matches[(i)*ite_y + j+1].max_distance +\
+                            matches[(i+1)*ite_y + j-1].max_distance +\
+                            matches[(i+1)*ite_y + j].max_distance +\
+                            matches[(i+1)*ite_y + j+1].max_distance) / 9
+                    if temp < min_means:
+                        min_means = temp
+                        best_match = matches[(i)*ite_y + j]
+        # for m in matches:
+        #     print(m.anchor.x)
+            # if m.anchor.x == 1
+        return best_match
 
-        matches = []
+    def find_target(self, input_image, learning_data):
+        # mode_skip="fixe"
+        not_centered = False
+        capture = False
+        response_type = MTEResponse.ORANGE
+        begin_frame_computing = time.time()
+        fps = FPS().start() # Debug
 
-        for sight in learning_settings.sights:
-            box_learner.get_knn_contexts(sight)
-            # box_learner.input_image = image
+        image = cv2.resize(input_image, (176, 97))
+        begin_timeout = time.time()
 
-            # h, w = image.shape[:2]
+        # Boîte verte
+        if self.mode <= 0 or self.nb_frames >= 10:
+            prev_mode = 0
+            validation_count = 0
+            # Scan global
+            best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
+            best_match = self.mean_best(all_matches, best_match)
+            if len(matches) == 0:
+                response_type = MTEResponse.TARGET_LOST
+            if best_match.success:
+                # Calcul du scale
+                pt_tl = Point2D()
+                pt_tl.x = best_match.anchor.x - self.box_learner_85_multiscale.sight.anchor.x
+                pt_tl.y = best_match.anchor.y - self.box_learner_85_multiscale.sight.anchor.y
 
-            # pt_tl = Point2D()
-            # pt_tl.x = int(w / 2 - sight.width / 2)
-            # pt_tl.y = int(h / 2 - sight.height / 2)
+                pt_br = Point2D()
+                pt_br.x = pt_tl.x + self.box_learner_85_multiscale.sight.width
+                pt_br.y = pt_tl.y + self.box_learner_85_multiscale.sight.height
 
-            # pt_br = Point2D()
-            # pt_br.x = pt_tl.x + sight.width
-            # pt_br.y = pt_tl.y + sight.height
+                self.box_learner_85_multiscale.input_image = image
+                multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
-            # match = box_learner.find_target(pt_tl, pt_br)
-            match = box_learner.scan(image)
+                self.scale = multiscale_match.predicted_class
 
-            success = match.success if not match.success else success
-            matches.append(match)
+                #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
+                #TODO: et cible à peu près au centre de l'image
+                number_of_green_around = 0
+                green_count = 0
+                x1 = best_match.anchor.x
+                y1 = best_match.anchor.y
+                for m in matches:
+                    x2 = m.anchor.x
+                    y2 = m.anchor.y
+                    if m.success:
+                        green_count += 1
+                    if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 15) and m.success:
+                        number_of_green_around += 1
+                ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
+                if (number_of_green_around >= 3) and\
+                    math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
+                    math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
+                    self.mode = 1
+                else:
+                    if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
+                        response_type = MTEResponse.TARGET_LOST
+                    elif (time.time() - begin_timeout) > (TIMEOUT_LIMIT_SEC / 2):
+                        response_type = MTEResponse.RED
+                    self.mode = 0
 
-        return success, matches
+        # Boîte orange
+        elif self.mode == 1:
+            prev_mode = 1
+            response_type = MTEResponse.GREEN
+            # Scan optimisé (step=3)
+            best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
-    # def scale_image(self, image, scale):
-    #     if scale == 1:
-    #         return image
+            if best_match.success:
+                # Calcul du scale
+                pt_tl = Point2D()
+                pt_tl.x = best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x
+                pt_tl.y = best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y
 
-    #     h, w, c = image.shape
+                pt_br = Point2D()
+                pt_br.x = pt_tl.x + self.box_learner_64_multiscale.sight.width
+                pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
 
-    #     resized = cv2.resize(image, None, fx=scale, fy=scale)
-    #     h_r, w_r = resized.shape[:2]
+                self.box_learner_64_multiscale.input_image = image
+                multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
-    #     margin_h = int(abs(h_r - h) / 2)
-    #     margin_w = int(abs(w_r - w) / 2)
-    #     if scale < 1:
-    #         dest = np.zeros((h, w, c), dtype=image.dtype)
-    #         dest[margin_h: margin_h + h_r, margin_w: margin_w + w_r] = resized
-    #     else:
-    #         dest = resized[margin_h: margin_h + h, margin_w: margin_w + w]
+                self.scale = multiscale_match.predicted_class
 
-    #     return dest
+                #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
+                #TODO: et cible à peu près au centre de l'image
+                number_of_green_around = 0
+                green_count = 0
+                x1 = best_match.anchor.x
+                y1 = best_match.anchor.y
+                if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
+                    not_centered = True
+                    response_type = MTEResponse.ORANGE
+                    begin_timeout = time.time()
+                    self.mode = 0
+                else: 
+                    for m in matches:
+                        x2 = m.anchor.x
+                        y2 = m.anchor.y
+                        if m.success:
+                            green_count += 1
+                        if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                            number_of_green_around += 1
+                    if number_of_green_around >= 4:
+                        self.mode = 2
+            else:
+                #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
+                response_type = MTEResponse.ORANGE
+                begin_timeout = time.time()
+                self.mode = 0
 
-    def find_target(self, image, learning_data):
-        #TODO: scan -> erreur sur le box learner 2
-        h, w = image.shape[:2]
+        # Boîte rose
+        elif self.mode == 2:
+            prev_mode = 2
+            response_type = MTEResponse.GREEN
+            # Scan optimisé (step=1)
+            best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
-        # Scale
-        learning_settings = learning_data.mte_parameters["vc_like_data"].learning_settings
-        # success1, matches1 = self.ml_validation(learning_settings, self.box_learner, image)
+            if best_match.success:
+                # Calcul du scale
+                pt_tl = Point2D()
+                pt_tl.x = best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x
+                pt_tl.y = best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y
 
-        self.box_learner.get_knn_contexts(learning_settings.sights[0])
+                pt_br = Point2D()
+                pt_br.x = pt_tl.x + self.box_learner_64_multiscale.sight.width
+                pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
 
-        match1 = None
+                self.box_learner_64_multiscale.input_image = image
+                multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
+                self.scale = multiscale_match.predicted_class
 
-        if self.last_position_found is not None:
-            match1 = self.box_learner.optimised_scan(image, anchor_point=self.last_position_found)
+                number_of_green_around = 0
+                green_count = 0
+                x1 = best_match.anchor.x
+                y1 = best_match.anchor.y
+                if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
+                    begin_timeout = time.time()
+                    response_type = MTEResponse.ORANGE
+                    not_centered = True
+                    self.mode = 0
+                else:
+                    for m in matches:
+                        x2 = m.anchor.x
+                        y2 = m.anchor.y
+                        if m.success:
+                            green_count += 1
+                        if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                            number_of_green_around += 1
+                    if number_of_green_around >= 6:
+                        self.mode = 3
+            else:
+                #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
+                self.mode = 1
 
-        # If never found a position or the optimised scan failed
-        if match1 is None or not match1.success:
-            match1 = self.box_learner.scan(image)
+        elif self.mode == 3:
+            prev_mode = 3
+            self.mode = 2
+            validation_count += 1
+            capture = (validation_count >= 3)
+            if capture:
+                response_type = MTEResponse.CAPTURE
 
-        success1 = match1.success
-        # success2 = False
 
-        scale = 1
-        angle = 0
-        translation = (0, 0)
-
-        if success1:
-            # scale = 1 + float(100 - matches1[0].predicted_class)/100
-            scale = 1 / (match1.predicted_class / 100)
-            print("Scale success, class: {}, distance: {}".format(match1.predicted_class, match1.roi_distances[0]))
-
-            translation = (match1.anchor.x - learning_settings.sights[0].anchor.x, \
-                match1.anchor.y - learning_settings.sights[0].anchor.y)
-
-            self.last_position_found = match1.anchor
-
-            # Data for plotting
-
-            # M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, scale)
-            # scaled = cv2.warpAffine(image, M, (w, h))
-
-            # # scaled = self.scale_image(image, scale)
-
-            # # cv2.imshow("Scaled", scaled)
-
-            # # Rotation
-            # learning_settings2 = learning_data.vc_like_data.learning_settings2
-            # # success2, matches2 = self.ml_validation(learning_settings2, self.box_learner2, scaled)
-            # self.box_learner2.get_knn_contexts(learning_settings2.sights[0])
-            # match2 = self.box_learner2.optimised_scan(image, anchor_point=match1.anchor)
-
-            # if not match2.success:
-            #     match2 = self.box_learner2.scan(image)
-
-            # success2 = match2.success
-
-            # if success2:
-            #     angle = -1 * (match2.predicted_class - 100)
-
-            #     # Save this position for next turn
-            #     self.last_position_found = match2.anchor
-
-            #     # Data for plotting
-
-            #     print("Rotation success, class: {}".format(match2.predicted_class - 100))
-            # else:
-            #     print("Rotation fail")
+        if best_match.anchor is not None:
+            x1 = best_match.anchor.x
+            y1 = best_match.anchor.y
+            cv2.circle(to_display, (x1, y1), 2, (0, 255, 0), 2) # Debug
+            upper_left_conner = (int(x1-image.shape[1]/4), \
+                                            int(y1-image.shape[0]/4))
+            lower_right_corner = (int(x1+image.shape[1]/4), \
+                                            int(y1+image.shape[0]/4))
+            to_display = cv2.rectangle(to_display, upper_left_conner,\
+                                                lower_right_corner, (255, 0, 0), thickness=1)
+            # Scaled display
+            upper_left_conner = (int(x1-(image.shape[1]/4)*(self.scale/100)), \
+                                            int(y1-(image.shape[0]/4)*(self.scale/100)))
+            lower_right_corner = (int(x1+(image.shape[1]/4)*(self.scale/100)), \
+                                            int(y1+(image.shape[0]/4)*(self.scale/100)))
+            to_display = cv2.rectangle(to_display, upper_left_conner,\
+                                                lower_right_corner, (255, 255, 255), thickness=1)
+        cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
+        # out.write(to_display)
+        cv2.waitKey(1) # Debug
+        self.last_match = best_match
+        
+        if self.nb_frames >= 10:
+            self.nb_frames = 0
         else:
-            print("Scale fail")
+            self.nb_frames += 1
 
-        M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), angle, scale)
-        transformed = cv2.warpAffine(image, M, (w, h))
+        fps.update() # Debug
+        fps.stop() # Debug
+        if best_match.success:
+            print("Frame ID = {}, Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
+                format(0, prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
+            lenght = len(matches)
+            # writer.writerow({'Frame Id' : frame_id,
+            #                     'Step' : prev_mode,
+            #                     'X' : best_match.anchor.x,
+            #                     'Y' : best_match.anchor.y,
+            #                     'Scale' : self.scale,
+            #                     'Dist' : int(best_match.max_distance),
+            #                     'Nb Success' : lenght,
+            #                     'Green' : green_matches,
+            #                     'L Green' : light_green_matches,
+            #                     'Orange' : orange_matches,
+            #                     'Capture' : capture})
+        else:
+            print("Step = {}, Failure".\
+                format(prev_mode))
+            # writer.writerow({'Step' : prev_mode})
 
-        # cv2.imshow("Image", image)
-        # cv2.imshow("Transformed", transformed)
-        # cv2.waitKey(100)
+        # ite += 1
+        # frame_id += 1
+        end_frame_computing = time.time()
+        # if mode_skip == "fixe":
+        #     for cpt in range(int((1/self.to_skip)-1)):
+        #         cap.grab()
+        # else:
+        #     my_shift = end_frame_computing-begin_frame_computing
+        #     self.to_skip = math.floor(my_shift*30)
+        #     if fps.fps() < 30 and self.to_skip > 0:
+        #         for cpt in range(self.to_skip):
+        #             cap.grab()
+        # print("Scale: {}".format(self.scale)) # Debug
+        # print("FPS: {}".format(fps.fps())) # Debug
+        # Display the resulting frame
+        # cv2.imshow('Original image', image)
 
-        # return (success1 and success2), (scale, scale), (angle, angle), transformed
-        return success1, (scale, scale), (angle, angle), translation, transformed
+        # Press Q on keyboard to  exit
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
+
+        #TODO: remettre transformed ?
+        # return best_match.success, (self.scale, self.scale), (0, 0), (best_match.anchor.x, best_match.anchor.y), transformed
+
+        if best_match.anchor is not None:
+            translation = (best_match.anchor.x, best_match.anchor.y)
+        else:
+            translation = (0, 0)
+
+        return best_match.success, (self.scale, self.scale), (0, 0), translation, input_image
 
 if __name__ == "__main__":
     image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")
