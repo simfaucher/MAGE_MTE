@@ -558,7 +558,7 @@ class MTE:
                                 self.compute_direction(results.translations,\
                                     results.scales, self.width_small), \
                                 results.scales[0], results.scales[1],\
-                                status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
+                                status=ErrorRecognition.WRONG_POINT_OF_VIEW)
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_small.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_small.mean_canny
@@ -621,7 +621,7 @@ class MTE:
                     self.compute_direction(results.translations,\
                         results.scales, self.width_medium), \
                     results.scales[0], results.scales[1],\
-                    status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
+                    status=ErrorRecognition.WRONG_POINT_OF_VIEW)
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_medium.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_medium.mean_canny
