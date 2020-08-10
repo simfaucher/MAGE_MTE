@@ -114,7 +114,8 @@ class Client:
             if not success:
                 break
 
-            image = imutils.resize(full_image, width=size)
+            # image = imutils.resize(full_image, width=size)
+            image = full_image
 
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')

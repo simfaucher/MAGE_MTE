@@ -278,6 +278,8 @@ class MTE:
                     to_send = {
                         "status" : init_status
                     }
+                    target = (self.width_medium, \
+                            int(self.width_medium*(1/self.format_resolution)))
                     print("Engine init success.")
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
@@ -291,6 +293,8 @@ class MTE:
                         log_writer = self.create_log()
                         data = data_restored
                         data["mode"] = MTEMode.MOTION_TRACKING
+                    target = (self.width_medium, \
+                            int(self.width_medium*(1/self.format_resolution)))
                 if self.reference.id_ref is None:
                     print("Engine is not initialized.")
                     to_send = {
@@ -304,9 +308,9 @@ class MTE:
                 else:
                     self.debug = image
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
-                        image = cv2.resize(image, (self.width_medium, \
-                            int(self.width_medium*(1/self.format_resolution))),\
+                        image = cv2.resize(image, target,\
                                  interpolation=cv2.INTER_AREA)
+                        print(image.shape)
                     results = RecognitionData(*self.recognition(image))
                     if image.shape[1] == self.width_small:
                         response = self.behaviour_width_small(results)
@@ -339,6 +343,8 @@ class MTE:
                                 response.flag = MTEResponse.CAPTURE
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
+
+                    target = (response.requested_image_size[0], response.requested_image_size[1])
 
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
                 status = self.reference.clean_control_assist(data["id_ref"])
