@@ -84,6 +84,7 @@ class MTE:
         self.threshold_large = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
+        self.orange_count_for_rollback = 0
         self.validation = 0
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
@@ -466,18 +467,16 @@ class MTE:
         size -> the width of the image
         """
 
+        new_width = width
         if self.validation > 0:
             self.validation -= 1
-        if width == self.width_small and self.rollback > 3:
+        if width == self.width_small and self.orange_count_for_rollback >= 2:
             new_width = self.width_medium
-            self.rollback = 0
+            self.orange_count_for_rollback = 0
+            self.resolution_change_allowed -= 1
         elif width == self.width_small:
-            self.rollback += 1
-            new_width = width
-        else:
-            new_width = width
-        
-        print(new_width)
+            self.orange_count_for_rollback += 1  
+
         return ResponseData([new_width, int(new_width*(1/self.format_resolution))], MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
                             self.compute_direction(results.translations, results.scales, width), \
