@@ -355,6 +355,9 @@ class MTE:
                     id_ref = -1
                     if os.path.isfile('temporaryData.txt'):
                         os.remove('temporaryData.txt')
+                    self.rollback = 0
+                    self.validation = 0
+                    self.resolution_change_allowed = 3
                     print("Clean success.")
                 to_send = {
                     "status" : status,
@@ -362,9 +365,6 @@ class MTE:
                 }
                 if self.result_csv is not None:
                     self.result_csv = self.result_csv.close()
-                self.rollback = 0
-                self.validation = 0
-                self.resolution_change_allowed = 3
             else:
                 # Impossible
                 to_send = {
