@@ -260,6 +260,7 @@ class MTE:
                     self.rollback = 0
                     self.validation = 0
                     self.resolution_change_allowed = 3
+                    self.orange_count_for_rollback = 0
                     self.format_resolution = data["mte_parameters"]["ratio"]
                     self.set_mte_parameters(self.format_resolution)
                     init_status = self.reference.initialiaze_control_assist\
@@ -359,6 +360,7 @@ class MTE:
                     self.rollback = 0
                     self.validation = 0
                     self.resolution_change_allowed = 3
+                    self.orange_count_for_rollback = 0
                     print("Clean success.")
                 to_send = {
                     "status" : status,
@@ -475,7 +477,7 @@ class MTE:
             self.orange_count_for_rollback = 0
             self.resolution_change_allowed -= 1
         elif width == self.width_small:
-            self.orange_count_for_rollback += 1  
+            self.orange_count_for_rollback += 1
 
         return ResponseData([new_width, int(new_width*(1/self.format_resolution))], MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
@@ -514,6 +516,7 @@ class MTE:
             width = self.width_small
             self.validation = 0
             self.rollback = 0
+            self.orange_count_for_rollback = 0
         else:
             self.validation += 1
         return ResponseData(\
