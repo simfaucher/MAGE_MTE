@@ -313,10 +313,8 @@ class MTE:
                         # print(image.shape)
                     results = RecognitionData(*self.recognition(image))
                     if image.shape[1] == self.width_small:
-                        print("small")
                         response = self.behaviour_width_small(results)
                     elif image.shape[1] == self.width_medium:
-                        print("med")
                         response = self.behaviour_width_medium(results)
                     elif image.shape[1] == self.width_large:
                         response = self.behaviour_width_large(results)
@@ -543,7 +541,6 @@ class MTE:
         if results.nb_kp < self.threshold_small.nb_kp:
             response_for_client = self.red_width_small()
             response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_KEYPOINTS)
-            print("Not enought keypoints")
         # If not enough matches
         elif results.nb_match < self.threshold_small.nb_match:
             # If homography doesn't even start
@@ -569,11 +566,8 @@ class MTE:
                                 status=ErrorRecognition.WRONG_POINT_OF_VIEW)
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_small.mean_kirsh
-                print("dist kirsh = {} moyen".format(dist_kirsh))
                 dist_canny = results.dist_roi[1] < self.threshold_small.mean_canny
-                print("dist canny = {} moyen".format(dist_canny))
                 dist_color = results.dist_roi[2] < self.threshold_small.mean_color
-                print("dist color = {} moyen".format(dist_color))
                 # If 0 or 1 mean valid
                 if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
                     response_for_client = self.orange_behaviour(results, self.width_small)
@@ -637,9 +631,6 @@ class MTE:
                 dist_kirsh = results.dist_roi[0] < self.threshold_medium.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_medium.mean_canny
                 dist_color = results.dist_roi[2] < self.threshold_medium.mean_color
-                print("dist kirsh = {} moyen".format(dist_kirsh))
-                print("dist canny = {} moyen".format(dist_canny))
-                print("dist color = {} moyen".format(dist_color))
                 # If 0 or 1 mean valid
                 if int(dist_kirsh)+int(dist_canny)+int(dist_color) < 2:
                     response_for_client = self.orange_behaviour(results, self.width_medium)
@@ -694,9 +685,6 @@ class MTE:
                 dist_kirsh = results.dist_roi[0] < self.threshold_large.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_large.mean_canny
                 dist_color = results.dist_roi[2] < self.threshold_large.mean_color
-                print("dist kirsh = {} moyen".format(dist_kirsh))
-                print("dist canny = {} moyen".format(dist_canny))
-                print("dist color = {} moyen".format(dist_color))
                 # If 0 or 1 mean valid
                 if dist_kirsh+dist_canny+dist_color < 2:
                     response_for_client = self.lost_width_large()
