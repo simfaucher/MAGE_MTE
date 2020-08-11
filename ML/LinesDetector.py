@@ -61,7 +61,7 @@ class LinesDetector():
             # Find lines with Canny
             smoothed = cv2.GaussianBlur(grey, (7, 7), 2) #TODO: supprimer/garder ?
             mask = cv2.Canny(smoothed, CANNY_MIN_THRESH, CANNY_MAX_THRESH)
-            mask = cv2.dilate(mask, self.dilation_kernel, iterations=1)
+            # mask = cv2.dilate(mask, self.dilation_kernel, iterations=1)
         elif self.algo == ImageFilterType.EMBOSS:
             # Find lines with embossing
             mask = cv2.filter2D(grey, -1, EMBOSS_KERNEL)
