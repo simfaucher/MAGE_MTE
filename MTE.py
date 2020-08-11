@@ -468,8 +468,9 @@ class MTE:
 
         if self.validation > 0:
             self.validation -= 1
-        if width == self.width_medium and self.rollback > 0:
+        if width == self.width_small and self.rollback > 0:
             self.rollback -= 1
+            width = self.width_medium
 
         return ResponseData([width, int(width*(1/self.format_resolution))], MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
