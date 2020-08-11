@@ -665,7 +665,7 @@ class MTE:
 
         dim = (self.validation_width, self.validation_height)
         blurred_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
-        results = RecognitionData(*self.recognition(blurred_redux))
+        results = RecognitionData(*self.recognition(blurred_redux, testing_mode=True))
 
         return results
 
@@ -744,7 +744,7 @@ class MTE:
 
         return self.check_reference(full_image)
 
-    def recognition(self, image):
+    def recognition(self, image, testing_mode=False):
         """Compute the homography using the running engine.
         Computation is made between the image from the video stream and
         the image that have been learn with its id.
@@ -773,7 +773,7 @@ class MTE:
             nb_kp = 300
             nb_matches = 150
             success, scales, skews, translation, transformed = self.vc_like_engine.\
-                find_target(image, self.reference)
+                find_target(image, self.reference, force_global_scan=testing_mode)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \

@@ -300,7 +300,7 @@ class VCLikeEngine:
             # if m.anchor.x == 1
         return best_match
 
-    def find_target(self, input_image, learning_data):
+    def find_target(self, input_image, learning_data, force_global_scan=False):
         # mode_skip="fixe"
         not_centered = False
         capture = False
@@ -312,7 +312,7 @@ class VCLikeEngine:
         begin_timeout = time.time()
 
         # Boîte verte
-        if self.mode <= 0 or self.nb_frames >= 10:
+        if self.mode <= 0 or self.nb_frames >= 10 or force_global_scan:
             prev_mode = 0
             validation_count = 0
             # Scan global
@@ -337,28 +337,29 @@ class VCLikeEngine:
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                 #TODO: et cible à peu près au centre de l'image
-                number_of_green_around = 0
-                green_count = 0
-                x1 = best_match.anchor.x
-                y1 = best_match.anchor.y
-                for m in matches:
-                    x2 = m.anchor.x
-                    y2 = m.anchor.y
-                    if m.success:
-                        green_count += 1
-                    if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 15) and m.success:
-                        number_of_green_around += 1
-                ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
-                if (number_of_green_around >= 3) and\
-                    math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
-                    math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
-                    self.mode = 1
-                else:
-                    if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
-                        response_type = MTEResponse.TARGET_LOST
-                    elif (time.time() - begin_timeout) > (TIMEOUT_LIMIT_SEC / 2):
-                        response_type = MTEResponse.RED
-                    self.mode = 0
+                if not force_global_scan:
+                    number_of_green_around = 0
+                    green_count = 0
+                    x1 = best_match.anchor.x
+                    y1 = best_match.anchor.y
+                    for m in matches:
+                        x2 = m.anchor.x
+                        y2 = m.anchor.y
+                        if m.success:
+                            green_count += 1
+                        if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 15) and m.success:
+                            number_of_green_around += 1
+                    ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
+                    if (number_of_green_around >= 3) and\
+                        math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
+                        math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
+                        self.mode = 1
+                    else:
+                        if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
+                            response_type = MTEResponse.TARGET_LOST
+                        elif (time.time() - begin_timeout) > (TIMEOUT_LIMIT_SEC / 2):
+                            response_type = MTEResponse.RED
+                        self.mode = 0
 
         # Boîte orange
         elif self.mode == 1:
