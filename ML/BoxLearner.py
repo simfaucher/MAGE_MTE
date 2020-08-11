@@ -396,7 +396,7 @@ class BoxLearner():
 
         # cv2.circle(debug_image, (self.sight.anchor.x, self.sight.anchor.y), 2, (0, 255, 255))
         # cv2.imshow("debug_image", debug_image) # Debug
-        cv2.waitKey(0) # Debug
+        # cv2.waitKey(0) # Debug
 
         return match
 
