@@ -171,7 +171,7 @@ class Client:
                         self.mode = MTEMode.NEUTRAL
                     else:
                         size = response["requested_image_size"][0]
-                        to_draw = full_image
+                        to_draw = full_image.copy()
                         if response["flag"] == "ORANGE":
                             color_box = (0, 165, 255)
                         elif response["flag"] == "GREEN":
@@ -233,7 +233,7 @@ class Client:
                                                 int(y_coordinate-full_image.shape[0]/3))
                             lower_right_corner = (int(x_coordinate+full_image.shape[1]/3), \
                                                 int(y_coordinate+full_image.shape[0]/3))
-                            to_draw = cv2.rectangle(to_draw, upper_left_conner,\
+                            cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, (255, 0, 0), thickness=3)
 
                             mean_scale = (response["target_data"]["scales"][0] + \
@@ -253,7 +253,7 @@ class Client:
                                                 int(y_scaled-(full_image.shape[0]/3)*mean_scale))
                             lower_right_corner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale),\
                                                 int(y_scaled+(full_image.shape[0]/3)*mean_scale))
-                            to_draw = cv2.rectangle(to_draw, upper_left_conner,\
+                            cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, color_box, thickness=3)
                 elif self.mode == MTEMode.CLEAR_MTE:
                     if reply["status"] == 0:

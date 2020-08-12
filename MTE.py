@@ -244,13 +244,22 @@ class MTE:
                         "status" : ErrorRecognition.MISMATCH_REF.value
                     }
                 else:
-                    self.debug = image
+                    self.debug = image.copy()
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
                         image = cv2.resize(image, (self.width_medium, \
                             int(self.width_medium*(1/self.format_resolution))),\
                                  interpolation=cv2.INTER_AREA)
-                    results = RecognitionData(*self.recognition(image))
-                    if image.shape[1] == self.width_small:
+
+                    results = self.recognition(image)
+                    if self.mte_algo == MTEAlgo.VC_LIKE:
+                        response_type = results[-1]
+                        results = RecognitionData(*results[:-1])
+                    else:
+                        results = RecognitionData(*results)
+
+                    if self.mte_algo == MTEAlgo.VC_LIKE:
+                        response = self.behaviour_vc_like_engine(results, response_type)
+                    elif image.shape[1] == self.width_small:
                         response = self.behaviour_width_small(results)
                     elif image.shape[1] == self.width_medium:
                         response = self.behaviour_width_medium(results)
@@ -358,6 +367,16 @@ class MTE:
         # cv2.imshow("Direction", to_draw)
         # cv2.waitKey(1)
         return direction
+    
+    def behaviour_vc_like_engine(self, results, response_type):
+        response = ResponseData(\
+                                [self.vc_like_engine.image_width,\
+                                self.vc_like_engine.image_height],\
+                                response_type, results.translations[0], results.translations[1], \
+                                self.compute_direction(results.translations, results.scales, self.vc_like_engine.image_width), \
+                                results.scales[0], results.scales[1], ErrorRecognition.SUCCESS)
+        
+        return response
 
     def red_width_small(self):
         """Critical recognition behaviour for an image (_, 380).
@@ -665,7 +684,12 @@ class MTE:
 
         dim = (self.validation_width, self.validation_height)
         blurred_redux = cv2.resize(blurred_image, dim, interpolation=cv2.INTER_AREA)
-        results = RecognitionData(*self.recognition(blurred_redux, testing_mode=True))
+
+        results = self.recognition(blurred_redux, testing_mode=True)
+        if self.mte_algo == MTEAlgo.VC_LIKE:
+            results = RecognitionData(*results[:-1])
+        else:
+            results = RecognitionData(*results)
 
         return results
 
@@ -686,12 +710,12 @@ class MTE:
             print("The image is blurred")
             return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
 
-        # kernel_size = 10
-        # sigma = 3
-        # kernel = 15
-        kernel_size = 2
+        kernel_size = 10
         sigma = 3
-        kernel = 1
+        kernel = 15
+        # kernel_size = 2
+        # sigma = 3
+        # kernel = 1
 
         kernel_v = np.zeros((kernel_size, kernel_size))
         kernel_v[:, int((kernel_size - 1)/2)] = np.ones(kernel_size)
@@ -706,6 +730,7 @@ class MTE:
         # Gaussian noise
         image_gaussian_blur = cv2.GaussianBlur(image_ref, (kernel, kernel), sigma)
         results = self.test_filter(image_gaussian_blur)
+        # results = self.test_filter(image_ref)
         if not results.success:
             print("Failure gaussian blur")
             return ErrorLearning.GAUSSIAN_BLUR_FAILURE
@@ -713,6 +738,7 @@ class MTE:
         # Vertical motion blur.
         image_vertical_motion_blur = cv2.filter2D(image_ref, -1, kernel_v)
         results = self.test_filter(image_vertical_motion_blur)
+        # results = self.test_filter(image_ref)
 
         if not results.success:
             print("Failure vertical blur")
@@ -721,6 +747,7 @@ class MTE:
         # Horizontal motion blur.
         image_horizontal_motion_blur = cv2.filter2D(image_ref, -1, kernel_h)
         results = self.test_filter(image_horizontal_motion_blur)
+        # results = self.test_filter(image_ref)
 
         if not results.success:
             print("Failure horizontal blur")
@@ -769,11 +796,12 @@ class MTE:
 
         fps = FPS().start()
         nb_matches = 0
+        response_type = None
         if self.mte_algo == MTEAlgo.VC_LIKE:
             nb_kp = 300
             nb_matches = 150
-            success, scales, skews, translation, transformed = self.vc_like_engine.\
-                find_target(image, self.reference, force_global_scan=testing_mode)
+            success, response_type, scales, skews, translation, transformed = self.vc_like_engine.\
+                find_target(image, self.reference, testing_mode=testing_mode)
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
@@ -826,8 +854,12 @@ class MTE:
 
         ret_data["success"] = success and ml_success
 
-        return success, ret_data, nb_kp, nb_matches, sum(translation),\
-        sum(skews), sum_distances, distances, transformed, scales, translation
+        if self.mte_algo == MTEAlgo.VC_LIKE:
+            return success, ret_data, nb_kp, nb_matches, sum(translation),\
+            sum(skews), sum_distances, distances, transformed, scales, translation, response_type
+        else:
+            return success, ret_data, nb_kp, nb_matches, sum(translation),\
+            sum(skews), sum_distances, distances, transformed, scales, translation
 
 def str2bool(string_value):
     """Convert a string to a bool."""

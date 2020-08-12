@@ -20,6 +20,7 @@ from ML.Domain.ImageFilterType import ImageFilterType
 from ML.Domain.Point2D import Point2D
 from ML.Domain.ImageClass import ImageClass
 from ML.Domain.IndexedLearningKnowledge import IndexedLearningKnowledge
+from ML.Domain.LearnerMatch import LearnerMatch
 
 from ML.LinesDetector import LinesDetector
 from ML.BoxLearner import BoxLearner
@@ -54,6 +55,7 @@ class VCLikeEngine:
         self.scale = 100
         self.nb_frames = 0
         self.my_settings = self.load_ml_settings(LEARNING_SETTINGS_85)
+        self.validation_count = 0
 
         self.ratio = None
 
@@ -62,6 +64,10 @@ class VCLikeEngine:
         self.box_learners_64_singlescale = {}
         self.box_learner_85_multiscale = None
         self.box_learner_64_multiscale = None
+
+        # Parameters
+        self.image_width = 176
+        self.image_height = 97
         
         # self.to_skip = 1/2
 
@@ -123,9 +129,10 @@ class VCLikeEngine:
 
         return dataset
         
-    def learn(self, image, learning_data):
+    def learn(self, input_image, learning_data):
         if learning_data.mte_parameters["vc_like_data"] is None:
             vc_like_data = VCLikeData()
+            image = cv2.resize(input_image, (self.image_width, self.image_height))
             dataset = self.generate_dataset(image)
 
             learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
@@ -300,7 +307,7 @@ class VCLikeEngine:
             # if m.anchor.x == 1
         return best_match
 
-    def find_target(self, input_image, learning_data, force_global_scan=False):
+    def find_target(self, input_image, learning_data, testing_mode=False):
         # mode_skip="fixe"
         not_centered = False
         capture = False
@@ -308,13 +315,13 @@ class VCLikeEngine:
         begin_frame_computing = time.time()
         fps = FPS().start() # Debug
 
-        image = cv2.resize(input_image, (176, 97))
+        image = cv2.resize(input_image, (self.image_width, self.image_height))
         begin_timeout = time.time()
 
         # Boîte verte
-        if self.mode <= 0 or self.nb_frames >= 10 or force_global_scan:
+        if self.mode <= 0 or self.nb_frames >= 10 or testing_mode:
             prev_mode = 0
-            validation_count = 0
+            self.validation_count = 0
             # Scan global
             best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
             best_match = self.mean_best(all_matches, best_match)
@@ -337,7 +344,7 @@ class VCLikeEngine:
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                 #TODO: et cible à peu près au centre de l'image
-                if not force_global_scan:
+                if not testing_mode:
                     number_of_green_around = 0
                     green_count = 0
                     x1 = best_match.anchor.x
@@ -459,8 +466,9 @@ class VCLikeEngine:
         elif self.mode == 3:
             prev_mode = 3
             self.mode = 2
-            validation_count += 1
-            capture = (validation_count >= 3)
+            self.validation_count += 1
+            capture = (self.validation_count >= 3)
+            best_match = LearnerMatch()
             if capture:
                 response_type = MTEResponse.CAPTURE
 
@@ -482,6 +490,8 @@ class VCLikeEngine:
                                             int(y1+(image.shape[0]/4)*(self.scale/100)))
             to_display = cv2.rectangle(to_display, upper_left_conner,\
                                                 lower_right_corner, (255, 255, 255), thickness=1)
+        else:
+            to_display = image.copy()
         cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
         # out.write(to_display)
         cv2.waitKey(1) # Debug
@@ -489,7 +499,7 @@ class VCLikeEngine:
         
         if self.nb_frames >= 10:
             self.nb_frames = 0
-        else:
+        elif not testing_mode:
             self.nb_frames += 1
 
         fps.update() # Debug
@@ -543,7 +553,7 @@ class VCLikeEngine:
         else:
             translation = (0, 0)
 
-        return best_match.success, (self.scale, self.scale), (0, 0), translation, input_image
+        return best_match.success, response_type, (self.scale, self.scale), (0, 0), translation, input_image
 
 if __name__ == "__main__":
     image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")
