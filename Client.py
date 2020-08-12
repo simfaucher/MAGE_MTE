@@ -219,11 +219,9 @@ class Client:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             # Center point
                             x_coordinate = (full_image.shape[1]/176) * \
-                                            (response["target_data"]["translations"][0]*\
-                                            (response["target_data"]["scales"][0]/100))
+                                            (response["target_data"]["translations"][0])
                             y_coordinate = (full_image.shape[0]/97) * \
-                                            (response["target_data"]["translations"][1]*\
-                                            (response["target_data"]["scales"][1]/100))
+                                            (response["target_data"]["translations"][1])
                             center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
                             print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
                             print(x_coordinate, y_coordinate)
