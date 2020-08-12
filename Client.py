@@ -108,7 +108,7 @@ class Client:
                 break
 
             image = imutils.resize(full_image, width=size)
-
+            image = full_image
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
                 out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
@@ -210,7 +210,7 @@ class Client:
                             print("Flag TARGET_LOST")
                         elif response["flag"] == "RED":
                             print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
-                        else:
+                        elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
                             print("Flag {} : {}".format(response["flag"], \
                                 ErrorRecognition(response["status"]).name))
                             # Display target on image
@@ -218,13 +218,15 @@ class Client:
                                 ["user_information"]).name), (20, 100),\
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             # Center point
-                            x_coordinate = (full_image.shape[1]/image.shape[1]) * \
+                            x_coordinate = (full_image.shape[1]/176) * \
                                             (response["target_data"]["translations"][0]*\
-                                            response["target_data"]["scales"][0] + image.shape[1]/3)
-                            y_coordinate = (full_image.shape[0]/image.shape[0]) * \
+                                            (response["target_data"]["scales"][0]/100))
+                            y_coordinate = (full_image.shape[0]/97) * \
                                             (response["target_data"]["translations"][1]*\
-                                            response["target_data"]["scales"][1] + image.shape[0]/3)
+                                            (response["target_data"]["scales"][1]/100))
                             center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                            print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
+                            print(x_coordinate, y_coordinate)
                             to_draw = cv2.drawKeypoints(to_draw, [center],\
                                                         np.array([]), (255, 0, 0), \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -233,26 +235,19 @@ class Client:
                                                 int(y_coordinate-full_image.shape[0]/3))
                             lower_right_corner = (int(x_coordinate+full_image.shape[1]/3), \
                                                 int(y_coordinate+full_image.shape[0]/3))
-                            cv2.rectangle(to_draw, upper_left_conner,\
+                            to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, (255, 0, 0), thickness=3)
 
-                            mean_scale = (response["target_data"]["scales"][0] + \
-                                        response["target_data"]["scales"][1]) / 2
-                            x_scaled = (full_image.shape[1]/image.shape[1]) * \
-                                        (response["target_data"]["translations"][0]*\
-                                            response["target_data"]["scales"][0] + image.shape[1]/3)
-                            y_scaled = (full_image.shape[0]/image.shape[0]) * \
-                                        (response["target_data"]["translations"][1]*\
-                                            response["target_data"]["scales"][1] + image.shape[0]/3)
-                            center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                            to_draw = cv2.drawKeypoints(to_draw, [center_scaled], \
+                            mean_scale = ((response["target_data"]["scales"][0]/100) + \
+                                        (response["target_data"]["scales"][1]/100)) / 2
+                            to_draw = cv2.drawKeypoints(to_draw, [center], \
                                                         np.array([]), color_box, \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-                            upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), \
-                                                int(y_scaled-(full_image.shape[0]/3)*mean_scale))
-                            lower_right_corner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale),\
-                                                int(y_scaled+(full_image.shape[0]/3)*mean_scale))
+                            upper_left_conner = (int(x_coordinate-(full_image.shape[1]/3)*mean_scale), \
+                                                int(y_coordinate-(full_image.shape[0]/3)*mean_scale))
+                            lower_right_corner = (int(x_coordinate+(full_image.shape[1]/3)*mean_scale),\
+                                                int(y_coordinate+(full_image.shape[0]/3)*mean_scale))
                             cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, color_box, thickness=3)
                 elif self.mode == MTEMode.CLEAR_MTE:
