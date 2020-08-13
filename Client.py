@@ -58,8 +58,8 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/demo.mp4"
-# LEARNING_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -239,10 +239,10 @@ class Client:
                             # Center point
                             x_coordinate = (full_image.shape[1]/image.shape[1]) * \
                                             (response["target_data"]["translations"][0]*\
-                                            response["target_data"]["scales"][0] + image.shape[1]/3)
+                                            response["target_data"]["scales"][0] + image.shape[1]/2)
                             y_coordinate = (full_image.shape[0]/image.shape[0]) * \
                                             (response["target_data"]["translations"][1]*\
-                                            response["target_data"]["scales"][1] + image.shape[0]/3)
+                                            response["target_data"]["scales"][1] + image.shape[0]/2)
                             center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
                             to_draw = cv2.drawKeypoints(to_draw, [center],\
                                                         np.array([]), (255, 0, 0), \
@@ -257,21 +257,14 @@ class Client:
 
                             mean_scale = (response["target_data"]["scales"][0] + \
                                         response["target_data"]["scales"][1]) / 2
-                            x_scaled = (full_image.shape[1]/image.shape[1]) * \
-                                        (response["target_data"]["translations"][0]*\
-                                            response["target_data"]["scales"][0] + image.shape[1]/3)
-                            y_scaled = (full_image.shape[0]/image.shape[0]) * \
-                                        (response["target_data"]["translations"][1]*\
-                                            response["target_data"]["scales"][1] + image.shape[0]/3)
-                            center_scaled = cv2.KeyPoint(x_scaled, y_scaled, 8)
-                            to_draw = cv2.drawKeypoints(to_draw, [center_scaled], \
+                            to_draw = cv2.drawKeypoints(to_draw, [center], \
                                                         np.array([]), color_box, \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-                            upper_left_conner = (int(x_scaled-(full_image.shape[1]/3)*mean_scale), \
-                                                int(y_scaled-(full_image.shape[0]/3)*mean_scale))
-                            lower_right_corner = (int(x_scaled+(full_image.shape[1]/3)*mean_scale),\
-                                                int(y_scaled+(full_image.shape[0]/3)*mean_scale))
+                            upper_left_conner = (int(x_coordinate-(full_image.shape[1]/3)*mean_scale), \
+                                                int(y_coordinate-(full_image.shape[0]/3)*mean_scale))
+                            lower_right_corner = (int(x_coordinate+(full_image.shape[1]/3)*mean_scale),\
+                                                int(y_coordinate+(full_image.shape[0]/3)*mean_scale))
                             to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, color_box, thickness=3)
                 elif self.mode == MTEMode.CLEAR_MTE:

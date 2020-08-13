@@ -150,8 +150,11 @@ class SIFTEngine:
                 kp_img[i].size = 1
             warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
+        # Transform upper left conner from cropped image to upper left conner uncropped
+        translation_x = t_x - int((1/6) * image_init.shape[1])
+        translation_y = t_y - int((1/6) * image_init.shape[0])
         return sift_success and homography_success, \
-            (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
+            (scale_x, scale_y), (skew_x, skew_y), (translation_x, translation_y), \
             warped_image, len(good_matches), len(kp_img)
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):
