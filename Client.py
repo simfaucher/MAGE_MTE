@@ -35,8 +35,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-# VIDEO_PATH = "videos/VID_20200302_144507.mp4"
-# LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
+VIDEO_PATH = "videos/VID_20200302_144507.mp4"
+LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -69,8 +69,8 @@ MODE_VIDEO = not MODE_CAMERA
 
 # VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
 # LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
-VIDEO_PATH = "videos/video_moteur/reverse.mp4"
-LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
+# VIDEO_PATH = "videos/video_moteur/reverse.mp4"
+# LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
 
 class Client:
     """ Client simulator class."""
@@ -109,8 +109,8 @@ class Client:
             if not success:
                 break
 
-            image = imutils.resize(full_image, width=size)
-
+            # image = imutils.resize(full_image, width=size)
+            image = full_image
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
                 out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \

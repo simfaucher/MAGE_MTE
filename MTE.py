@@ -232,6 +232,12 @@ class MTE:
                     to_send = {
                         "status" : init_status
                     }
+                    if self.mte_algo != MTEAlgo.VC_LIKE:
+                        target = (self.width_medium, \
+                                int(self.width_medium*(1/self.format_resolution)))
+                    else:
+                        target = (self.vc_like_engine.image_width, \
+                            self.vc_like_engine.image_height)
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if self.reference.id_ref is None:
@@ -246,8 +252,7 @@ class MTE:
                 else:
                     self.debug = image.copy()
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
-                        image = cv2.resize(image, (self.width_medium, \
-                            int(self.width_medium*(1/self.format_resolution))),\
+                        image = cv2.resize(image, target,\
                                  interpolation=cv2.INTER_AREA)
 
                     results = self.recognition(image)
@@ -283,8 +288,12 @@ class MTE:
                         # if the image is not blurred else we just return green
                         if not is_blurred[1] and response.user_information == UserInformation.CENTERED:
                             response.flag = MTEResponse.CAPTURE
+                    temp_x = response.target_data["translations"][0]
+                    temp_y = response.target_data["translations"][1]
+                    response.target_data["translations"] = (temp_x * (self.debug.shape[1]/target[0]), temp_y * (self.debug.shape[0]/target[1]))
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
+                    target = (response.requested_image_size[0], response.requested_image_size[1])
 
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
                 to_send = {
@@ -370,8 +379,8 @@ class MTE:
     
     def behaviour_vc_like_engine(self, results, response_type):
         response = ResponseData(\
-                                [self.width_small,\
-                                self.width_small*(1/self.format_resolution)],\
+                                [self.vc_like_engine.image_width,\
+                                self.vc_like_engine.image_height],\
                                 response_type, results.translations[0], results.translations[1], \
                                 self.compute_direction(results.translations, results.scales, self.vc_like_engine.image_width), \
                                 results.scales[0], results.scales[1], ErrorRecognition.SUCCESS)
