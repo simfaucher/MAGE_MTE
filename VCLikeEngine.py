@@ -419,9 +419,10 @@ class VCLikeEngine:
                 self.mode = 0
 
         # Boîte rose
-        elif self.mode == 2:
-            prev_mode = 2
+        elif self.mode == 2 or self.mode == 3:
+            prev_mode = self.mode
             response_type = MTEResponse.GREEN
+
             # Scan optimisé (step=1)
             best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
 
@@ -462,15 +463,24 @@ class VCLikeEngine:
             else:
                 #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                 self.mode = 1
+            
+            if prev_mode == 3 and response_type == MTEResponse.GREEN:
+                prev_mode = 3
 
-        elif self.mode == 3:
-            prev_mode = 3
-            self.mode = 2
-            self.validation_count += 1
-            capture = (self.validation_count >= 3)
-            best_match = LearnerMatch()
-            if capture:
-                response_type = MTEResponse.CAPTURE
+                self.validation_count += 1
+                capture = (self.validation_count >= 3)
+                if capture:
+                    response_type = MTEResponse.CAPTURE
+                    self.mode = 2 #TODO: à supprimer ?
+
+        # elif self.mode == 3:
+        #     prev_mode = 3
+        #     self.mode = 2
+        #     self.validation_count += 1
+        #     capture = (self.validation_count >= 3)
+        #     best_match = LearnerMatch()
+        #     if capture:
+        #         response_type = MTEResponse.CAPTURE
 
 
         if best_match.anchor is not None:
@@ -495,7 +505,9 @@ class VCLikeEngine:
         cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
         # out.write(to_display)
         cv2.waitKey(1) # Debug
-        self.last_match = best_match
+
+        if best_match.success:
+            self.last_match = best_match
         
         if self.nb_frames >= 10:
             self.nb_frames = 0
