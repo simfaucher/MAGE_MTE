@@ -54,7 +54,8 @@ class VCLikeEngine:
         self.mode = 0
         self.scale = 100
         self.nb_frames = 0
-        self.my_settings = self.load_ml_settings(LEARNING_SETTINGS_85)
+        self.learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
+        self.learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
         self.validation_count = 0
 
         self.ratio = None
@@ -135,18 +136,15 @@ class VCLikeEngine:
             image = cv2.resize(input_image, (self.image_width, self.image_height))
             dataset = self.generate_dataset(image)
 
-            learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
-            learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
-
             # 85x48 learnings
             # learning_settings_85_singlescale = {}
             # self.box_learners_85_singlescale = {}
-            vc_like_data.learning_settings_85_multiscale = deepcopy(learning_settings_85)
+            vc_like_data.learning_settings_85_multiscale = deepcopy(self.learning_settings_85)
 
             # 64x64 learnings
             # learning_settings_64_singlescale = {}
             # self.box_learners_64_singlescale = {}
-            vc_like_data.learning_settings_64_multiscale = deepcopy(learning_settings_64)
+            vc_like_data.learning_settings_64_multiscale = deepcopy(self.learning_settings_64)
 
             for i, data in enumerate(dataset):
                 attr, image = data[:]
@@ -157,7 +155,7 @@ class VCLikeEngine:
                 class_name = "scale: {}".format(scale)
 
                 # Create every 85x48 single-scale box learners
-                learning_settings_singlescale_85 = deepcopy(learning_settings_85)
+                learning_settings_singlescale_85 = deepcopy(self.learning_settings_85)
                 self.learn_image(learning_settings_singlescale_85, class_id, class_name, image)
 
                 learning_settings_singlescale_85_indexed = IndexedLearningKnowledge()
@@ -174,7 +172,7 @@ class VCLikeEngine:
                 self.learn_image(vc_like_data.learning_settings_85_multiscale, class_id, class_name, image)
 
                 # Create every 64x64 single-scale box learners
-                learning_settings_singlescale_64 = deepcopy(learning_settings_64)
+                learning_settings_singlescale_64 = deepcopy(self.learning_settings_64)
                 self.learn_image(learning_settings_singlescale_64, class_id, class_name, image)
                 
                 learning_settings_singlescale_64_indexed = IndexedLearningKnowledge()
@@ -285,8 +283,8 @@ class VCLikeEngine:
 
     def mean_best(self, matches, best_match):
         min_means = 9999999
-        ite_x = self.my_settings.sights[0].search_box.iteration.x
-        ite_y = self.my_settings.sights[0].search_box.iteration.y
+        ite_x = self.learning_settings_85.sights[0].search_box.iteration.x
+        ite_y = self.learning_settings_85.sights[0].search_box.iteration.y
         for i in range(1, ite_x-1):
             for j in range(1, ite_y-1):
                 if matches[i*ite_y + j].success:
@@ -471,7 +469,7 @@ class VCLikeEngine:
                 capture = (self.validation_count >= 3)
                 if capture:
                     response_type = MTEResponse.CAPTURE
-                    self.mode = 2 #TODO: à supprimer ?
+                    # self.mode = 2 #TODO: à supprimer ?
 
         # elif self.mode == 3:
         #     prev_mode = 3
@@ -565,7 +563,7 @@ class VCLikeEngine:
         else:
             translation = (0, 0)
 
-        return best_match.success, response_type, (self.scale, self.scale), (0, 0), translation, input_image
+        return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, input_image
 
 if __name__ == "__main__":
     image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")

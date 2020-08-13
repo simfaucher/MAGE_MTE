@@ -35,8 +35,8 @@ MODE_VIDEO = not MODE_CAMERA
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -69,6 +69,8 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # VIDEO_PATH = "videoForBenchmark/Approche/video.mp4"
 # LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
+VIDEO_PATH = "videos/video_moteur/reverse.mp4"
+LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
 
 class Client:
     """ Client simulator class."""
@@ -236,8 +238,8 @@ class Client:
                             to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, (255, 0, 0), thickness=3)
 
-                            mean_scale = ((response["target_data"]["scales"][0]/100) + \
-                                        (response["target_data"]["scales"][1]/100)) / 2
+                            mean_scale = ((response["target_data"]["scales"][0]) + \
+                                        (response["target_data"]["scales"][1])) / 2
                             to_draw = cv2.drawKeypoints(to_draw, [center], \
                                                         np.array([]), color_box, \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)

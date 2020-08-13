@@ -891,7 +891,7 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("-a", "--algo", required=False, default="VC_LIKE",\
-        help="Feature detection algorithm (SIFT_KNN or SIFT_RANSAC). Default: SIFT_KNN")
+        help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
     ap.add_argument("-w", "--width", required=False, default=380, type=int,\
