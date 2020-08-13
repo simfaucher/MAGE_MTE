@@ -329,8 +329,8 @@ class MTE:
         """
 
         divider = 20
-        center = (translation_value[0]*scale_value[0]+size_w/3, \
-            translation_value[1]*scale_value[1]+int((size_w*(1/self.format_resolution))/3))
+        center = (translation_value[0]*scale_value[0]+size_w/2, \
+            translation_value[1]*scale_value[1]+int((size_w*(1/self.format_resolution))/2))
 
         direction = UserInformation.CENTERED
 

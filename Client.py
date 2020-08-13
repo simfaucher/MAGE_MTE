@@ -110,7 +110,7 @@ class Client:
                 break
 
             image = imutils.resize(full_image, width=size)
-            image = full_image
+
             if CAPTURE_DEMO and out is None:
                 demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
                 out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
@@ -220,10 +220,10 @@ class Client:
                                 ["user_information"]).name), (20, 100),\
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             # Center point
-                            x_coordinate = (full_image.shape[1]/176) * \
-                                            (response["target_data"]["translations"][0])
-                            y_coordinate = (full_image.shape[0]/97) * \
-                                            (response["target_data"]["translations"][1])
+                            x_coordinate = (full_image.shape[1]/image.shape[1]) * \
+                                            (response["target_data"]["translations"][0] + image.shape[1]/2)
+                            y_coordinate = (full_image.shape[0]/image.shape[0]) * \
+                                            (response["target_data"]["translations"][1] + image.shape[0]/2)
                             center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
                             print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
                             print(x_coordinate, y_coordinate)
