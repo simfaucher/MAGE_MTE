@@ -269,7 +269,7 @@ class MTE:
                         print("Image size not supported.")
                         response = ResponseData(\
                                                 [self.width_small,\
-                                                self.width_small*self.format_resolution],\
+                                                self.width_small*(1/self.format_resolution)],\
                                                 MTEResponse.RED, 0, 0, UserInformation.CENTERED, \
                                                 0, 0, ErrorRecognition.MISMATCH_SIZE_WITH_REF)
 
@@ -371,7 +371,7 @@ class MTE:
     def behaviour_vc_like_engine(self, results, response_type):
         response = ResponseData(\
                                 [self.width_small,\
-                                self.width_small*self.format_resolution],\
+                                self.width_small*(1/self.format_resolution)],\
                                 response_type, results.translations[0], results.translations[1], \
                                 self.compute_direction(results.translations, results.scales, self.vc_like_engine.image_width), \
                                 results.scales[0], results.scales[1], ErrorRecognition.SUCCESS)
@@ -802,6 +802,9 @@ class MTE:
             nb_matches = 150
             success, response_type, scales, skews, translation, transformed = self.vc_like_engine.\
                 find_target(image, self.reference, testing_mode=testing_mode)
+            
+            translation = (int(translation[0]*self.width_small/self.vc_like_engine.image_width), \
+                int(translation[1]*(self.width_small*(1/self.format_resolution)/self.vc_like_engine.image_height)/self.vc_like_engine.image_width))
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \
