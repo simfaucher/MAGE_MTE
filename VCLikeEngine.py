@@ -310,6 +310,8 @@ class VCLikeEngine:
         not_centered = False
         capture = False
         response_type = MTEResponse.ORANGE
+        translation = (0, 0)
+
         begin_frame_computing = time.time()
         fps = FPS().start() # Debug
 
@@ -339,6 +341,8 @@ class VCLikeEngine:
                 multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
                 self.scale = multiscale_match.predicted_class
+                translation = (best_match.anchor.x - self.box_learner_85_multiscale.sight.anchor.x, \
+                    best_match.anchor.y - self.box_learner_85_multiscale.sight.anchor.y)
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                 #TODO: et cible à peu près au centre de l'image
@@ -387,6 +391,8 @@ class VCLikeEngine:
                 multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
 
                 self.scale = multiscale_match.predicted_class
+                translation = (best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x, \
+                    best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y)
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                 #TODO: et cible à peu près au centre de l'image
@@ -437,6 +443,9 @@ class VCLikeEngine:
                 self.box_learner_64_multiscale.input_image = image
                 multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
                 self.scale = multiscale_match.predicted_class
+                
+                translation = (best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x, \
+                    best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y)
 
                 number_of_green_around = 0
                 green_count = 0
@@ -557,11 +566,6 @@ class VCLikeEngine:
 
         #TODO: remettre transformed ?
         # return best_match.success, (self.scale, self.scale), (0, 0), (best_match.anchor.x, best_match.anchor.y), transformed
-
-        if best_match.anchor is not None:
-            translation = (best_match.anchor.x, best_match.anchor.y)
-        else:
-            translation = (0, 0)
 
         return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, input_image
 
