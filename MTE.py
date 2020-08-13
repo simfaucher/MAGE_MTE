@@ -378,11 +378,16 @@ class MTE:
         return direction
     
     def behaviour_vc_like_engine(self, results, response_type):
+        direction = self.compute_direction(results.translations, results.scales, self.vc_like_engine.image_width)
+        
+        if response_type == MTEResponse.CAPTURE and direction != UserInformation.CENTERED:
+            response_type = MTEResponse.GREEN
+
         response = ResponseData(\
                                 [self.vc_like_engine.image_width,\
                                 self.vc_like_engine.image_height],\
                                 response_type, results.translations[0], results.translations[1], \
-                                self.compute_direction(results.translations, results.scales, self.vc_like_engine.image_width), \
+                                direction, \
                                 results.scales[0], results.scales[1], ErrorRecognition.SUCCESS)
         
         return response
