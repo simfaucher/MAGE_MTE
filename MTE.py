@@ -367,7 +367,8 @@ class MTE:
                                 response.flag = MTEResponse.CAPTURE
                     temp_x = response.target_data["translations"][0]
                     temp_y = response.target_data["translations"][1]
-                    response.target_data["translations"] = (temp_x * (self.debug.shape[1]/target[0]), temp_y * (self.debug.shape[0]/target[1]))
+                    if temp_x is not None and temp_y is not None:
+                        response.target_data["translations"] = (temp_x * (self.debug.shape[1]/target[0]), temp_y * (self.debug.shape[0]/target[1]))
                     to_send = response.to_dict()
                     self.fill_log(log_writer, results, response, is_blurred)
                     target = (response.requested_image_size[0], response.requested_image_size[1])
@@ -1017,7 +1018,7 @@ if __name__ == "__main__":
             return whole - frac if whole < 0 else whole + frac
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("-a", "--algo", required=False, default="VC_LIKE",\
+    ap.add_argument("-a", "--algo", required=False, default="SIFT_KNN",\
         help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC or VC_LIKE). Default: SIFT_KNN")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
         help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
