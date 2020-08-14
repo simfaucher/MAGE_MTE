@@ -810,6 +810,13 @@ class MTE:
 
         return results
 
+    def crop_image(self, image, crop_margin):
+        h, w = image.shape[:2]
+        croped = image[int(h*crop_margin): int(h*(1-crop_margin)), \
+            int(w*crop_margin): int(w*(1-crop_margin))]
+
+        return croped
+
     def check_reference(self, image_ref):
         """Check if the image given is a valid reference.
         Return a dictinnary with 2 boolean:
@@ -821,7 +828,7 @@ class MTE:
         """
 
         size = int(image_ref.shape[1]/18)
-        blurred = self.is_image_blurred(self.sift_engine.crop_image(image_ref, 1/3), \
+        blurred = self.is_image_blurred(self.crop_image(image_ref, 1/3), \
                         size=size, thresh=10)
         if blurred[1]:
             print("The image is blurred")
