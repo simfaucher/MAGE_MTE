@@ -510,8 +510,8 @@ class BoxLearner():
 
             roi_mask = sight_mask[roi_y1: roi_y2, roi_x1: roi_x2]
             features = BoxLearner.extract_pixels_features(roi_mask, ROIFeatureType(roi.feature_type))
-            if "Scale finder" in self.sight.name: 
-                cv2.imshow("roi_mask"+str(k), roi_mask) # Debug
+            # if "Scale finder" in self.sight.name: 
+            #     cv2.imshow("roi_mask"+str(k), roi_mask) # Debug
 
             distances, indices = self.knn_contexts[k].kneighbors(features)
             # neighbours_classes = self.knn_contexts[k].predict(features)

@@ -510,9 +510,9 @@ class VCLikeEngine:
                                                 lower_right_corner, (255, 255, 255), thickness=1)
         else:
             to_display = image.copy()
-        cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
+        # cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
         # out.write(to_display)
-        cv2.waitKey(1) # Debug
+        # cv2.waitKey(1) # Debug
 
         if best_match.success:
             self.last_match = best_match
