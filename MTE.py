@@ -300,6 +300,10 @@ class MTE:
                     "status" : self.reference.clean_control_assist(data["id_ref"])
                 }
                 self.result_csv = self.result_csv.close()
+            elif MTEMode(data["mode"]) == MTEMode.RUNNING_VERIFICATION:
+                to_send = {
+                    "status" : 0
+                }
             else:
                 # Impossible
                 to_send = {

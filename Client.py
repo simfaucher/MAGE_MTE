@@ -139,6 +139,10 @@ class Client:
                     "mode": self.mode.value,
                     "id_ref" : self.learning_data.id_ref
                 })
+            elif self.mode == MTEMode.RUNNING_VERIFICATION:
+                data = json.dumps({
+                    "mode": self.mode.value,
+                })
 
             to_draw = full_image.copy()
             if self.mode != MTEMode.NEUTRAL:
@@ -255,6 +259,9 @@ class Client:
                         print("Clear successfull.")
                     else:
                         print("clear failed.")
+                elif self.mode == MTEMode.RUNNING_VERIFICATION:
+                    if reply["status"] == 0:
+                        print("MTE is running.")
 
                 cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -276,6 +283,8 @@ class Client:
                 self.mode = MTEMode.MOTION_TRACKING
             elif key == ord("4") or key == ord("'"):
                 self.mode = MTEMode.CLEAR_MTE
+            elif key == ord("5") or key == ord("("):
+                self.mode = MTEMode.RUNNING_VERIFICATION
             elif key == ord("q"):
                 sys.exit("User ended program.")
                 if CAPTURE_DEMO:
