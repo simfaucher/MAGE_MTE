@@ -117,7 +117,8 @@ class LearningData:
                 "ml_validation" : json.loads(Pykson().to_json(self.mte_parameters["ml_validation"]))
             }
 
-            if self.mte_parameters["size_small"]["keypoints"] is not None :
+            if self.mte_parameters["size_small"]["keypoints"] is not None\
+                and not isinstance(self.mte_parameters["size_small"]["keypoints"], tuple):
                 to_send["size_small"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_small"]["keypoints"])\
                         .tolist(),
@@ -129,7 +130,8 @@ class LearningData:
                     "descriptors" : []
                 }
 
-            if self.mte_parameters["size_medium"]["keypoints"] is not None :
+            if self.mte_parameters["size_medium"]["keypoints"] is not None\
+                and not isinstance(self.mte_parameters["size_small"]["keypoints"], tuple):
                 to_send["size_medium"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_medium"]["keypoints"])\
                         .tolist(),
@@ -141,7 +143,8 @@ class LearningData:
                     "descriptors" : []
                 }
 
-            if self.mte_parameters["size_large"]["keypoints"] is not None :
+            if self.mte_parameters["size_large"]["keypoints"] is not None\
+                and not isinstance(self.mte_parameters["size_small"]["keypoints"], tuple):
                 to_send["size_large"] = {
                     "keypoints" : cv2.KeyPoint_convert(self.mte_parameters["size_large"]["keypoints"])\
                         .tolist(),
