@@ -3,21 +3,25 @@
 """
 
 import os
+import platform
 import sys
 import time
 import json
+import math
 import numpy as np
 import cv2
 import imutils
 from imutils.video import FPS
 import imagezmq
 
+from Domain.Patience import Patience
 from Domain.ErrorLearning import ErrorLearning
 from Domain.ErrorRecognition import ErrorRecognition
 from Domain.ErrorInitialize import ErrorInitialize
 from Domain.UserInformation import UserInformation
 from Domain.LearningData import LearningData
 from Domain.MTEMode import MTEMode
+from Domain.MTEResponse import MTEResponse
 
 
 CAPTURE_DEMO = False
@@ -25,6 +29,8 @@ DEMO_FOLDER = "demo/"
 
 MODE_CAMERA = False
 MODE_VIDEO = not MODE_CAMERA
+
+FAST = False
 
 # T1.1
 # VIDEO_PATH = "videos/T1.1/VID_20200302_144048.mp4"
@@ -52,8 +58,8 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/demo.mp4"
-# LEARNING_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -90,6 +96,7 @@ class Client:
         self.mode = MTEMode.NEUTRAL
         self.pov_id = 8
         self.learning_data = LearningData()
+
         time.sleep(2.0)  # allow camera sensor to warm up
 
     def run(self):
@@ -147,9 +154,18 @@ class Client:
             to_draw = full_image.copy()
             if self.mode != MTEMode.NEUTRAL:
                 fps = FPS().start()
-                reply = json.loads(self.sender.send_image(data, image).decode())
+                begin_frame_computing = time.time()
+                try:
+                    if platform.system() == "Linux":
+                        with Patience(3):
+                            reply = json.loads(self.sender.send_image(data, image).decode())
+                    else:
+                        reply = json.loads(self.sender.send_image(data, image).decode())
+                except:
+                    print("Timeout")
                 fps.update()
                 fps.stop()
+                end_frame_computing = time.time()
 
                 # Response
                 if self.mode == MTEMode.VALIDATION_REFERENCE:
@@ -163,6 +179,8 @@ class Client:
                 elif self.mode == MTEMode.INITIALIZE_MTE:
                     if ErrorInitialize(reply["status"]) == ErrorInitialize.SUCCESS:
                         print("Initialize successfull.")
+                    elif ErrorInitialize(reply["status"]) == ErrorInitialize.NEED_TO_CLEAR_MTE:
+                        print("Need to clear MTE first.")
                     else:
                         print("Initialize failed.")
                 elif self.mode == MTEMode.MOTION_TRACKING:
@@ -177,25 +195,25 @@ class Client:
                         self.mode = MTEMode.NEUTRAL
                     else:
                         size = response["requested_image_size"][0]
-                        to_draw = full_image.copy()
-                        if response["flag"] == "ORANGE":
+                        to_draw = full_image
+                        if MTEResponse(response["flag"]) == MTEResponse.ORANGE:
                             color_box = (0, 165, 255)
-                        elif response["flag"] == "GREEN":
+                        elif MTEResponse(response["flag"]) == MTEResponse.GREEN:
                             color_box = (0, 255, 0)
-                        elif response["flag"] == "RED":
+                        elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             color_box = (0, 0, 255)
-                        elif response["flag"] == "TARGET_LOST":
+                        elif MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
                             color_box = (50, 50, 50)
                         else:
                             color_box = (255, 255, 255)
 
                         cv2.putText(to_draw, "Size: {}".format(prev_size), (20, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                        cv2.putText(to_draw, response["flag"], \
+                        cv2.putText(to_draw, MTEResponse(response["flag"]).name, \
                             (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_box, 2)
 
-                        if response["flag"] != "RED" and \
-                            response["flag"] != "TARGET_LOST":
+                        if MTEResponse(response["flag"]) != MTEResponse.RED and \
+                            MTEResponse(response["flag"]) != MTEResponse.TARGET_LOST:
                             cv2.putText(to_draw, "Trans. x: {:.2f}".format(response\
                                 ["target_data"]["translations"][0]),\
                                 (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -212,9 +230,9 @@ class Client:
                         if not prev_size == size:
                             print("Change of size {} -> {}".format(prev_size, size))
 
-                        if response["flag"] == "TARGET_LOST":
+                        if MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
                             print("Flag TARGET_LOST")
-                        elif response["flag"] == "RED":
+                        elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
                         elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
                             print("Flag {} : {}".format(response["flag"], \
@@ -242,8 +260,8 @@ class Client:
                             to_draw = cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, (255, 0, 0), thickness=3)
 
-                            mean_scale = ((response["target_data"]["scales"][0]) + \
-                                        (response["target_data"]["scales"][1])) / 2
+                            mean_scale = (response["target_data"]["scales"][0] + \
+                                        response["target_data"]["scales"][1]) / 2
                             to_draw = cv2.drawKeypoints(to_draw, [center], \
                                                         np.array([]), color_box, \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -258,16 +276,31 @@ class Client:
                     if reply["status"] == 0:
                         print("Clear successfull.")
                     else:
-                        print("clear failed.")
+                        print("Clear failed.")
+                        print("Server have ref {}".format(response["id_ref"]))
                 elif self.mode == MTEMode.RUNNING_VERIFICATION:
                     if reply["status"] == 0:
                         print("MTE is running.")
+                        
 
                 cv2.putText(to_draw, "FPS : {:.2f}".format(fps.fps()), (to_draw.shape[1]-120, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
+            if CAPTURE_DEMO and out is None:
+                demo_path = os.path.join(DEMO_FOLDER, 'demo_framing.avi')
+                out = cv2.VideoWriter(demo_path, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), \
+                                      30, (to_draw.shape[1], to_draw.shape[0]))
+            if CAPTURE_DEMO:
+                out.write(to_draw)
             cv2.imshow("Targetting", to_draw)
             key = cv2.waitKey(1)
+
+            if FAST and self.mode == MTEMode.MOTION_TRACKING:
+                my_shift = end_frame_computing-begin_frame_computing
+                to_skip = math.floor(my_shift*30)
+                if fps.fps() < 30 and to_skip > 0:
+                    for cpt in range(to_skip):
+                        self.cap.grab()
 
             if self.mode == MTEMode.VALIDATION_REFERENCE or self.mode == MTEMode.INITIALIZE_MTE\
                 or self.mode == MTEMode.CLEAR_MTE:

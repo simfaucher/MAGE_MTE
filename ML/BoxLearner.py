@@ -237,8 +237,8 @@ class BoxLearner():
 
         step = Step()
         if pixel_scan:
-            step.x = 3
-            step.y = 3
+            step.x = 7
+            step.y = 7
         elif anchor_point:
             step.x = self.sight.search_box.step.x
             step.y = self.sight.search_box.step.y

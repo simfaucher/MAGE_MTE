@@ -1,0 +1,25 @@
+**/bin/
+**/obj/
+**/*.md
+.dockerignore // Docker files
+.env
+.git // Git files
+.gitignore // Git files
+.gitattributes // Git files
+.vs // IDE files
+.vscode // IDE files
+**/.toolstarget
+.idea // IDE files
+**/Samples // Additional files
+build
+Docker* // Docker scripts and docker-compose files (in this example in 'Docker' directory, in context root level)
+**/Dockerfile // Docker files
+**/docker-compose // Docker files
+test*
+packages*
+videos*
+demo*
+framing*
+images
+video*
+temp*

@@ -8,3 +8,4 @@ class ErrorInitialize(Enum):
 
     SUCCESS = 0
     ERROR = 1
+    NEED_TO_CLEAR_MTE = 11

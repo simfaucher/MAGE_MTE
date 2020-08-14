@@ -23,7 +23,7 @@ MIN_MATCH_COUNT = 30
 class SIFTEngine:
     HOMOGRAPHY_MIN_SCALE = 0.75
     HOMOGRAPHY_MAX_SCALE = 1.25
-    HOMOGRAPHY_MAX_SKEW = 0.13
+    HOMOGRAPHY_MAX_SKEW = 0.25
     HOMOGRAPHY_MIN_TRANS = -25
     HOMOGRAPHY_MAX_TRANS = 50
     # HOMOGRAPHY_MIN_SCALE = 0.0
@@ -74,7 +74,7 @@ class SIFTEngine:
             learning_data.fill_with_engine_for_learning(self.format_resolution, keypoints_small, des_small, \
                 keypoints_medium, des_medium, keypoints_large, des_large)
 
-    def recognition(self, image, learning_data, modeAlgo):
+    def recognition(self, image_init, learning_data, modeAlgo):
         scale_x = 1
         scale_y = 1
         skew_x = 0
@@ -82,7 +82,7 @@ class SIFTEngine:
         t_x = 0
         t_y = 0
 
-        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image, \
+        sift_success, src_pts, dst_pts, kp_img, des_img, good_matches, image = self.apply_sift(image_init, \
             learning_data.mte_parameters, debug=True, mode=modeAlgo)
         homography_success = False
 
@@ -90,10 +90,7 @@ class SIFTEngine:
             homography_matrix, mask = self.get_homography_matrix(src_pts, dst_pts, return_mask=True)
             matches_mask = mask.ravel().tolist()
 
-            if image.shape[1] == self.width_small:
-                height, width = self.img_small.shape[:2]
-            else:
-                height, width = self.img_medium.shape[:2]
+            height, width = self.crop_image(image_init, 1/6).shape[:2]
 
             pts = np.float32([[0, 0], [0, height-1], [width-1, height-1], [width-1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, homography_matrix)
@@ -118,6 +115,8 @@ class SIFTEngine:
 
             # homography_success = scale_ok and skew_ok and translation_ok
             homography_success = scale_ok and skew_ok
+            # print("homography_success = {} w/ scale  {} & skew = {}".format(homography_success, scale_ok, skew_ok))
+            # print("scale = {} , skew = {}".format((scale_x, scale_y), (skew_x, skew_y)))
 
             if homography_success:
                 print("SIFT valid")
@@ -133,10 +132,10 @@ class SIFTEngine:
                 pos = np.asarray(pos)
                 pts = np.float32(pos).reshape(-1,1,2)
                 new_pos = cv2.perspectiveTransform(pts, homography_matrix)
-                if image.shape[1] == self.width_small:
-                    self.display = np.hstack((self.img_small, warped_image))
-                else:
-                    self.display = np.hstack((self.img_medium, warped_image))
+                # if image.shape[1] == self.width_small:
+                #     self.display = np.hstack((self.img_small, warped_image))
+                # else:
+                #     self.display = np.hstack((self.img_medium, warped_image))
 
                 # cv2.imshow("Comparison", self.display)
                 # cv2.waitKey(1)
@@ -151,8 +150,11 @@ class SIFTEngine:
                 kp_img[i].size = 1
             warped_image = cv2.drawKeypoints(warped_image, kp_img, np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
+        # Transform upper left conner from cropped image to upper left conner uncropped
+        translation_x = t_x - int((1/6) * image_init.shape[1])
+        translation_y = t_y - int((1/6) * image_init.shape[0])
         return sift_success and homography_success, \
-            (scale_x, scale_y), (skew_x, skew_y), (t_x, t_y), \
+            (scale_x, scale_y), (skew_x, skew_y), (translation_x, translation_y), \
             warped_image, len(good_matches), len(kp_img)
 
     def get_homography_matrix(self, src_pts, dst_pts, dst_to_src=False, return_mask=False):

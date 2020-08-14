@@ -8,11 +8,12 @@ import math
 import argparse
 import csv
 import json
+import time
 from datetime import datetime
 import cv2
 import numpy as np
 
-
+from pykson import Pykson
 from imutils.video import FPS
 import imagezmq
 
@@ -32,13 +33,10 @@ from Repository import Repository
 from MLValidation import MLValidation
 from SIFTEngine import SIFTEngine
 from D2NetEngine import D2NetEngine
-from VCLikeEngine import VCLikeEngine
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
 #     [0., 951.09864051, 359.47108905],  \
 #         [0., 0., 1.]])
-
-MIN_VALIDATION_COUNT = 5
 
 class MTE:
     """
@@ -47,10 +45,10 @@ class MTE:
     """
 
     def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6,\
-         resize_width=640, ransacount=300):
+         resize_width=640, ransacount=300, force_capture = False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
-        self.image_hub.zmq_socket.RCVTIMEO = 3000
+        self.image_hub.zmq_socket.RCVTIMEO = 3600000
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         self.repo = Repository()
@@ -78,8 +76,6 @@ class MTE:
                                             max_sum_edges=resize_width + self.resize_height,\
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
-        elif self.mte_algo == MTEAlgo.VC_LIKE:
-            self.vc_like_engine = VCLikeEngine()
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
@@ -88,6 +84,7 @@ class MTE:
         self.threshold_large = MTEThreshold(3500, 180, 3100, 750, 13000, 5500, 20000)
 
         self.rollback = 0
+        self.orange_count_for_rollback = 0
         self.validation = 0
         self.devicetype = "CPU"
         self.resolution_change_allowed = 3
@@ -95,7 +92,32 @@ class MTE:
         self.reference = LearningData()
 
         self.debug = None
+        self.server_csv = None
         self.result_csv = None
+        self.force_capture = force_capture
+        if force_capture:
+            self.min_validation_count = 3
+        else:
+            self.min_validation_count = 5
+
+    def init_server_csv(self):
+        """ This function create a log for the global activity of the server."""
+        
+        if not os.path.exists("logs_server"):
+            os.makedirs("logs_server")
+        log_location = os.path.join("logs_server", datetime.now().strftime("%m%d%Y_%H%M%S"))
+        self.server_csv = open(log_location+'.csv', 'w')
+        metrics = ['Timestamp', 'Action', 'Ref Client']
+        writer = csv.DictWriter(self.server_csv, fieldnames=metrics)
+        writer.writeheader()
+        return writer
+
+    def fill_server_log(self, writer, action, ref):
+        """This function fill server's logs."""
+
+        writer.writerow({'Timestamp' : datetime.now(),
+                         'Action' : action,
+                         'Ref Client': ref})
 
     def init_log(self, name):
         """ This function creates and initializes a writer.
@@ -104,11 +126,11 @@ class MTE:
         Out : Writer object pointing to name.csv
         """
         self.result_csv = open(name+'.csv', 'w')
-        metrics = ['Success', 'Number of keypoints', 'Number of matches',
+        metrics = ['Success', 'Flag', 'Code', 'Direction', 
+                   'Number of keypoints', 'Number of matches',
                    'Distance Kirsh', 'Distance Canny', 'Distance Color',
                    'Translation x', 'Translation y',
                    'Scale x', 'Scale y',
-                   'Flag', 'Code', 'Direction',
                    'Blurred']
         writer = csv.DictWriter(self.result_csv, fieldnames=metrics)
         writer.writeheader()
@@ -122,29 +144,40 @@ class MTE:
                 response -> data that will be sent to client
                 is blurred -> is the current image blurred
         """
-        if not isinstance(recognition.dist_roi, int):
-            distance_kirsh = recognition.dist_roi[0]
-            distance_canny = recognition.dist_roi[1]
-            distance_color = recognition.dist_roi[2]
-        else:
-            distance_kirsh = ""
-            distance_canny = ""
-            distance_color = ""
+        if self.result_csv is not None:
+            if not isinstance(recognition.dist_roi, int):
+                distance_kirsh = recognition.dist_roi[0]
+                distance_canny = recognition.dist_roi[1]
+                distance_color = recognition.dist_roi[2]
+            else:
+                distance_kirsh = ""
+                distance_canny = ""
+                distance_color = ""
 
-        writer.writerow({'Success' : recognition.success,
-                         'Number of keypoints' : recognition.nb_kp,
-                         'Number of matches': recognition.nb_match,
-                         'Distance Kirsh' : distance_kirsh,
-                         'Distance Canny' : distance_canny,
-                         'Distance Color' : distance_color,
-                         'Translation x' : recognition.translations[0],
-                         'Translation y' : recognition.translations[1],
-                         'Scale x' : recognition.scales[0],
-                         'Scale y' : recognition.scales[1],
-                         'Flag' : response.flag,
-                         'Code' : response.status,
-                         'Direction' : response.user_information,
-                         'Blurred' : is_blurred})
+            writer.writerow({'Success' : recognition.success,
+                             'Number of keypoints' : recognition.nb_kp,
+                             'Number of matches': recognition.nb_match,
+                             'Distance Kirsh' : distance_kirsh,
+                             'Distance Canny' : distance_canny,
+                             'Distance Color' : distance_color,
+                             'Translation x' : recognition.translations[0],
+                             'Translation y' : recognition.translations[1],
+                             'Scale x' : recognition.scales[0],
+                             'Scale y' : recognition.scales[1],
+                             'Flag' : response.flag,
+                             'Code' : response.status,
+                             'Direction' : response.user_information,
+                             'Blurred' : is_blurred})
+
+    def create_log(self):
+        log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
+        if not os.path.exists(log_location):
+            os.makedirs(log_location)
+        log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
+        log_path = os.path.join(log_location, log_name)
+        log_writer = self.init_log(log_path)
+        
+        return log_writer
 
     def set_mte_parameters(self, ratio):
         """Edit values for globals parameters of the motion tracking engine."""
@@ -181,19 +214,23 @@ class MTE:
         containing the operations' results.
         """
 
+        server_log_writter = self.init_server_csv()
         while True:  # show streamed images until Ctrl-C
             msg, image = self.image_hub.recv_image()
 
             data = json.loads(msg)
 
             if "error" in data and data["error"]:
+                # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 continue
 
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
+                t0 = time.time()
                 self.rollback = 0
                 self.validation = 0
                 self.resolution_change_allowed = 3
                 resolution_valid = self.set_mte_parameters(image.shape[1]/image.shape[0])
+                t1 = time.time()
                 if resolution_valid:
                     status = self.learning(image)
                     to_send = {
@@ -204,16 +241,31 @@ class MTE:
                     if status == ErrorLearning.SUCCESS:
                         to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
                 else:
+                    print("Invalid format.")
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
                     }
-
+                self.reference.clean_control_assist(self.reference.id_ref)
+                data["id_ref"] = None
+                t2 = time.time()
+                # print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
-                if data["id_ref"] is None:
+                if data["mte_parameters"]["ratio"] is None:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
+                    print("Error inside parameters for init.")
+                elif (not self.reference.is_empty()) and self.reference.id_ref != data["id_ref"]:
+                    to_send = {
+                        "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
+                    }
+                    print("Engine already init with a different ref.")
+                    # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
                 else:
+                    self.rollback = 0
+                    self.validation = 0
+                    self.resolution_change_allowed = 3
+                    self.orange_count_for_rollback = 0
                     self.format_resolution = data["mte_parameters"]["ratio"]
                     self.set_mte_parameters(self.format_resolution)
                     init_status = self.reference.initialiaze_control_assist\
@@ -223,12 +275,17 @@ class MTE:
                         self.vc_like_engine.init_engine(self.reference)
 
                     if init_status == 0:
-                        log_location = os.path.join("logs", "ref"+str(self.reference.id_ref))
-                        if not os.path.exists(log_location):
-                            os.makedirs(log_location)
-                        log_name = datetime.now().strftime("%m%d%Y_%H%M%S")
-                        log_path = os.path.join(log_location, log_name)
-                        log_writer = self.init_log(log_path)
+                        log_writer = self.create_log()
+                    if os.path.isfile('temporaryData.txt'):
+                        os.remove('temporaryData.txt')
+                    with open('temporaryData.txt', 'w') as json_file:
+                        to_save_parameters = self.reference.change_parameters_type_for_sending()
+                        to_save = {
+                            "id_ref" : data["id_ref"],
+                            "mte_parameters" : to_save_parameters
+                        }
+                        json.dump(to_save, json_file)
+
                     to_send = {
                         "status" : init_status
                     }
@@ -240,7 +297,20 @@ class MTE:
                             self.vc_like_engine.image_height)
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
+                if (self.reference.id_ref is None) and (os.path.isfile('temporaryData.txt')):
+                    print("Restoring data from temporaryData.")
+                    with open('temporaryData.txt') as json_file:
+                        data_restored = json.load(json_file)
+                        self.format_resolution = data_restored["mte_parameters"]["ratio"]
+                        self.set_mte_parameters(self.format_resolution)
+                        self.reference.initialiaze_control_assist(data_restored["id_ref"], data_restored["mte_parameters"])
+                        log_writer = self.create_log()
+                        data = data_restored
+                        data["mode"] = MTEMode.MOTION_TRACKING
+                    target = (self.width_medium, \
+                            int(self.width_medium*(1/self.format_resolution)))
                 if self.reference.id_ref is None:
+                    print("Engine is not initialized.")
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
                     }
@@ -280,14 +350,18 @@ class MTE:
 
                     # If we can capture
                     is_blurred = False
-                    if self.validation > MIN_VALIDATION_COUNT:
-                        self.validation = MIN_VALIDATION_COUNT
-                    if self.validation == MIN_VALIDATION_COUNT:
+                    if self.validation > self.min_validation_count:
+                        self.validation = self.min_validation_count
+                    if self.validation == self.min_validation_count:
                         is_blurred = self.is_image_blurred(image, \
                             size=int(response.requested_image_size[0]/18), thresh=10)
                         # if the image is not blurred else we just return green
-                        if not is_blurred[1] and response.user_information == UserInformation.CENTERED:
-                            response.flag = MTEResponse.CAPTURE
+                        if self.force_capture:
+                            if response.user_information == UserInformation.CENTERED:
+                                response.flag = MTEResponse.CAPTURE
+                        else:
+                            if not is_blurred[1] and response.user_information == UserInformation.CENTERED:
+                                response.flag = MTEResponse.CAPTURE
                     temp_x = response.target_data["translations"][0]
                     temp_y = response.target_data["translations"][1]
                     response.target_data["translations"] = (temp_x * (self.debug.shape[1]/target[0]), temp_y * (self.debug.shape[0]/target[1]))
@@ -295,11 +369,28 @@ class MTE:
                     self.fill_log(log_writer, results, response, is_blurred)
                     target = (response.requested_image_size[0], response.requested_image_size[1])
 
+                    target = (response.requested_image_size[0], response.requested_image_size[1])
+
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
+                status = self.reference.clean_control_assist(data["id_ref"])
+                if status != 0:
+                    id_ref = self.reference.id_ref
+                    print("Clean failed wrong ref.")
+                else:
+                    id_ref = -1
+                    if os.path.isfile('temporaryData.txt'):
+                        os.remove('temporaryData.txt')
+                    self.rollback = 0
+                    self.validation = 0
+                    self.resolution_change_allowed = 3
+                    self.orange_count_for_rollback = 0
+                    print("Clean success.")
                 to_send = {
-                    "status" : self.reference.clean_control_assist(data["id_ref"])
+                    "status" : status,
+                    "id_ref" : id_ref
                 }
-                self.result_csv = self.result_csv.close()
+                if self.result_csv is not None:
+                    self.result_csv = self.result_csv.close()
             elif MTEMode(data["mode"]) == MTEMode.RUNNING_VERIFICATION:
                 to_send = {
                     "status" : 0
@@ -311,6 +402,8 @@ class MTE:
                 }
                 print("{} is an unknown mode.".format(data["mode"]))
 
+            self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
+                data["id_ref"])
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=15):
@@ -375,8 +468,6 @@ class MTE:
         # center_kp = cv2.KeyPoint(center[0], center[1], 8)
         # to_draw = cv2.drawKeypoints(self.debug, [center_kp], \
         # np.array([]), (255, 0, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.putText(to_draw, "Direction: "+direction.value, (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.5, \
-        #                     (255, 0, 0), 2)
         # cv2.imshow("Direction", to_draw)
         # cv2.waitKey(1)
         return direction
@@ -420,12 +511,17 @@ class MTE:
         size -> the width of the image
         """
 
+        new_width = width
         if self.validation > 0:
             self.validation -= 1
-        if width == self.width_medium and self.rollback > 0:
-            self.rollback -= 1
+        if width == self.width_small and self.orange_count_for_rollback >= 2:
+            new_width = self.width_medium
+            self.orange_count_for_rollback = 0
+            self.resolution_change_allowed -= 1
+        elif width == self.width_small:
+            self.orange_count_for_rollback += 1
 
-        return ResponseData([width, int(width*(1/self.format_resolution))], MTEResponse.ORANGE,\
+        return ResponseData([new_width, int(new_width*(1/self.format_resolution))], MTEResponse.ORANGE,\
                             results.translations[0], results.translations[1], \
                             self.compute_direction(results.translations, results.scales, width), \
                             results.scales[0], results.scales[1])
@@ -462,6 +558,7 @@ class MTE:
             width = self.width_small
             self.validation = 0
             self.rollback = 0
+            self.orange_count_for_rollback = 0
         else:
             self.validation += 1
         return ResponseData(\
@@ -495,7 +592,6 @@ class MTE:
         if results.nb_kp < self.threshold_small.nb_kp:
             response_for_client = self.red_width_small()
             response_for_client.set_status(ErrorRecognition.NOT_ENOUGHT_KEYPOINTS)
-            print("Not enought keypoints")
         # If not enough matches
         elif results.nb_match < self.threshold_small.nb_match:
             # If homography doesn't even start
@@ -518,7 +614,7 @@ class MTE:
                                 self.compute_direction(results.translations,\
                                     results.scales, self.width_small), \
                                 results.scales[0], results.scales[1],\
-                                status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
+                                status=ErrorRecognition.WRONG_POINT_OF_VIEW)
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_small.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_small.mean_canny
@@ -581,7 +677,7 @@ class MTE:
                     self.compute_direction(results.translations,\
                         results.scales, self.width_medium), \
                     results.scales[0], results.scales[1],\
-                    status=ErrorRecognition.NOT_CENTERED_WITH_TARGET)
+                    status=ErrorRecognition.WRONG_POINT_OF_VIEW)
             else:
                 dist_kirsh = results.dist_roi[0] < self.threshold_medium.mean_kirsh
                 dist_canny = results.dist_roi[1] < self.threshold_medium.mean_canny
@@ -722,7 +818,7 @@ class MTE:
         """
 
         size = int(image_ref.shape[1]/18)
-        blurred = self.is_image_blurred(image_ref, \
+        blurred = self.is_image_blurred(self.sift_engine.crop_image(image_ref, 1/3), \
                         size=size, thresh=10)
         if blurred[1]:
             print("The image is blurred")
@@ -919,11 +1015,11 @@ if __name__ == "__main__":
         help="Width of the input image (640 or 320). Default: 380")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
-    # ap.add_argument("-v", "--verification", required=False, type=str2bool, nargs='?',\
-    #     const=True, default=False,\
-    #     help="Activate the verification mode if set to True. Default: False")
+    ap.add_argument("-f", "--force", required=False, type=str2bool, nargs='?',\
+        const=True, default=False,\
+        help="Loosen up the condition for capture. Default: False")
     args = vars(ap.parse_args())
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
-         resize_width=args["width"], ransacount=args["ransacount"])
+         resize_width=args["width"], ransacount=args["ransacount"], force_capture=args["force"])
     mte.listen_images()

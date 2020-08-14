@@ -166,3 +166,9 @@ class LearningData:
             "id_ref" : self.id_ref,
             "mte_parameters" : self.mte_parameters
         }
+
+    def is_empty(self):
+        """ Return a bool indicating if we can
+        initialize the data
+        """
+        return self.id_ref is None
