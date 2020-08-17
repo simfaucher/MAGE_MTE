@@ -55,7 +55,7 @@ class VCLikeEngine:
         self.scale = 100
         self.learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
         self.learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
-        validation_count = 0
+        self.validation_count = 0
 
         self.ratio = None
 
@@ -200,6 +200,7 @@ class VCLikeEngine:
     def init_engine(self, learning_data):
         self.mode = 0
         self.scale = 100
+        self.validation_count = 0
         # Create every 85x48 single-scale box learners
         learning_settings_85_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_85_singlescale
 
@@ -323,7 +324,7 @@ class VCLikeEngine:
         # Boîte verte
         if self.mode <= 0 or nb_frames >= 10 or testing_mode:
             prev_mode = 0
-            validation_count = 0
+            self.validation_count = 0
             # Scan global
             best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
             best_match = self.mean_best(all_matches, best_match)
