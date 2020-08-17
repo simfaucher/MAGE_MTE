@@ -53,10 +53,9 @@ class VCLikeEngine:
         self.last_match = None
         self.mode = 0
         self.scale = 100
-        self.nb_frames = 0
         self.learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
         self.learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
-        self.validation_count = 0
+        validation_count = 0
 
         self.ratio = None
 
@@ -199,6 +198,8 @@ class VCLikeEngine:
             learning_data.fill_vc_like_learning_data(self.ratio, vc_like_data)
     
     def init_engine(self, learning_data):
+        self.mode = 0
+        self.scale = 100
         # Create every 85x48 single-scale box learners
         learning_settings_85_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_85_singlescale
 
@@ -311,6 +312,7 @@ class VCLikeEngine:
         capture = False
         response_type = MTEResponse.ORANGE
         translation = (0, 0)
+        nb_frames = 0
 
         begin_frame_computing = time.time()
         fps = FPS().start() # Debug
@@ -319,9 +321,9 @@ class VCLikeEngine:
         begin_timeout = time.time()
 
         # Boîte verte
-        if self.mode <= 0 or self.nb_frames >= 10 or testing_mode:
+        if self.mode <= 0 or nb_frames >= 10 or testing_mode:
             prev_mode = 0
-            self.validation_count = 0
+            validation_count = 0
             # Scan global
             best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
             best_match = self.mean_best(all_matches, best_match)
@@ -517,10 +519,10 @@ class VCLikeEngine:
         if best_match.success:
             self.last_match = best_match
         
-        if self.nb_frames >= 10:
-            self.nb_frames = 0
+        if nb_frames >= 10:
+            nb_frames = 0
         elif not testing_mode:
-            self.nb_frames += 1
+            nb_frames += 1
 
         fps.update() # Debug
         fps.stop() # Debug
