@@ -212,21 +212,6 @@ class Client:
                         cv2.putText(to_draw, MTEResponse(response["flag"]).name, \
                             (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_box, 2)
 
-                        if MTEResponse(response["flag"]) != MTEResponse.RED and \
-                            MTEResponse(response["flag"]) != MTEResponse.TARGET_LOST:
-                            cv2.putText(to_draw, "Trans. x: {:.2f}".format(response\
-                                ["target_data"]["translations"][0]),\
-                                (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                            cv2.putText(to_draw, "Trans. y: {:.2f}".format(response\
-                                ["target_data"]["translations"][1]), \
-                                (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                            cv2.putText(to_draw, "Scale x: {:.2f}".format(response\
-                                ["target_data"]["scales"][0]),\
-                                (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                            cv2.putText(to_draw, "Scale y: {:.2f}".format(response\
-                                ["target_data"]["scales"][1]),\
-                                (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
                         if not prev_size == size:
                             print("Change of size {} -> {}".format(prev_size, size))
 
@@ -247,6 +232,16 @@ class Client:
                             y_coordinate = (full_image.shape[0]/image.shape[0]) * \
                                             (response["target_data"]["translations"][1] + image.shape[0]/2)
                             center = cv2.KeyPoint(x_coordinate, y_coordinate, 8)
+                            cv2.putText(to_draw, "Trans. x: {:.2f}".format(x_coordinate),\
+                                (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            cv2.putText(to_draw, "Trans. y: {:.2f}".format(y_coordinate), \
+                                (220, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            cv2.putText(to_draw, "Scale x: {:.2f}".format(response\
+                                ["target_data"]["scales"][0]),\
+                                (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            cv2.putText(to_draw, "Scale y: {:.2f}".format(response\
+                                ["target_data"]["scales"][1]),\
+                                (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                             print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
                             print(x_coordinate, y_coordinate)
                             to_draw = cv2.drawKeypoints(to_draw, [center],\
