@@ -342,10 +342,10 @@ class VCLikeEngine:
 
                 self.box_learner_85_multiscale.input_image = image
                 multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
-
                 self.scale = multiscale_match.predicted_class
-                translation = (best_match.anchor.x - self.box_learner_85_multiscale.sight.anchor.x - (int(self.image_width/2) - int(self.box_learner_85_multiscale.sight.width/2)), \
-                    best_match.anchor.y - self.box_learner_85_multiscale.sight.anchor.y - (int(self.image_height/2) - int(self.box_learner_85_multiscale.sight.height/2)))
+
+                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_85_multiscale.sight.width/2))*(self.scale/100)), \
+                    int((pt_tl.y - (self.image_height/2 - self.box_learner_85_multiscale.sight.height/2))*(self.scale/100)))
 
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
@@ -393,10 +393,10 @@ class VCLikeEngine:
 
                 self.box_learner_64_multiscale.input_image = image
                 multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
-
                 self.scale = multiscale_match.predicted_class
-                translation = (best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x - (int(self.image_width/2) - int(self.box_learner_64_multiscale.sight.width/2)), \
-                    best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y - (int(self.image_height/2) - int(self.box_learner_64_multiscale.sight.height/2)))
+
+                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
+                    int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
                 #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
                 #TODO: et cible à peu près au centre de l'image
@@ -448,8 +448,8 @@ class VCLikeEngine:
                 multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
                 self.scale = multiscale_match.predicted_class
                 
-                translation = (best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x - (int(self.image_width/2) - int(self.box_learner_64_multiscale.sight.width/2)), \
-                    best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y - (int(self.image_height/2) - int(self.box_learner_64_multiscale.sight.height/2)))
+                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
+                    int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
                 number_of_green_around = 0
                 green_count = 0
