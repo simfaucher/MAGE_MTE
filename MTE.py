@@ -928,8 +928,8 @@ class MTE:
             success, response_type, scales, skews, translation, transformed = self.vc_like_engine.\
                 find_target(image, self.reference, testing_mode=testing_mode)
             
-            translation = (int(translation[0]*self.width_small/self.vc_like_engine.image_width), \
-                int(translation[1]*(self.width_small*(1/self.format_resolution)/self.vc_like_engine.image_height)/self.vc_like_engine.image_width))
+            translation = (int(translation[0]*scales[0]), \
+                int(translation[1]*scales[1]))
             # cv2.imshow("VC-like engine", transformed)
         elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             success, scales, skews, translation, transformed, nb_matches, \

@@ -58,8 +58,8 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # LEARNING_IMAGE_PATH = "videos/T2.2/vlcsnap-2020-02-28-11h42m40s178.png"
 
 # T2.3
-# VIDEO_PATH = "videos/demo.mp4"
-# LEARNING_IMAGE_PATH = "videos/capture.png"
+VIDEO_PATH = "videos/demo.mp4"
+LEARNING_IMAGE_PATH = "videos/capture.png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"

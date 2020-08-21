@@ -497,25 +497,29 @@ class VCLikeEngine:
         if best_match.anchor is not None:
             x1 = best_match.anchor.x
             y1 = best_match.anchor.y
-            cv2.circle(to_display, (x1, y1), 2, (0, 255, 0), 2) # Debug
-            upper_left_conner = (int(x1-image.shape[1]/4), \
-                                            int(y1-image.shape[0]/4))
-            lower_right_corner = (int(x1+image.shape[1]/4), \
-                                            int(y1+image.shape[0]/4))
-            to_display = cv2.rectangle(to_display, upper_left_conner,\
+            test = to_display.copy()
+            cv2.circle(test, (x1, y1), 2, (0, 0, 255), 2) # Debug
+
+            x1 = translation[0]
+            y1 = translation[1]
+            cv2.circle(test, (x1, y1), 2, (255, 0, 0), 2) # Debug
+            lower_right_corner = (int(x1+image.shape[1]), \
+                                            int(y1+image.shape[0]))
+            to_display = cv2.rectangle(to_display, translation,\
                                                 lower_right_corner, (255, 0, 0), thickness=1)
             # Scaled display
-            upper_left_conner = (int(x1-(image.shape[1]/4)*(self.scale/100)), \
-                                            int(y1-(image.shape[0]/4)*(self.scale/100)))
-            lower_right_corner = (int(x1+(image.shape[1]/4)*(self.scale/100)), \
-                                            int(y1+(image.shape[0]/4)*(self.scale/100)))
+            upper_left_conner = (int(x1-(image.shape[1])*(self.scale/100)), \
+                                            int(y1-(image.shape[0])*(self.scale/100)))
+            lower_right_corner = (int(x1+(image.shape[1])*(self.scale/100)), \
+                                            int(y1+(image.shape[0])*(self.scale/100)))
             to_display = cv2.rectangle(to_display, upper_left_conner,\
                                                 lower_right_corner, (255, 255, 255), thickness=1)
         else:
             to_display = image.copy()
-        # cv2.imshow("Debug", cv2.resize(to_display, (800, 600))) # Debug
+            test = to_display
+        cv2.imshow("Debug", cv2.resize(test, (image.shape[1], image.shape[0]))) # Debug
         # out.write(to_display)
-        # cv2.waitKey(1) # Debug
+        cv2.waitKey(1) # Debug
 
         if best_match.success:
             self.last_match = best_match
