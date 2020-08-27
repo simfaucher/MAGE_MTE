@@ -223,6 +223,13 @@ class MTE:
 
             data = json.loads(msg)
 
+            if self.mte_algo == MTEAlgo.VC_LIKE:
+                h, w = image.shape[:2]
+                limits = (w * (1 / (16 / 9))) / 2
+                croped = image[int(h-limits): int(h+limits), \
+                    0: w]
+                image = croped.copy()
+
             if "error" in data and data["error"]:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 continue
