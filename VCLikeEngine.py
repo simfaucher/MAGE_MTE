@@ -366,7 +366,10 @@ class VCLikeEngine:
                     if (number_of_green_around >= 3) and\
                         math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
                         math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
-                        self.mode = 1
+
+                        # Change mode only if it is not the 10th frame check
+                        if self.mode == 0:
+                            self.mode = 1
                     else:
                         if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
                             response_type = MTEResponse.TARGET_LOST

@@ -1036,7 +1036,7 @@ if __name__ == "__main__":
         const=True, default=False,\
         help="Loosen up the condition for capture. Default: False")
     ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
-        const=True, default=True,\
+        const=True, default=False,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     args = vars(ap.parse_args())
 
