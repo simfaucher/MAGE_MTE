@@ -46,7 +46,7 @@ class MTE:
     """
 
     def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6,\
-         resize_width=640, ransacount=300, force_capture = False):
+         resize_width=640, ransacount=300, force_capture=False, one_shot_mode=False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3600000
@@ -78,7 +78,7 @@ class MTE:
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
         elif self.mte_algo == MTEAlgo.VC_LIKE:
-            self.vc_like_engine = VCLikeEngine()
+            self.vc_like_engine = VCLikeEngine(one_shot_mode=one_shot_mode)
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
@@ -225,10 +225,11 @@ class MTE:
 
             if self.mte_algo == MTEAlgo.VC_LIKE:
                 h, w = image.shape[:2]
-                limits = (w * (1 / (16 / 9))) / 2
-                croped = image[int(h-limits): int(h+limits), \
-                    0: w]
-                image = croped.copy()
+                if math.isclose(float(w)/h, 4/3, rel_tol=1e-5):
+                    limits = (w * (1 / (16 / 9))) / 2
+                    croped = image[int(h-limits): int(h+limits), \
+                        0: w]
+                    image = croped.copy()
 
             if "error" in data and data["error"]:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
@@ -1034,8 +1035,11 @@ if __name__ == "__main__":
     ap.add_argument("-f", "--force", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
         help="Loosen up the condition for capture. Default: False")
+    ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
+        const=True, default=True,\
+        help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     args = vars(ap.parse_args())
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
-         resize_width=args["width"], ransacount=args["ransacount"], force_capture=args["force"])
+         resize_width=args["width"], ransacount=args["ransacount"], force_capture=args["force"], one_shot_mode=args["oneshot"])
     mte.listen_images()

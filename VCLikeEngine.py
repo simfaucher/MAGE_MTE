@@ -47,7 +47,7 @@ HOMOGRAPHY_MAX_TRANS = 50
 TIMEOUT_LIMIT_SEC = 7
 
 class VCLikeEngine:
-    def __init__(self):
+    def __init__(self, one_shot_mode=False):
         self.reference_image = None
 
         self.last_match = None
@@ -69,6 +69,8 @@ class VCLikeEngine:
         self.image_width = 176
         self.image_height = 97
         
+        self.nb_frames = 0
+        self.one_shot_mode = one_shot_mode
         # self.to_skip = 1/2
 
     # def learn(self, image, learning_data):
@@ -308,21 +310,21 @@ class VCLikeEngine:
         return best_match
 
     def find_target(self, input_image, learning_data, testing_mode=False):
-        # mode_skip="fixe"
         not_centered = False
         capture = False
         response_type = MTEResponse.ORANGE
         translation = (0, 0)
-        nb_frames = 0
 
-        begin_frame_computing = time.time()
+        # begin_frame_computing = time.time()
         fps = FPS().start() # Debug
 
         image = cv2.resize(input_image, (self.image_width, self.image_height))
         begin_timeout = time.time()
 
+        step_done = False
+
         # Boîte verte
-        if self.mode <= 0 or nb_frames >= 10 or testing_mode:
+        if self.mode <= 0 or self.nb_frames >= 9 or testing_mode:
             prev_mode = 0
             self.validation_count = 0
             # Scan global
@@ -347,9 +349,7 @@ class VCLikeEngine:
                 translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_85_multiscale.sight.width/2))*(self.scale/100)), \
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_85_multiscale.sight.height/2))*(self.scale/100)))
 
-
-                #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
-                #TODO: et cible à peu près au centre de l'image
+                # Change mode if there are 5 green points around and the target is roughly centered
                 if not testing_mode:
                     number_of_green_around = 0
                     green_count = 0
@@ -374,8 +374,13 @@ class VCLikeEngine:
                             response_type = MTEResponse.RED
                         self.mode = 0
 
+            if best_match.success:
+                self.last_match = best_match
+
+            step_done = True
+
         # Boîte orange
-        elif self.mode == 1:
+        if self.mode == 1 and (not step_done or self.one_shot_mode):
             prev_mode = 1
             response_type = MTEResponse.GREEN
             # Scan optimisé (step=3)
@@ -398,8 +403,7 @@ class VCLikeEngine:
                 translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
-                #TODO: changement de mode si 5 points verts proches (regarder leur .anchor, tous les matches sont dans la variable matches) 
-                #TODO: et cible à peu près au centre de l'image
+                # Change mode if there are 5 green points around and the target is roughly centered
                 number_of_green_around = 0
                 green_count = 0
                 x1 = best_match.anchor.x
@@ -421,13 +425,17 @@ class VCLikeEngine:
                     if number_of_green_around >= 4:
                         self.mode = 2
             else:
-                #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                 response_type = MTEResponse.ORANGE
                 begin_timeout = time.time()
                 self.mode = 0
 
+            if best_match.success:
+                self.last_match = best_match
+
+            step_done = True
+
         # Boîte rose
-        elif self.mode == 2 or self.mode == 3:
+        if self.mode in (2, 3) and (not step_done or self.one_shot_mode):
             prev_mode = self.mode
             response_type = MTEResponse.GREEN
 
@@ -469,10 +477,12 @@ class VCLikeEngine:
                             green_count += 1
                         if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
                             number_of_green_around += 1
+                # Change mode if there are 6 green points around and the target is roughly centered
                     if number_of_green_around >= 6:
                         self.mode = 3
+                    else:
+                        self.mode = 2
             else:
-                #TODO: définir la condition pour la redescente de mode (oubli dans le diagramme d'activité)
                 self.mode = 1
             
             if prev_mode == 3 and response_type == MTEResponse.GREEN:
@@ -482,7 +492,11 @@ class VCLikeEngine:
                 capture = (self.validation_count >= 3)
                 if capture:
                     response_type = MTEResponse.CAPTURE
-                    # self.mode = 2 #TODO: à supprimer ?
+        
+            if best_match.success:
+                self.last_match = best_match
+
+            step_done = True
 
         # elif self.mode == 3:
         #     prev_mode = 3
@@ -521,13 +535,12 @@ class VCLikeEngine:
         # out.write(to_display)
         # cv2.waitKey(1) # Debug
 
-        if best_match.success:
-            self.last_match = best_match
         
-        if nb_frames >= 10:
-            nb_frames = 0
-        elif not testing_mode:
-            nb_frames += 1
+        if not testing_mode:
+            self.nb_frames += 1
+
+        if self.nb_frames >= 10:
+            self.nb_frames = 0
 
         fps.update() # Debug
         fps.stop() # Debug
@@ -553,7 +566,7 @@ class VCLikeEngine:
 
         # ite += 1
         # frame_id += 1
-        end_frame_computing = time.time()
+        # end_frame_computing = time.time()
         # if mode_skip == "fixe":
         #     for cpt in range(int((1/self.to_skip)-1)):
         #         cap.grab()
