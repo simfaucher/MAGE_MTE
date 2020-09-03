@@ -45,8 +45,8 @@ class MTE:
     and will compute motion tracking for the client.
     """
 
-    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6,\
-         resize_width=640, ransacount=300, force_capture=False, one_shot_mode=False):
+    def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=380, \
+         ransacount=300, disable_blur=False, disable_centering=False, one_shot_mode=False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3600000
@@ -97,8 +97,11 @@ class MTE:
         self.debug = None
         self.server_csv = None
         self.result_csv = None
-        self.force_capture = force_capture
-        if force_capture:
+
+        self.disable_centering = disable_centering
+
+        self.disable_blur = disable_blur
+        if disable_blur:
             self.min_validation_count = 3
         else:
             self.min_validation_count = 5
@@ -367,7 +370,7 @@ class MTE:
                         is_blurred = self.is_image_blurred(image, \
                             size=int(response.requested_image_size[0]/18), thresh=10)
                         # if the image is not blurred else we just return green
-                        if self.force_capture:
+                        if self.disable_blur:
                             if response.user_information == UserInformation.CENTERED:
                                 response.flag = MTEResponse.CAPTURE
                         else:
@@ -445,34 +448,39 @@ class MTE:
         translation -> tuple containing homographic estimations of x,y
         size_w -> the width of the current image
         """
+        if self.disable_centering:
+            divider = 50
+        else:
+            divider = 10
 
-        divider = 20
+        tolerance = float(divider)/100
+
         center = (translation_value[0]*scale_value[0]+size_w/2, \
             translation_value[1]*scale_value[1]+int((size_w*(1/self.format_resolution))/2))
 
         direction = UserInformation.CENTERED
 
         size_h = int(size_w*(1/self.format_resolution))
-        if center[1] < (size_h/2 - size_h/divider):
-            if center[0] < (size_w/2 - size_w/divider):
+        if center[1] < (size_h/2 - size_h*tolerance):
+            if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.UP_LEFT
-            elif center[0] > (size_w/2 + size_w/divider):
+            elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.UP_RIGHT
             else:
                 direction = UserInformation.UP
 
-        elif center[1] > (size_h/2 + size_h/divider):
-            if center[0] < (size_w/2 - size_w/divider):
+        elif center[1] > (size_h/2 + size_h*tolerance):
+            if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.DOWN_LEFT
-            elif center[0] > (size_w/2 + size_w/divider):
+            elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.DOWN_RIGHT
             else:
                 direction = UserInformation.DOWN
 
         else:
-            if center[0] < (size_w/2 - size_w/divider):
+            if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.LEFT
-            elif center[0] > (size_w/2 + size_w/divider):
+            elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.RIGHT
             else:
                 direction = UserInformation.CENTERED
@@ -1027,19 +1035,23 @@ if __name__ == "__main__":
     ap.add_argument("-a", "--algo", required=False, default="VC_LIKE",\
         help="Feature detection algorithm (SIFT_KNN, SIFT_RANSAC or VC_LIKE). Default: VC_LIKE")
     ap.add_argument("-c", "--crop", required=False, default="1/6",\
-        help="Part to crop around the center of the image (1/6, 1/4 or 0). Default: 1/6")
-    ap.add_argument("-w", "--width", required=False, default=380, type=int,\
-        help="Width of the input image (640 or 320). Default: 380")
+        help="Part to crop around the center of the image (1/6, 1/4 or 0)? Used in SIFT engine. Default: 1/6")
+    # ap.add_argument("-w", "--width", required=False, default=380, type=int,\
+    #     help="Width of the input image (640, 380 or 320) for D2NET engine. Default: 380")
     ap.add_argument("-r", "--ransacount", required=False, default=300, type=int,\
         help="Number of randomize samples for Ransac evaluation. Default: 300")
-    ap.add_argument("-f", "--force", required=False, type=str2bool, nargs='?',\
+    ap.add_argument("-b", "--disable_blur", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
-        help="Loosen up the condition for capture. Default: False")
+        help="Disable the blur condition to capture. Default: False")
+    ap.add_argument("-d", "--disable_centering", required=False, type=str2bool, nargs='?',\
+        const=True, default=False,\
+        help="Disable the centering condition to capture. Default: False")
     ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     args = vars(ap.parse_args())
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
-         resize_width=args["width"], ransacount=args["ransacount"], force_capture=args["force"], one_shot_mode=args["oneshot"])
+         ransacount=args["ransacount"], disable_blur=args["disable_blur"], disable_centering=args["disable_centering"], \
+         one_shot_mode=args["oneshot"])
     mte.listen_images()

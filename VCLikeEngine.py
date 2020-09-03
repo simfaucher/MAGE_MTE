@@ -324,7 +324,7 @@ class VCLikeEngine:
         step_done = False
 
         # Boîte verte
-        if self.mode <= 0 or self.nb_frames >= 9 or testing_mode:
+        if self.mode <= 0 or (self.nb_frames >= 9 and not self.one_shot_mode) or testing_mode:
             prev_mode = 0
             self.validation_count = 0
             # Scan global
@@ -370,6 +370,8 @@ class VCLikeEngine:
                         # Change mode only if it is not the 10th frame check
                         if self.mode == 0:
                             self.mode = 1
+                        else:
+                            best_match = self.last_match
                     else:
                         if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
                             response_type = MTEResponse.TARGET_LOST
