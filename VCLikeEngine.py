@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 import imutils
 from imutils.video import FPS
+from skimage.exposure import match_histograms
 import matplotlib.pyplot as plt
 
 from ML.Domain.LearningKnowledge import LearningKnowledge
@@ -27,6 +28,7 @@ from ML.BoxLearner import BoxLearner
 
 from Domain.LearningData import LearningData
 from Domain.VCLikeData import VCLikeData
+from Domain.HistogramMatchingData import HistogramMatchingData
 from Domain.MTEResponse import MTEResponse
 
 LEARNING_SETTINGS_85 = "learning_settings_85.json"
@@ -47,7 +49,7 @@ HOMOGRAPHY_MAX_TRANS = 50
 TIMEOUT_LIMIT_SEC = 7
 
 class VCLikeEngine:
-    def __init__(self, one_shot_mode=False):
+    def __init__(self, one_shot_mode=False, disable_histogram_matching=False):
         self.reference_image = None
 
         self.last_match = None
@@ -56,6 +58,7 @@ class VCLikeEngine:
         self.learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
         self.learning_settings_64 = self.load_ml_settings(LEARNING_SETTINGS_64)
         self.validation_count = 0
+        self.disable_histogram_matching = disable_histogram_matching
 
         self.ratio = None
 
@@ -64,6 +67,9 @@ class VCLikeEngine:
         self.box_learners_64_singlescale = {}
         self.box_learner_85_multiscale = None
         self.box_learner_64_multiscale = None
+
+        # Histogram matching data
+        self.histogram_matching_data = None
 
         # Parameters
         self.image_width = 176
@@ -135,6 +141,23 @@ class VCLikeEngine:
         if learning_data.mte_parameters["vc_like_data"] is None:
             vc_like_data = VCLikeData()
             image = cv2.resize(input_image, (self.image_width, self.image_height))
+
+            self.reference_image = image #TODO: remove ?
+
+            # Generate data for histogram matching
+            vc_like_data.histogram_matching_data = []
+            for channel in range(image.shape[-1]):
+                values, counts = np.unique(image[..., channel].ravel(), return_counts=True)
+                quantiles = np.cumsum(counts) / image.size
+
+                histogram_matching_data = HistogramMatchingData()
+                histogram_matching_data.values = values.tolist()
+                histogram_matching_data.counts = counts.tolist()
+                histogram_matching_data.quantiles = quantiles.tolist()
+
+                vc_like_data.histogram_matching_data.append(histogram_matching_data)
+
+            # Generate dataset
             dataset = self.generate_dataset(image)
 
             # 85x48 learnings
@@ -228,7 +251,10 @@ class VCLikeEngine:
         # Create 64x64 multi-scale box learner
         self.box_learner_64_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights, 0)
         self.box_learner_64_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights[0])
-        
+
+        # Histogram matching data
+        self.histogram_matching_data = learning_data.mte_parameters["vc_like_data"].histogram_matching_data
+  
     def learn_image(self, learning_settings, class_id, class_name, img):
         # Learn ML data
 
@@ -319,6 +345,12 @@ class VCLikeEngine:
         fps = FPS().start() # Debug
 
         image = cv2.resize(input_image, (self.image_width, self.image_height))
+        if not testing_mode and not self.disable_histogram_matching:
+            # image = self.match_histograms(image, self.histogram_matching_data) #TODO: debugger
+            image = match_histograms(image, self.reference_image, multichannel=True)
+            # cv2.imshow("Corrected image", image) # Debug
+            # cv2.waitKey(1) # Debug
+
         begin_timeout = time.time()
 
         step_done = False
@@ -594,6 +626,26 @@ class VCLikeEngine:
         # return best_match.success, (self.scale, self.scale), (0, 0), (best_match.anchor.x, best_match.anchor.y), transformed
 
         return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, input_image
+    
+    def _match_cumulative_cdf(self, source, histogram_data:HistogramMatchingData):
+        src_values, src_unique_indices, src_counts = np.unique(source.ravel(),
+                                                            return_inverse=True,
+                                                            return_counts=True)
+
+        # calculate normalized quantiles for each array
+        src_quantiles = np.cumsum(src_counts) / source.size
+
+        interp_a_values = np.interp(src_quantiles, np.asarray(histogram_data.quantiles, dtype=np.float64), \
+            np.asarray(histogram_data.values, dtype=np.uint8))
+        return interp_a_values[src_unique_indices].reshape(source.shape)
+
+    def match_histograms(self, image, histogram_matching_data):
+        matched = np.empty(image.shape, dtype=image.dtype)
+        for channel in range(image.shape[-1]):
+            matched_channel = self._match_cumulative_cdf(image[..., channel], histogram_matching_data[channel])
+            matched[..., channel] = matched_channel
+
+        return matched
 
 if __name__ == "__main__":
     image_ref = cv2.imread("videos/T1.1/vlcsnap-2020-03-02-15h59m47s327.png")

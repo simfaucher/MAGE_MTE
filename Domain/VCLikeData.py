@@ -1,4 +1,5 @@
 from pykson import JsonObject, IntegerField, StringField, ObjectListField, DateTimeField
+from Domain.HistogramMatchingData import HistogramMatchingData
 from ML.Domain.LearningKnowledge import LearningKnowledge
 from ML.Domain.IndexedLearningKnowledge import IndexedLearningKnowledge
 from ML import BoxLearner
@@ -15,3 +16,5 @@ class VCLikeData(JsonObject):
     learning_settings_85_multiscale = LearningKnowledge()
     learning_settings_64_singlescale = ObjectListField(IndexedLearningKnowledge)
     learning_settings_64_multiscale = LearningKnowledge()
+
+    histogram_matching_data = ObjectListField(HistogramMatchingData)

@@ -36,6 +36,7 @@ python -m pip install matplotlib==3.1.3
 python -m pip install opencv-contrib-python==3.4.2.17
 python -m pip install pykson==0.9.4
 python -m pip install sklearn==0.0
+python -m pip install scikit-image==0.17.2
 python -m pip install imutils==0.5.3
 conda install pyzmq
 python -m pip install pytz==2019.3

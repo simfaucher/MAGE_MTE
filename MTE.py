@@ -46,7 +46,8 @@ class MTE:
     """
 
     def __init__(self, mte_algo=MTEAlgo.SIFT_KNN, crop_margin=1.0/6, resize_width=380, \
-         ransacount=300, disable_blur=False, disable_centering=False, one_shot_mode=False):
+         ransacount=300, disable_blur=False, disable_centering=False, one_shot_mode=False, \
+         disable_histogram_matching=False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
         self.image_hub.zmq_socket.RCVTIMEO = 3600000
@@ -72,13 +73,16 @@ class MTE:
         self.resize_height = int(resize_width*(1/(16/9)))
         self.validation_width = None
         self.validation_height = None
+        self.disable_histogram_matching = disable_histogram_matching
+
         if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
             self.d2net_engine = D2NetEngine(max_edge=resize_width, \
                                             max_sum_edges=resize_width + self.resize_height,\
                                             maxRansac=ransacount, width=self.resize_width, \
                                             height=self.resize_height)
         elif self.mte_algo == MTEAlgo.VC_LIKE:
-            self.vc_like_engine = VCLikeEngine(one_shot_mode=one_shot_mode)
+            self.vc_like_engine = VCLikeEngine(one_shot_mode=one_shot_mode, \
+                disable_histogram_matching = disable_histogram_matching)
         else:
             self.sift_engine = SIFTEngine(maxRansac=ransacount)
 
@@ -229,8 +233,9 @@ class MTE:
             if self.mte_algo == MTEAlgo.VC_LIKE:
                 h, w = image.shape[:2]
                 if math.isclose(float(w)/h, 4/3, rel_tol=1e-5):
-                    limits = (w * (1 / (16 / 9))) / 2
-                    croped = image[int(h-limits): int(h+limits), \
+                    new_h = int(w * (1 / (16 / 9)))
+                    limits = int((h - new_h) / 2)
+                    croped = image[int(limits): int(h-limits), \
                         0: w]
                     image = croped.copy()
 
@@ -1046,6 +1051,9 @@ if __name__ == "__main__":
     ap.add_argument("-d", "--disable_centering", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
         help="Disable the centering condition to capture. Default: False")
+    ap.add_argument("-m", "--disable_histogram_matching", required=False, type=str2bool, nargs='?',\
+        const=True, default=False,\
+        help="Disable the histogram matching. Default: False")
     ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
@@ -1053,5 +1061,5 @@ if __name__ == "__main__":
 
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
          ransacount=args["ransacount"], disable_blur=args["disable_blur"], disable_centering=args["disable_centering"], \
-         one_shot_mode=args["oneshot"])
+         one_shot_mode=args["oneshot"], disable_histogram_matching=args["disable_histogram_matching"])
     mte.listen_images()
