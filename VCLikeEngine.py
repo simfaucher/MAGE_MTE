@@ -136,7 +136,7 @@ class VCLikeEngine:
                 # cv2.waitKey(0) # Debug
 
         return dataset
-        
+
     def learn(self, input_image, learning_data):
         if learning_data.mte_parameters["vc_like_data"] is None:
             vc_like_data = VCLikeData()
@@ -145,17 +145,7 @@ class VCLikeEngine:
             self.reference_image = image #TODO: remove ?
 
             # Generate data for histogram matching
-            vc_like_data.histogram_matching_data = []
-            for channel in range(image.shape[-1]):
-                values, counts = np.unique(image[..., channel].ravel(), return_counts=True)
-                quantiles = np.cumsum(counts) / image.size
-
-                histogram_matching_data = HistogramMatchingData()
-                histogram_matching_data.values = values.tolist()
-                histogram_matching_data.counts = counts.tolist()
-                histogram_matching_data.quantiles = quantiles.tolist()
-
-                vc_like_data.histogram_matching_data.append(histogram_matching_data)
+            vc_like_data.histogram_matching_data = self.generate_histogram_data(image)
 
             # Generate dataset
             dataset = self.generate_dataset(image)
@@ -346,8 +336,7 @@ class VCLikeEngine:
 
         image = cv2.resize(input_image, (self.image_width, self.image_height))
         if not testing_mode and not self.disable_histogram_matching:
-            # image = self.match_histograms(image, self.histogram_matching_data) #TODO: debugger
-            image = match_histograms(image, self.reference_image, multichannel=True)
+            image = self.match_histograms(image, self.histogram_matching_data)
             # cv2.imshow("Corrected image", image) # Debug
             # cv2.waitKey(1) # Debug
 
@@ -627,6 +616,21 @@ class VCLikeEngine:
 
         return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, input_image
     
+    def generate_histogram_data(self, template):
+        histogram_matching_data = []
+        for channel in range(template.shape[-1]):
+            tmpl_values, tmpl_counts = np.unique(template.ravel(), return_counts=True)
+            tmpl_quantiles = np.cumsum(tmpl_counts) / template.size
+
+            histogram_data = HistogramMatchingData()
+            histogram_data.values = tmpl_values.tolist()
+            histogram_data.counts = tmpl_counts.tolist()
+            histogram_data.quantiles = tmpl_quantiles.tolist()
+
+            histogram_matching_data.append(histogram_data)
+        
+        return histogram_matching_data
+        
     def _match_cumulative_cdf(self, source, histogram_data:HistogramMatchingData):
         src_values, src_unique_indices, src_counts = np.unique(source.ravel(),
                                                             return_inverse=True,
@@ -635,10 +639,11 @@ class VCLikeEngine:
         # calculate normalized quantiles for each array
         src_quantiles = np.cumsum(src_counts) / source.size
 
-        interp_a_values = np.interp(src_quantiles, np.asarray(histogram_data.quantiles, dtype=np.float64), \
-            np.asarray(histogram_data.values, dtype=np.uint8))
+        ref_quantiles = np.asarray(histogram_data.quantiles, dtype=np.float64)
+        ref_values = np.asarray(histogram_data.values, dtype=np.uint8)
+        interp_a_values = np.interp(src_quantiles, ref_quantiles, ref_values)
         return interp_a_values[src_unique_indices].reshape(source.shape)
-
+        
     def match_histograms(self, image, histogram_matching_data):
         matched = np.empty(image.shape, dtype=image.dtype)
         for channel in range(image.shape[-1]):
