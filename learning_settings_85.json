@@ -30,7 +30,7 @@
                     "name": "Sketch",
                     "filter": "color",
                     "feature_type": "composite_profile_64",
-                    "tolerance": 5500,
+                    "tolerance": 6500,
                     "width": 85,
                     "height": 48,
                     "x": 0,
