@@ -77,6 +77,8 @@ class VCLikeEngine:
         
         self.nb_frames = 0
         self.one_shot_mode = one_shot_mode
+
+        self.nb_following_captures = 1
         # self.to_skip = 1/2
 
     # def learn(self, image, learning_data):
@@ -515,7 +517,7 @@ class VCLikeEngine:
                 prev_mode = 3
 
                 self.validation_count += 1
-                capture = (self.validation_count >= 3)
+                capture = (self.validation_count >= self.nb_following_captures)
                 if capture:
                     response_type = MTEResponse.CAPTURE
         
@@ -558,7 +560,7 @@ class VCLikeEngine:
         #     to_display = image.copy()
         #     test = to_display
         # cv2.imshow("Debug", cv2.resize(test, (image.shape[1], image.shape[0]))) # Debug
-        # out.write(to_display)
+        # # out.write(to_display)
         # cv2.waitKey(1) # Debug
 
         
