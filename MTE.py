@@ -468,24 +468,24 @@ class MTE:
         direction = UserInformation.CENTERED
 
         size_h = int(size_w*(1/self.format_resolution))
-        if center[1] < (size_h/2 - size_h*tolerance):
+        if center[1] < (size_h/2 - size_w*tolerance):
             if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.UP_LEFT
             elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.UP_RIGHT
             else:
-                if center[1] < (size_h/2 - size_h*tolerance*2):
+                if center[1] < (size_h/2 - size_w*tolerance*2):
                     direction = UserInformation.BIG_UP
                 else:
                     direction = UserInformation.UP
 
-        elif center[1] > (size_h/2 + size_h*tolerance):
+        elif center[1] > (size_h/2 + size_w*tolerance):
             if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.DOWN_LEFT
             elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.DOWN_RIGHT
             else:
-                if center[1] > (size_h/2 + size_h*tolerance*2):
+                if center[1] > (size_h/2 + size_w*tolerance*2):
                     direction = UserInformation.BIG_DOWN
                 else:
                     direction = UserInformation.DOWN
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
         const=True, default=False,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     ap.add_argument("-d", "--debug", required=False, type=str2bool, nargs='?',\
-        const=True, default=False,\
+        const=True, default=True,\
         help="Display debug images. Do not use with Docker. Default: False")
     args = vars(ap.parse_args())
 

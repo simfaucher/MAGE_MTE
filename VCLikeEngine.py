@@ -214,7 +214,7 @@ class VCLikeEngine:
         learning_settings_85_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_85_singlescale
 
         for ls_indexed in learning_settings_85_singlescale_indexed:
-            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0, debug_mode=self.debug_mode)
+            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0)
             box_learner_singlescale.get_knn_contexts(ls_indexed.learning_knowledge.sights[0])
 
             self.box_learners_85_singlescale[ls_indexed.scale] = box_learner_singlescale
@@ -229,8 +229,7 @@ class VCLikeEngine:
             self.box_learners_64_singlescale[ls_indexed.scale] = box_learner_singlescale
 
         # Create 85x48 multi-scale box learner
-        self.box_learner_85_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights, 0, \
-            debug_mode=self.debug_mode)
+        self.box_learner_85_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights, 0)
         self.box_learner_85_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights[0])
 
         # Create 64x64 multi-scale box learner
@@ -333,9 +332,9 @@ class VCLikeEngine:
         if not testing_mode and not self.disable_histogram_matching:
             image = self.match_histograms(image, self.histogram_matching_data)
 
-            if self.debug_mode:
-                cv2.imshow("Histogram matching correction", cv2.resize(image, (self.image_width*2, self.image_height*2)))
-                cv2.waitKey(1)
+            # if self.debug_mode:
+            #     cv2.imshow("Histogram matching correction", cv2.resize(image, (self.image_width*2, self.image_height*2)))
+            #     cv2.waitKey(1)
 
         begin_timeout = time.time()
 
@@ -533,7 +532,7 @@ class VCLikeEngine:
                     x = x1 + i
                     y = y1 + j
                     if abs(i) == abs(j):
-                        to_display[y, x] = (255, 255, 0)
+                        to_display[y, x] = (255, 0, 0)
 
             # cv2.circle(to_display, (x1, y1), 2, (0, 255, 0), 2) # Debug
             # cv2.circle(test, (x1, y1), 2, (0, 0, 255), 2) # Debug
@@ -568,8 +567,8 @@ class VCLikeEngine:
         fps.update() # Debug
         fps.stop() # Debug
         if best_match.success:
-            print("Frame ID = {}, Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Nb green neighbours = {}, Green = {}, Lightgreen = {}, Orange = {}".\
-                format(0, prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), number_of_green_around, green_matches, light_green_matches, orange_matches))
+            print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Nb green neighbours = {}, Green = {}, Lightgreen = {}, Orange = {}".\
+                format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), number_of_green_around, green_matches, light_green_matches, orange_matches))
             lenght = len(matches)
             # writer.writerow({'Frame Id' : frame_id,
             #                     'Step' : prev_mode,

@@ -201,7 +201,8 @@ class BoxLearner():
                 height = int(roi.height)
 
                 roi_mask = mask[y:y+height, x:x+width]
-                cv2.imshow("ROI"+str(k), roi_mask)
+                roi_mask_big = cv2.resize(roi_mask, (height*4, width*4))
+                cv2.imshow("ROI"+str(k), roi_mask_big)
                 # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
             # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
@@ -332,7 +333,8 @@ class BoxLearner():
                 height = int(roi.height)
 
                 roi_mask = mask[y:y+height, x:x+width]
-                cv2.imshow("ROI"+str(k), roi_mask)
+                roi_mask_big = cv2.resize(roi_mask, (height*4, width*4))
+                cv2.imshow("ROI"+str(k), roi_mask_big)
                 # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
             # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
@@ -460,7 +462,8 @@ class BoxLearner():
                 height = int(roi.height)
 
                 roi_mask = mask[y:y+height, x:x+width]
-                cv2.imshow("ROI"+str(k), roi_mask)
+                roi_mask_big = cv2.resize(roi_mask, (height*4, width*4))
+                cv2.imshow("ROI"+str(k), roi_mask_big)
                 # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
             # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
