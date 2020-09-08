@@ -41,8 +41,8 @@ FAST = False
 # LEARNING_IMAGE_PATH = "videos/T1.2/Zoom/vlcsnap-2020-03-02-16h00m31s968.png"
 
 # T1.3
-VIDEO_PATH = "videos/VID_20200302_144507.mp4"
-LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
+# VIDEO_PATH = "videos/VID_20200302_144507.mp4"
+# LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 
 # T1.4
 # VIDEO_PATH = "videos/T1.4/VID_20200302_144814.mp4"
@@ -60,6 +60,7 @@ LEARNING_IMAGE_PATH = "videos/vlcsnap-2020-03-02-16h01m23s741.png"
 # T2.3
 VIDEO_PATH = "videos/demo.mp4"
 LEARNING_IMAGE_PATH = "videos/capture.png"
+# LEARNING_IMAGE_PATH = "videos/Capture 6-PhotoReference (1).png"
 
 # T3.1
 # VIDEO_PATH = "videos/T3.1/T3.1-rotated.mp4"
@@ -83,7 +84,7 @@ class Client:
 
     def __init__(self):
         print("Connecting...")
-        # self.sender = imagezmq.ImageSender(connect_to='tcp://10.1.162.31:5555')
+        # self.sender = imagezmq.ImageSender(connect_to='tcp://192.168.1.90:5555')
         self.sender = imagezmq.ImageSender()
 
         if MODE_CAMERA:
@@ -156,11 +157,13 @@ class Client:
                 fps = FPS().start()
                 begin_frame_computing = time.time()
                 try:
+                    reply_str = self.sender.send_image(data, image).decode()
                     if platform.system() == "Linux":
                         with Patience(3):
-                            reply = json.loads(self.sender.send_image(data, image).decode())
+                            reply = json.loads(reply_str)
                     else:
-                        reply = json.loads(self.sender.send_image(data, image).decode())
+                        reply = json.loads(reply_str)
+                    print(reply_str)
                 except:
                     print("Timeout")
                 fps.update()
@@ -216,12 +219,15 @@ class Client:
                             print("Change of size {} -> {}".format(prev_size, size))
 
                         if MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
-                            print("Flag TARGET_LOST")
+                            # print("Flag TARGET_LOST")
+                            pass
                         elif MTEResponse(response["flag"]) == MTEResponse.RED:
-                            print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
+                            # print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
+                            pass
                         elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
-                            print("Flag {} : {}".format(response["flag"], \
-                                ErrorRecognition(response["status"]).name))
+                            # print("Flag {} : {}".format(response["flag"], \
+                            #     ErrorRecognition(response["status"]).name))
+                            
                             # Display target on image
                             cv2.putText(to_draw, "Direction: {}".format(UserInformation(response\
                                 ["user_information"]).name), (20, 100),\
@@ -242,8 +248,8 @@ class Client:
                             cv2.putText(to_draw, "Scale y: {:.2f}".format(response\
                                 ["target_data"]["scales"][1]),\
                                 (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                            print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
-                            print(x_coordinate, y_coordinate)
+                            # print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
+                            # print(x_coordinate, y_coordinate)
                             to_draw = cv2.drawKeypoints(to_draw, [center],\
                                                         np.array([]), (255, 0, 0), \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)

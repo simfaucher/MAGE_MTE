@@ -365,7 +365,7 @@ class SerializingSocket(zmq.Socket):
             dtype=str(A.dtype),
             shape=A.shape,
         )
-        print(md)
+        # print(md)
         self.send_json(md, flags | zmq.SNDMORE)
         # print(A)
         return self.send(A, flags, copy=copy, track=track)

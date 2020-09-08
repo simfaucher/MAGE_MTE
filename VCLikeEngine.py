@@ -33,26 +33,16 @@ from Domain.MTEResponse import MTEResponse
 
 LEARNING_SETTINGS_85 = "learning_settings_85.json"
 LEARNING_SETTINGS_64 = "learning_settings_64.json"
-CAPTURE_DEMO = True
 
-REFERENCE_IMAGE_PATH = "videos/short_magnetron_ref.png"
-VIDEO_PATH = "videos/short_magnetron.mp4"
-FLANN_INDEX_KDTREE = 0
-INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-SEARCH_PARAMS = dict(checks=50)
-FLANN_THRESH = 0.7
-HOMOGRAPHY_MIN_SCALE = 0.75
-HOMOGRAPHY_MAX_SCALE = 1.25
-HOMOGRAPHY_MAX_SKEW = 0.13
-HOMOGRAPHY_MIN_TRANS = -25
-HOMOGRAPHY_MAX_TRANS = 50
 TIMEOUT_LIMIT_SEC = 7
 
 class VCLikeEngine:
-    def __init__(self, one_shot_mode=False, disable_histogram_matching=False):
+    def __init__(self, one_shot_mode=False, disable_histogram_matching=False, debug_mode=False):
         self.reference_image = None
 
         self.last_match = None
+        self.last_response_type = MTEResponse.ORANGE
+        self.last_translation = (0, 0)
         self.mode = 0
         self.scale = 100
         self.learning_settings_85 = self.load_ml_settings(LEARNING_SETTINGS_85)
@@ -79,6 +69,8 @@ class VCLikeEngine:
         self.one_shot_mode = one_shot_mode
 
         self.nb_following_captures = 1
+
+        self.debug_mode = debug_mode
         # self.to_skip = 1/2
 
     # def learn(self, image, learning_data):
@@ -222,7 +214,7 @@ class VCLikeEngine:
         learning_settings_85_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_85_singlescale
 
         for ls_indexed in learning_settings_85_singlescale_indexed:
-            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0)
+            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0, debug_mode=self.debug_mode)
             box_learner_singlescale.get_knn_contexts(ls_indexed.learning_knowledge.sights[0])
 
             self.box_learners_85_singlescale[ls_indexed.scale] = box_learner_singlescale
@@ -231,17 +223,19 @@ class VCLikeEngine:
         learning_settings_64_singlescale_indexed = learning_data.mte_parameters["vc_like_data"].learning_settings_64_singlescale
 
         for ls_indexed in learning_settings_64_singlescale_indexed:
-            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0)
+            box_learner_singlescale = BoxLearner(ls_indexed.learning_knowledge.sights, 0, debug_mode=self.debug_mode)
             box_learner_singlescale.get_knn_contexts(ls_indexed.learning_knowledge.sights[0])
 
             self.box_learners_64_singlescale[ls_indexed.scale] = box_learner_singlescale
 
         # Create 85x48 multi-scale box learner
-        self.box_learner_85_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights, 0)
+        self.box_learner_85_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights, 0, \
+            debug_mode=self.debug_mode)
         self.box_learner_85_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_85_multiscale.sights[0])
 
         # Create 64x64 multi-scale box learner
-        self.box_learner_64_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights, 0)
+        self.box_learner_64_multiscale = BoxLearner(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights, 0, \
+            debug_mode=self.debug_mode)
         self.box_learner_64_multiscale.get_knn_contexts(learning_data.mte_parameters["vc_like_data"].learning_settings_64_multiscale.sights[0])
 
         # Histogram matching data
@@ -333,17 +327,19 @@ class VCLikeEngine:
         response_type = MTEResponse.ORANGE
         translation = (0, 0)
 
-        # begin_frame_computing = time.time()
         fps = FPS().start() # Debug
 
         image = cv2.resize(input_image, (self.image_width, self.image_height))
         if not testing_mode and not self.disable_histogram_matching:
             image = self.match_histograms(image, self.histogram_matching_data)
-            # cv2.imshow("Corrected image", image) # Debug
-            # cv2.waitKey(1) # Debug
+
+            if self.debug_mode:
+                cv2.imshow("Histogram matching correction", cv2.resize(image, (self.image_width*2, self.image_height*2)))
+                cv2.waitKey(1)
 
         begin_timeout = time.time()
 
+        number_of_green_around = 0
         step_done = False
 
         # Boîte verte
@@ -374,7 +370,6 @@ class VCLikeEngine:
 
                 # Change mode if there are 5 green points around and the target is roughly centered
                 if not testing_mode:
-                    number_of_green_around = 0
                     green_count = 0
                     x1 = best_match.anchor.x
                     y1 = best_match.anchor.y
@@ -387,7 +382,7 @@ class VCLikeEngine:
                             number_of_green_around += 1
                     ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
                     if (number_of_green_around >= 3) and\
-                        math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=10/100) and\
+                        math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=float(10)/100) and\
                         math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
 
                         # Change mode only if it is not the 10th frame check
@@ -395,6 +390,8 @@ class VCLikeEngine:
                             self.mode = 1
                         else:
                             best_match = self.last_match
+                            response_type = self.last_response_type
+                            translation = self.last_translation
                     else:
                         if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
                             response_type = MTEResponse.TARGET_LOST
@@ -432,7 +429,6 @@ class VCLikeEngine:
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
                 # Change mode if there are 5 green points around and the target is roughly centered
-                number_of_green_around = 0
                 green_count = 0
                 x1 = best_match.anchor.x
                 y1 = best_match.anchor.y
@@ -487,7 +483,6 @@ class VCLikeEngine:
                 translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
-                number_of_green_around = 0
                 green_count = 0
                 x1 = best_match.anchor.x
                 y1 = best_match.anchor.y
@@ -525,45 +520,45 @@ class VCLikeEngine:
                 self.last_match = best_match
 
             step_done = True
+        
+        self.last_response_type = response_type
+        self.last_translation = translation
 
-        # elif self.mode == 3:
-        #     prev_mode = 3
-        #     self.mode = 2
-        #     self.validation_count += 1
-        #     capture = (self.validation_count >= 3)
-        #     best_match = LearnerMatch()
-        #     if capture:
-        #         response_type = MTEResponse.CAPTURE
+        if self.debug_mode and best_match.anchor is not None:
+            x1 = best_match.anchor.x
+            y1 = best_match.anchor.y
+            # test = to_display.copy()
+            for i in range (-2, 3):
+                for j in range (-2, 3):
+                    x = x1 + i
+                    y = y1 + j
+                    if abs(i) == abs(j):
+                        to_display[y, x] = (255, 255, 0)
 
+            # cv2.circle(to_display, (x1, y1), 2, (0, 255, 0), 2) # Debug
+            # cv2.circle(test, (x1, y1), 2, (0, 0, 255), 2) # Debug
 
-        # if best_match.anchor is not None:
-        #     x1 = best_match.anchor.x
-        #     y1 = best_match.anchor.y
-        #     test = to_display.copy()
-        #     cv2.circle(test, (x1, y1), 2, (0, 0, 255), 2) # Debug
-
-        #     x1 = translation[0]
-        #     y1 = translation[1]
-        #     cv2.circle(test, (x1, y1), 2, (255, 0, 0), 2) # Debug
-        #     lower_right_corner = (int(x1+image.shape[1]), \
-        #                                     int(y1+image.shape[0]))
-        #     to_display = cv2.rectangle(to_display, translation,\
-        #                                         lower_right_corner, (255, 0, 0), thickness=1)
-        #     # Scaled display
-        #     upper_left_conner = (int(x1-(image.shape[1])*(self.scale/100)), \
-        #                                     int(y1-(image.shape[0])*(self.scale/100)))
-        #     lower_right_corner = (int(x1+(image.shape[1])*(self.scale/100)), \
-        #                                     int(y1+(image.shape[0])*(self.scale/100)))
-        #     to_display = cv2.rectangle(to_display, upper_left_conner,\
-        #                                         lower_right_corner, (255, 255, 255), thickness=1)
+            # x1 = translation[0]
+            # y1 = translation[1]
+            # cv2.circle(to_display, (x1, y1), 2, (255, 0, 0), 2) # Debug
+            # cv2.circle(test, (x1, y1), 2, (255, 0, 0), 2) # Debug
+            # lower_right_corner = (int(x1+image.shape[1]), \
+            #                                 int(y1+image.shape[0]))
+            # to_display = cv2.rectangle(to_display, translation,\
+            #                                     lower_right_corner, (255, 0, 0), thickness=1)
+            # Scaled display
+            # upper_left_conner = (int(x1-(image.shape[1])*(self.scale/100)), \
+            #                                 int(y1-(image.shape[0])*(self.scale/100)))
+            # lower_right_corner = (int(x1+(image.shape[1])*(self.scale/100)), \
+            #                                 int(y1+(image.shape[0])*(self.scale/100)))
+            # to_display = cv2.rectangle(to_display, upper_left_conner,\
+            #                                     lower_right_corner, (255, 255, 255), thickness=1)
+            cv2.imshow("Scan", cv2.resize(to_display, (self.image_width*2, self.image_height*2))) # Debug
+            cv2.waitKey(1) # Debug
         # else:
         #     to_display = image.copy()
         #     test = to_display
-        # cv2.imshow("Debug", cv2.resize(test, (image.shape[1], image.shape[0]))) # Debug
-        # # out.write(to_display)
-        # cv2.waitKey(1) # Debug
 
-        
         if not testing_mode:
             self.nb_frames += 1
 
@@ -573,8 +568,8 @@ class VCLikeEngine:
         fps.update() # Debug
         fps.stop() # Debug
         if best_match.success:
-            print("Frame ID = {}, Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Green = {}, Lightgreen = {}, Orange = {}".\
-                format(0, prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), green_matches, light_green_matches, orange_matches))
+            print("Frame ID = {}, Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Nb green neighbours = {}, Green = {}, Lightgreen = {}, Orange = {}".\
+                format(0, prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), number_of_green_around, green_matches, light_green_matches, orange_matches))
             lenght = len(matches)
             # writer.writerow({'Frame Id' : frame_id,
             #                     'Step' : prev_mode,

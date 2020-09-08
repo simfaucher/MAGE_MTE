@@ -34,15 +34,10 @@ from ML.Domain.LearnerMatch import LearnerMatch
 
 from ML.LinesDetector import LinesDetector
 
-CAPTURE_DEMO = True
+# CAPTURE_DEMO = True
 
 class BoxLearner():
-    # demo_path = os.path.join(".", 'demo_recognition_{}.avi'.format(int(round(time.time() * 1000))))
-    # out = cv2.VideoWriter(demo_path, \
-    #         cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, \
-    #         (176, 97))
-
-    def __init__(self, sights: list, uncertainty: float = 0):
+    def __init__(self, sights: list, uncertainty: float = 0, debug_mode=False):
         self.sight = None
         self.sights = sights
         self.input_image = None
@@ -50,6 +45,8 @@ class BoxLearner():
         self.knn_contexts = []
         self.learning_classes = []
         self.uncertainty = uncertainty
+
+        self.debug_mode = debug_mode
 
     def get_knn_contexts(self, sight: Sight):
         self.sight = sight
@@ -105,7 +102,6 @@ class BoxLearner():
             self.knn_contexts.append(knn_context)
             self.learning_classes.append(classes)
 
-    # @jit
     def scan(self, input_image, start_point: Point2D = None, scan_opti=True, output_matches=False):
         self.input_image = input_image
 
@@ -188,31 +184,31 @@ class BoxLearner():
         # cv2.waitKey(0) # Debug
 
         # Debug
-        # sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
-        #     :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
-        #         best_match.anchor.x - self.sight.anchor.x\
-        #             :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
-        # for k, roi in enumerate(self.sight.roi):
-        #     image_filter = ImageFilterType(roi.image_filter_type)
+        if self.debug_mode and best_match.success:
+            sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
+                :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
+                    best_match.anchor.x - self.sight.anchor.x\
+                        :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
+            for k, roi in enumerate(self.sight.roi):
+                image_filter = ImageFilterType(roi.image_filter_type)
 
-        #     detector = LinesDetector(sight_image, image_filter)
-        #     mask = detector.detect()
+                detector = LinesDetector(sight_image, image_filter)
+                mask = detector.detect()
 
-        #     x = int(roi.x)
-        #     y = int(roi.y)
-        #     width = int(roi.width)
-        #     height = int(roi.height)
+                x = int(roi.x)
+                y = int(roi.y)
+                width = int(roi.width)
+                height = int(roi.height)
 
-        #     roi_mask = mask[y:y+height, x:x+width]
-        #     cv2.imshow("ROI"+str(k), roi_mask)
-        #     cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
+                roi_mask = mask[y:y+height, x:x+width]
+                cv2.imshow("ROI"+str(k), roi_mask)
+                # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
-        # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
-        # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
+            # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
+            # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
-        # cv2.imshow("Debug", debug_image) # Debug
-        # cv2.waitKey(0) # Debug
-        # cv2.destroyAllWindows()
+            cv2.waitKey(1) # Debug
+            # cv2.destroyAllWindows()
         # End debug
         # if CAPTURE_DEMO:
         #     self.out.write(debug_image)
@@ -319,31 +315,31 @@ class BoxLearner():
         best_match.power_of_recognition = self.get_recognition_flag(best_match)
 
         # Debug
-        # if best_match.success:
-        #     sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
-        #         :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
-        #             best_match.anchor.x - self.sight.anchor.x\
-        #                 :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
-        #     for k, roi in enumerate(self.sight.roi):
-        #         image_filter = ImageFilterType(roi.image_filter_type)
+        if self.debug_mode and best_match.success:
+            sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
+                :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
+                    best_match.anchor.x - self.sight.anchor.x\
+                        :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
+            for k, roi in enumerate(self.sight.roi):
+                image_filter = ImageFilterType(roi.image_filter_type)
 
-        #         detector = LinesDetector(sight_image, image_filter)
-        #         mask = detector.detect()
+                detector = LinesDetector(sight_image, image_filter)
+                mask = detector.detect()
 
-        #         x = int(roi.x)
-        #         y = int(roi.y)
-        #         width = int(roi.width)
-        #         height = int(roi.height)
+                x = int(roi.x)
+                y = int(roi.y)
+                width = int(roi.width)
+                height = int(roi.height)
 
-        #         roi_mask = mask[y:y+height, x:x+width]
-        #         cv2.imshow("ROI"+str(k), roi_mask)
-        #         cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
+                roi_mask = mask[y:y+height, x:x+width]
+                cv2.imshow("ROI"+str(k), roi_mask)
+                # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
-        #     cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
-        #     print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
+            # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
+            # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
-        #     cv2.waitKey(0) # Debug
-        #     cv2.destroyAllWindows()
+            cv2.waitKey(1) # Debug
+            # cv2.destroyAllWindows()
         # End debug
 
         if output_matches:
@@ -447,31 +443,31 @@ class BoxLearner():
         best_match.power_of_recognition = self.get_recognition_flag(best_match)
 
         # Debug
-        # if best_match.success:
-        #     sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
-        #         :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
-        #             best_match.anchor.x - self.sight.anchor.x\
-        #                 :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
-        #     for k, roi in enumerate(self.sight.roi):
-        #         image_filter = ImageFilterType(roi.image_filter_type)
+        if self.debug_mode and best_match.success:
+            sight_image = input_image[best_match.anchor.y - self.sight.anchor.y \
+                :best_match.anchor.y - self.sight.anchor.y + self.sight.height, \
+                    best_match.anchor.x - self.sight.anchor.x\
+                        :best_match.anchor.x - self.sight.anchor.x + self.sight.width]
+            for k, roi in enumerate(self.sight.roi):
+                image_filter = ImageFilterType(roi.image_filter_type)
 
-        #         detector = LinesDetector(sight_image, image_filter)
-        #         mask = detector.detect()
+                detector = LinesDetector(sight_image, image_filter)
+                mask = detector.detect()
 
-        #         x = int(roi.x)
-        #         y = int(roi.y)
-        #         width = int(roi.width)
-        #         height = int(roi.height)
+                x = int(roi.x)
+                y = int(roi.y)
+                width = int(roi.width)
+                height = int(roi.height)
 
-        #         roi_mask = mask[y:y+height, x:x+width]
-        #         cv2.imshow("ROI"+str(k), roi_mask)
-        #         cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
+                roi_mask = mask[y:y+height, x:x+width]
+                cv2.imshow("ROI"+str(k), roi_mask)
+                # cv2.imshow("ROI_raw_pixels16 "+str(k), cv2.resize(roi_mask, (16, 16)))
 
-        #     cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
-        #     print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
+            # cv2.imshow("Sight image", cv2.cvtColor(sight_image, cv2.COLOR_BGR2GRAY))
+            # print("BEST_MATCH : x:{}, y:{}".format(best_match.anchor.x, best_match.anchor.y))
 
-        #     cv2.waitKey(0) # Debug
-        #     cv2.destroyAllWindows()
+            cv2.waitKey(1) # Debug
+            # cv2.destroyAllWindows()
         # End debug
 
         # cv2.imshow("Debug", debug_image) # Debug
