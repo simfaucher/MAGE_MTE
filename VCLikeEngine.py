@@ -380,9 +380,9 @@ class VCLikeEngine:
                         if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 15) and m.success:
                             number_of_green_around += 1
                     ratio_width_to_height = ((image.shape[1]/2)*(1/10)) / (image.shape[0]/2)
-                    if (number_of_green_around >= 3) and\
+                    if (number_of_green_around >= 3) and (self.one_shot_mode or
                         math.isclose(best_match.anchor.x, image.shape[1]/2, rel_tol=float(10)/100) and\
-                        math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height):
+                        math.isclose(best_match.anchor.y, image.shape[0]/2, rel_tol=ratio_width_to_height)):
 
                         # Change mode only if it is not the 10th frame check
                         if self.mode == 0:
@@ -431,8 +431,8 @@ class VCLikeEngine:
                 green_count = 0
                 x1 = best_match.anchor.x
                 y1 = best_match.anchor.y
-                if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
-                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
+                if not self.one_shot_mode and (not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1)):
                     not_centered = True
                     response_type = MTEResponse.ORANGE
                     begin_timeout = time.time()
@@ -485,8 +485,8 @@ class VCLikeEngine:
                 green_count = 0
                 x1 = best_match.anchor.x
                 y1 = best_match.anchor.y
-                if not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
-                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1):
+                if not self.one_shot_mode and (not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1)):
                     begin_timeout = time.time()
                     response_type = MTEResponse.ORANGE
                     not_centered = True
