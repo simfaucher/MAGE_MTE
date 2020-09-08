@@ -428,7 +428,7 @@ class MTE:
                 data["id_ref"])
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
-    def is_image_blurred(self, image, size=60, thresh=15):
+    def is_image_blurred(self, image, size=60, thresh=10):
         """Check if an image is blurred. Return a tuple (mean: float, blurred: bool)
 
         Keyword arguments:
@@ -474,7 +474,10 @@ class MTE:
             elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.UP_RIGHT
             else:
-                direction = UserInformation.UP
+                if center[1] < (size_h/2 - size_h*tolerance*2):
+                    direction = UserInformation.BIG_UP
+                else:
+                    direction = UserInformation.UP
 
         elif center[1] > (size_h/2 + size_h*tolerance):
             if center[0] < (size_w/2 - size_w*tolerance):
@@ -482,11 +485,18 @@ class MTE:
             elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.DOWN_RIGHT
             else:
-                direction = UserInformation.DOWN
+                if center[1] > (size_h/2 + size_h*tolerance*2):
+                    direction = UserInformation.BIG_DOWN
+                else:
+                    direction = UserInformation.DOWN
 
         else:
-            if center[0] < (size_w/2 - size_w*tolerance):
+            if center[0] < (size_w/2 - size_w*tolerance*2):
+                direction = UserInformation.BIG_LEFT
+            elif center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.LEFT
+            elif center[0] > (size_w/2 + size_w*tolerance*2):
+                direction = UserInformation.BIG_RIGHT
             elif center[0] > (size_w/2 + size_w*tolerance):
                 direction = UserInformation.RIGHT
             else:

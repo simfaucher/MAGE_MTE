@@ -17,3 +17,8 @@ class UserInformation(Enum):
     DOWN_LEFT = 6
     LEFT = 7
     UP_LEFT = 8
+
+    BIG_UP = 11
+    BIG_RIGHT = 13
+    BIG_DOWN = 15
+    BIG_LEFT = 17
