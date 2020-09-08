@@ -437,15 +437,32 @@ class MTE:
         thresh -> the threshold value for the magnitude comparaison (default 15)
         """
 
-        (height, width, _) = image.shape
+        # cv2.imshow("Input image", image)
+
+        # Histogram equalization
+        hist, bins = np.histogram(image.flatten(), 256, [0,256])
+        cdf = hist.cumsum()
+
+        cdf_m = np.ma.masked_equal(cdf, 0)
+        cdf_m = (cdf_m - cdf_m.min())*255 / (cdf_m.max() - cdf_m.min())
+        cdf = np.ma.filled(cdf_m, 0).astype('uint8')
+
+        equalized_image = cdf[image]
+
+        # cv2.imshow("Equalized image", equalized_image)
+
+        (height, width, _) = equalized_image.shape
         (center_x, center_y) = (int(width / 2.0), int(height / 2.0))
-        fft = np.fft.fft2(image)
+        fft = np.fft.fft2(equalized_image)
         fft_shift = np.fft.fftshift(fft)
         fft_shift[center_y - size:center_y + size, center_x - size:center_x + size] = 0
         fft_shift = np.fft.ifftshift(fft_shift)
         recon = np.fft.ifft2(fft_shift)
         magnitude = 20 * np.log(np.abs(recon))
         mean = np.mean(magnitude)
+
+        # cv2.waitKey(0)
+
         return (mean, mean <= thresh)
 
     def compute_direction(self, translation_value, scale_value, size_w):
