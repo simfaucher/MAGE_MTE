@@ -78,7 +78,7 @@ FAST = False
 # LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
 # VIDEO_PATH = "videos/video_moteur/reverse.mp4"
 # LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
-SAMPLE_PATH = "videos/samples/2/"
+SAMPLE_PATH = "videos/samples/3/"
 LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
 
 class Client:
@@ -179,11 +179,13 @@ class Client:
                 fps = FPS().start()
                 begin_frame_computing = time.time()
                 try:
+                    reply_str = self.sender.send_image(data, image).decode()
                     if platform.system() == "Linux":
                         with Patience(3):
-                            reply = json.loads(self.sender.send_image(data, image).decode())
+                            reply = json.loads(reply_str)
                     else:
-                        reply = json.loads(self.sender.send_image(data, image).decode())
+                        reply = json.loads(reply_str)
+                    print(reply_str)
                 except:
                     print("Timeout")
                 fps.update()
@@ -239,12 +241,15 @@ class Client:
                             print("Change of size {} -> {}".format(prev_size, size))
 
                         if MTEResponse(response["flag"]) == MTEResponse.TARGET_LOST:
-                            print("Flag TARGET_LOST")
+                            # print("Flag TARGET_LOST")
+                            pass
                         elif MTEResponse(response["flag"]) == MTEResponse.RED:
-                            print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
+                            # print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
+                            pass
                         elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
-                            print("Flag {} : {}".format(response["flag"], \
-                                ErrorRecognition(response["status"]).name))
+                            # print("Flag {} : {}".format(response["flag"], \
+                            #     ErrorRecognition(response["status"]).name))
+                            
                             # Display target on image
                             cv2.putText(to_draw, "Direction: {}".format(UserInformation(response\
                                 ["user_information"]).name), (20, 100),\
@@ -265,8 +270,8 @@ class Client:
                             cv2.putText(to_draw, "Scale y: {:.2f}".format(response\
                                 ["target_data"]["scales"][1]),\
                                 (220, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                            print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
-                            print(x_coordinate, y_coordinate)
+                            # print(response["target_data"]["translations"][0], response["target_data"]["translations"][1])
+                            # print(x_coordinate, y_coordinate)
                             to_draw = cv2.drawKeypoints(to_draw, [center],\
                                                         np.array([]), (255, 0, 0), \
                                                         cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
