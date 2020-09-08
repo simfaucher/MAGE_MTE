@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
         const=True, default=False,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     ap.add_argument("-d", "--debug", required=False, type=str2bool, nargs='?',\
-        const=True, default=True,\
+        const=True, default=False,\
         help="Display debug images. Do not use with Docker. Default: False")
     args = vars(ap.parse_args())
 
