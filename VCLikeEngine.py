@@ -637,14 +637,21 @@ class VCLikeEngine:
 
         ref_quantiles = np.asarray(histogram_data.quantiles, dtype=np.float64)
         ref_values = np.asarray(histogram_data.values, dtype=np.uint8)
+
         interp_a_values = np.interp(src_quantiles, ref_quantiles, ref_values)
         return interp_a_values[src_unique_indices].reshape(source.shape)
         
     def match_histograms(self, image, histogram_matching_data):
-        matched = np.empty(image.shape, dtype=image.dtype)
-        for channel in range(image.shape[-1]):
-            matched_channel = self._match_cumulative_cdf(image[..., channel], histogram_matching_data[channel])
-            matched[..., channel] = matched_channel
+        # matched = np.empty(image.shape, dtype=image.dtype)
+        # for channel in range(image.shape[-1]):
+        #     matched_channel = self._match_cumulative_cdf(image[..., channel], histogram_matching_data[channel])
+        #     matched[..., channel] = matched_channel
+
+        matched = match_histograms(image, self.reference_image, multichannel=True)
+        # cv2.imshow("Reference", self.reference_image)
+        # cv2.imshow("Source", image)
+        # cv2.imshow("Matched", matched)
+        # cv2.waitKey(0)
 
         return matched
 
