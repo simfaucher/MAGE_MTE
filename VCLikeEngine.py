@@ -615,8 +615,8 @@ class VCLikeEngine:
     def generate_histogram_data(self, template):
         histogram_matching_data = []
         for channel in range(template.shape[-1]):
-            tmpl_values, tmpl_counts = np.unique(template.ravel(), return_counts=True)
-            tmpl_quantiles = np.cumsum(tmpl_counts) / template.size
+            tmpl_values, tmpl_counts = np.unique(template[..., channel].ravel(), return_counts=True)
+            tmpl_quantiles = np.cumsum(tmpl_counts) / template[..., channel].size
 
             histogram_data = HistogramMatchingData()
             histogram_data.values = tmpl_values.tolist()
@@ -635,23 +635,17 @@ class VCLikeEngine:
         # calculate normalized quantiles for each array
         src_quantiles = np.cumsum(src_counts) / source.size
 
-        ref_quantiles = np.asarray(histogram_data.quantiles, dtype=np.float64)
-        ref_values = np.asarray(histogram_data.values, dtype=np.uint8)
+        tmpl_quantiles = np.asarray(histogram_data.quantiles, dtype=np.float64)
+        tmpl_values = np.asarray(histogram_data.values, dtype=np.uint8)
 
-        interp_a_values = np.interp(src_quantiles, ref_quantiles, ref_values)
+        interp_a_values = np.interp(src_quantiles, tmpl_quantiles, tmpl_values)
         return interp_a_values[src_unique_indices].reshape(source.shape)
         
     def match_histograms(self, image, histogram_matching_data):
-        # matched = np.empty(image.shape, dtype=image.dtype)
-        # for channel in range(image.shape[-1]):
-        #     matched_channel = self._match_cumulative_cdf(image[..., channel], histogram_matching_data[channel])
-        #     matched[..., channel] = matched_channel
-
-        matched = match_histograms(image, self.reference_image, multichannel=True)
-        # cv2.imshow("Reference", self.reference_image)
-        # cv2.imshow("Source", image)
-        # cv2.imshow("Matched", matched)
-        # cv2.waitKey(0)
+        matched = np.empty(image.shape, dtype=image.dtype)
+        for channel in range(image.shape[-1]):
+            matched_channel = self._match_cumulative_cdf(image[..., channel], histogram_matching_data[channel])
+            matched[..., channel] = matched_channel
 
         return matched
 
