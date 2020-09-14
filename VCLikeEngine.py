@@ -343,7 +343,9 @@ class VCLikeEngine:
 
         # Boîte verte
         if self.mode <= 0 or (self.nb_frames >= 9 and not self.one_shot_mode) or testing_mode:
-            prev_mode = 0
+            if self.mode == 0:
+                prev_mode = 0
+
             self.validation_count = 0
             # Scan global
             best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)

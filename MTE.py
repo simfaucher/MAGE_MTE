@@ -232,6 +232,12 @@ class MTE:
 
             data = json.loads(msg)
 
+            if image is None or not isinstance(image, np.ndarray) or \
+                "error" in data and data["error"] or \
+                    "mode" not in data:
+                # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
+                data["mode"] = MTEMode.NEUTRAL
+
             if self.mte_algo == MTEAlgo.VC_LIKE:
                 h, w = image.shape[:2]
                 if math.isclose(float(w)/h, 4/3, rel_tol=1e-5):
@@ -240,10 +246,6 @@ class MTE:
                     croped = image[int(limits): int(h-limits), \
                         0: w]
                     image = croped.copy()
-
-            if "error" in data and data["error"]:
-                # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
-                continue
 
             if MTEMode(data["mode"]) == MTEMode.VALIDATION_REFERENCE:
                 t0 = time.time()
@@ -422,10 +424,12 @@ class MTE:
                 to_send = {
                     "status" : 1
                 }
-                print("{} is an unknown mode.".format(data["mode"]))
+                print("An error has occured.")
 
-            self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
-                data["id_ref"])
+            if "id_ref" in data:
+                self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
+                    data["id_ref"])
+
             self.image_hub.send_reply(json.dumps(to_send).encode())
 
     def is_image_blurred(self, image, size=60, thresh=10):
