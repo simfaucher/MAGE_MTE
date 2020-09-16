@@ -238,7 +238,7 @@ class MTE:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 data["mode"] = MTEMode.NEUTRAL
 
-            if self.mte_algo == MTEAlgo.VC_LIKE:
+            if self.mte_algo == MTEAlgo.VC_LIKE and MTEMode(data["mode"]) != MTEMode.NEUTRAL:
                 h, w = image.shape[:2]
                 if math.isclose(float(w)/h, 4/3, rel_tol=1e-5):
                     new_h = int(w * (1 / (16 / 9)))

@@ -78,7 +78,7 @@ FAST = False
 # LEARNING_IMAGE_PATH = "videoForBenchmark/Approche/reference.png"
 # VIDEO_PATH = "videos/video_moteur/reverse.mp4"
 # LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
-SAMPLE_PATH = "videos/samples/3/"
+SAMPLE_PATH = "videos/samples/3-1/"
 LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
 
 class Client:
@@ -316,7 +316,7 @@ class Client:
             if CAPTURE_DEMO:
                 out.write(to_draw)
             cv2.imshow("Targetting", to_draw)
-            key = cv2.waitKey(0)
+            key = cv2.waitKey(1)
 
             # if FAST and self.mode == MTEMode.MOTION_TRACKING:
             #     my_shift = end_frame_computing-begin_frame_computing
