@@ -325,6 +325,7 @@ class VCLikeEngine:
         capture = False
         response_type = MTEResponse.ORANGE
         translation = (0, 0)
+        prev_mode = self.mode
 
         fps = FPS().start() # Debug
 
