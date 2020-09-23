@@ -6,11 +6,9 @@ sklearn==0.0
 imutils==0.5.3
 pyzmq==19.0.1
 numpy==1.15.1
-h5py==2.6.0
 pytz==2020.1
 scikit-image==0.16.2
-tqdm
+tqdm==4.49.0
+h5py==2.6.0
 
--f https://download.pytorch.org/whl/torch_stable.html
-torch==1.5.0+cu101
-torchvision==0.6.0+cu101
+torch===1.6.0 torchvision===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html

@@ -236,7 +236,7 @@ class MTE:
                 "error" in data and data["error"] or \
                     "mode" not in data:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
-                data["mode"] = MTEMode.NEUTRAL
+                data["mode"] = MTEMode.NEUTRAL.value
 
             if self.mte_algo == MTEAlgo.VC_LIKE and MTEMode(data["mode"]) != MTEMode.NEUTRAL:
                 h, w = image.shape[:2]
