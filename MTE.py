@@ -16,6 +16,7 @@ import numpy as np
 from pykson import Pykson
 from imutils.video import FPS
 import imagezmq
+from zmq.error import ZMQError
 
 from Domain.MTEMode import MTEMode
 from Domain.ErrorLearning import ErrorLearning
@@ -430,7 +431,11 @@ class MTE:
                 self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
                     data["id_ref"])
 
-            self.image_hub.send_reply(json.dumps(to_send).encode())
+            try:
+                self.image_hub.send_reply(json.dumps(to_send).encode())
+            except ZMQError:
+                # Timeout reached
+                continue
 
     def is_image_blurred(self, image, size=60, thresh=10):
         """Check if an image is blurred. Return a tuple (mean: float, blurred: bool)
