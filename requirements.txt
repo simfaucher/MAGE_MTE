@@ -9,7 +9,3 @@ pytz==2019.3
 scikit-image==0.16.2
 tqdm==4.46.0
 h5py==2.10.0
-
--f https://download.pytorch.org/whl/torch_stable.html
-torch===1.6.0
-torchvision===0.7.0
