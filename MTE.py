@@ -33,7 +33,6 @@ from Repository import Repository
 
 from MLValidation import MLValidation
 from SIFTEngine import SIFTEngine
-from D2NetEngine import D2NetEngine
 from VCLikeEngine import VCLikeEngine
 
 # CAM_MATRIX = np.array([[954.16160543, 0., 635.29854945], \
@@ -51,7 +50,7 @@ class MTE:
          disable_histogram_matching=False, debug_mode=False):
         print("Launching server")
         self.image_hub = imagezmq.ImageHub()
-        self.image_hub.zmq_socket.RCVTIMEO = 3600000
+        self.image_hub.zmq_socket.RCVTIMEO = -1
         # self.image_hub = imagezmq.ImageHub(open_port='tcp://192.168.43.39:5555')
 
         self.repo = Repository()
@@ -78,12 +77,7 @@ class MTE:
 
         self.debug_mode = debug_mode
 
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine = D2NetEngine(max_edge=resize_width, \
-                                            max_sum_edges=resize_width + self.resize_height,\
-                                            maxRansac=ransacount, width=self.resize_width, \
-                                            height=self.resize_height)
-        elif self.mte_algo == MTEAlgo.VC_LIKE:
+        if self.mte_algo == MTEAlgo.VC_LIKE:
             self.vc_like_engine = VCLikeEngine(one_shot_mode=one_shot_mode, \
                 disable_histogram_matching = disable_histogram_matching, debug_mode=self.debug_mode)
         else:
