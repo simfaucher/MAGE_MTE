@@ -107,6 +107,8 @@ class MTE:
         else:
             self.min_validation_count = 5
 
+        self.landscape_image = True
+
     def init_server_csv(self):
         """ This function create a log for the global activity of the server."""
         
@@ -232,6 +234,14 @@ class MTE:
                     "mode" not in data:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 data["mode"] = MTEMode.NEUTRAL.value
+            
+            else:
+                h, w = image.shape[:2]
+                if h > w:
+                    self.landscape_image = False
+                    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+                else:
+                    self.landscape_image = True
 
             if self.mte_algo == MTEAlgo.VC_LIKE and MTEMode(data["mode"]) != MTEMode.NEUTRAL:
                 h, w = image.shape[:2]
@@ -481,13 +491,19 @@ class MTE:
             divider = 10
 
         tolerance = float(divider)/100
+        size_h = int(size_w*(1/self.format_resolution))
+
+        if not self.landscape_image:
+            temp = size_w
+            size_w = size_h
+            size_h = temp
 
         center = (translation_value[0]*scale_value[0]+size_w/2, \
-            translation_value[1]*scale_value[1]+int((size_w*(1/self.format_resolution))/2))
+            translation_value[1]*scale_value[1]+int(size_h/2))
 
         direction = UserInformation.CENTERED
 
-        size_h = int(size_w*(1/self.format_resolution))
+
         if center[1] < (size_h/2 - size_w*tolerance):
             if center[0] < (size_w/2 - size_w*tolerance):
                 direction = UserInformation.UP_LEFT
@@ -834,9 +850,7 @@ class MTE:
 
         self.reference = LearningData()
 
-        if self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            self.d2net_engine.learn(self.reference, crop_image=True, crop_margin=self.crop_margin)
-        elif self.mte_algo == MTEAlgo.VC_LIKE:
+        if self.mte_algo == MTEAlgo.VC_LIKE:
             self.vc_like_engine.learn(image_ref, self.reference)
             self.vc_like_engine.init_engine(self.reference)
         else:
@@ -982,12 +996,15 @@ class MTE:
                 find_target(image, self.reference, testing_mode=testing_mode)
             
             # cv2.imshow("VC-like engine", transformed)
-        elif self.mte_algo in (MTEAlgo.D2NET_KNN, MTEAlgo.D2NET_RANSAC):
-            success, scales, skews, translation, transformed, nb_matches, \
-                nb_kp = self.d2net_engine.recognition(image, self.reference, self.mte_algo)
         else:
             success, scales, skews, translation, transformed, nb_matches, \
                 nb_kp = self.sift_engine.recognition(image, self.reference, self.mte_algo)
+
+        # Fix on portrait image
+        if not self.landscape_image:
+            translation = (translation[1], translation[0])
+            scales = (scales[1], scales[0])
+            skews = (skews[1], skews[0])
 
         scale_x, scale_y = scales
         skew_x, skew_y = skews
