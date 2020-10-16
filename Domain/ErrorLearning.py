@@ -7,7 +7,7 @@ class ErrorLearning(Enum):
     """Potential error when learning a reference."""
 
     SUCCESS = 0
-    ERROR = 10
+    ERROR = 1
     INVALID_FORMAT = 11
     ERROR_REFERENCE_IS_BLURRED = 12
     GAUSSIAN_BLUR_FAILURE = 21
