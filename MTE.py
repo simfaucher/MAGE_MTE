@@ -39,6 +39,8 @@ from VCLikeEngine import VCLikeEngine
 #     [0., 951.09864051, 359.47108905],  \
 #         [0., 0., 1.]])
 
+SAMPLE_FOLDER = "samples"
+
 class MTE:
     """
     This class initializes a server that will listen to client
@@ -225,23 +227,24 @@ class MTE:
 
         server_log_writter = self.init_server_csv()
         while True:  # show streamed images until Ctrl-C
-            msg, image = self.image_hub.recv_image()
+            msg, raw_image = self.image_hub.recv_image()
 
             data = json.loads(msg)
 
-            if image is None or not isinstance(image, np.ndarray) or \
+            if raw_image is None or not isinstance(raw_image, np.ndarray) or \
                 "error" in data and data["error"] or \
                     "mode" not in data:
                 # print("<<<<<<<<<<<<<<<<<< Error receiving garbage >>>>>>>>>>>>>>>>>>")
                 data["mode"] = MTEMode.NEUTRAL.value
             
             else:
-                h, w = image.shape[:2]
+                h, w = raw_image.shape[:2]
                 if h > w:
                     self.landscape_image = False
-                    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+                    image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
                 else:
                     self.landscape_image = True
+                    image = raw_image
 
             if self.mte_algo == MTEAlgo.VC_LIKE and MTEMode(data["mode"]) != MTEMode.NEUTRAL:
                 h, w = image.shape[:2]
@@ -273,10 +276,13 @@ class MTE:
                     to_send = {
                         "status" : ErrorLearning.INVALID_FORMAT.value
                     }
+
+                # Cleaning
                 self.reference.clean_control_assist(self.reference.id_ref)
                 data["id_ref"] = None
                 t2 = time.time()
                 # print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
+
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
                 if data["mte_parameters"]["ratio"] is None:
                     to_send = {
@@ -323,6 +329,15 @@ class MTE:
                     else:
                         target = (self.vc_like_engine.image_width, \
                             self.vc_like_engine.image_height)
+                
+                    # Samples
+                    if not os.path.exists(SAMPLE_FOLDER):
+                        os.makedirs(SAMPLE_FOLDER)
+
+                    if not os.path.exists(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref))):
+                        os.makedirs(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref)))
+                    
+                    cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), "Ref.png"), raw_image)
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if (self.reference.id_ref is None) and (os.path.isfile('temporaryData.txt')):
@@ -399,6 +414,10 @@ class MTE:
                     target = (response.requested_image_size[0], response.requested_image_size[1])
 
                     target = (response.requested_image_size[0], response.requested_image_size[1])
+
+                    
+                    # Samples
+                    cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), str(time.time()) + ".png"), raw_image)
 
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
                 status = self.reference.clean_control_assist(data["id_ref"])
