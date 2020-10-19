@@ -1002,7 +1002,8 @@ class MTE:
 
         # Fix on portrait image
         if not self.landscape_image:
-            translation = (translation[1], translation[0])
+            h, w = image.shape[:2]
+            translation = (translation[1], -1 * translation[0])
             scales = (scales[1], scales[0])
             skews = (skews[1], skews[0])
 
