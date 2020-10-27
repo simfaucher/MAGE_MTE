@@ -271,6 +271,15 @@ class MTE:
                     # self.reference.mte_parameters["ratio"] = self.format_resolution
                     if status == ErrorLearning.SUCCESS:
                         to_send["mte_parameters"] = self.reference.change_parameters_type_for_sending()
+                
+                        # Samples
+                        if not os.path.exists(SAMPLE_FOLDER):
+                            os.makedirs(SAMPLE_FOLDER)
+
+                        if not os.path.exists(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref))):
+                            os.makedirs(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref)))
+                        
+                        cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), "Ref.png"), raw_image)
                 else:
                     print("Invalid format.")
                     to_send = {
@@ -329,15 +338,6 @@ class MTE:
                     else:
                         target = (self.vc_like_engine.image_width, \
                             self.vc_like_engine.image_height)
-                
-                    # Samples
-                    if not os.path.exists(SAMPLE_FOLDER):
-                        os.makedirs(SAMPLE_FOLDER)
-
-                    if not os.path.exists(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref))):
-                        os.makedirs(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref)))
-                    
-                    cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), "Ref.png"), raw_image)
 
             elif MTEMode(data["mode"]) == MTEMode.MOTION_TRACKING:
                 if (self.reference.id_ref is None) and (os.path.isfile('temporaryData.txt')):
