@@ -613,7 +613,13 @@ class VCLikeEngine:
         #TODO: remettre transformed ?
         # return best_match.success, (self.scale, self.scale), (0, 0), (best_match.anchor.x, best_match.anchor.y), transformed
 
-        return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, input_image
+        h, w = input_image.shape[:2]
+        M = cv2.getRotationMatrix2D(((w-1)/2.0, (h-1)/2.0), 0, (float(self.scale)/100))
+        transformed = cv2.warpAffine(input_image, M, (w, h))
+
+        # cv2.imshow("Input image", input_image) #Debug
+        # cv2.imshow("Transformed", transformed) #Debug
+        return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, transformed
     
     def generate_histogram_data(self, template):
         histogram_matching_data = []
