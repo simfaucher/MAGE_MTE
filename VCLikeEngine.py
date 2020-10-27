@@ -71,6 +71,11 @@ class VCLikeEngine:
         self.nb_following_captures = 1
 
         self.debug_mode = debug_mode
+
+        # Scan data
+        self.translation = (0, 0)
+        self.response_type = MTEResponse.RED
+
         # self.to_skip = 1/2
 
     # def learn(self, image, learning_data):
@@ -323,8 +328,7 @@ class VCLikeEngine:
     def find_target(self, input_image, learning_data, testing_mode=False):
         not_centered = False
         capture = False
-        response_type = MTEResponse.ORANGE
-        translation = (0, 0)
+        self.response_type = MTEResponse.ORANGE
         prev_mode = self.mode
 
         fps = FPS().start() # Debug
@@ -352,7 +356,7 @@ class VCLikeEngine:
             best_match, matches, all_matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_85_singlescale[self.scale].scan(image, scan_opti=False, output_matches=True)
             best_match = self.mean_best(all_matches, best_match)
             if len(matches) == 0:
-                response_type = MTEResponse.TARGET_LOST
+                self.response_type = MTEResponse.TARGET_LOST
             if best_match.success:
                 # Calcul du scale
                 pt_tl = Point2D()
@@ -367,7 +371,7 @@ class VCLikeEngine:
                 multiscale_match = self.box_learner_85_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
                 self.scale = multiscale_match.predicted_class
 
-                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_85_multiscale.sight.width/2))*(self.scale/100)), \
+                self.translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_85_multiscale.sight.width/2))*(self.scale/100)), \
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_85_multiscale.sight.height/2))*(self.scale/100)))
 
                 # Change mode if there are 5 green points around and the target is roughly centered
@@ -392,13 +396,13 @@ class VCLikeEngine:
                             self.mode = 1
                         else:
                             best_match = self.last_match
-                            response_type = self.last_response_type
-                            translation = self.last_translation
+                            self.response_type = self.last_response_type
+                            self.translation = self.last_translation
                     else:
                         if (time.time() - begin_timeout) > TIMEOUT_LIMIT_SEC:
-                            response_type = MTEResponse.TARGET_LOST
+                            self.response_type = MTEResponse.TARGET_LOST
                         elif (time.time() - begin_timeout) > (TIMEOUT_LIMIT_SEC / 2):
-                            response_type = MTEResponse.RED
+                            self.response_type = MTEResponse.RED
                         self.mode = 0
 
             if best_match.success:
@@ -409,7 +413,7 @@ class VCLikeEngine:
         # Boîte orange
         if self.mode == 1 and (not step_done or self.one_shot_mode):
             prev_mode = 1
-            response_type = MTEResponse.GREEN
+            self.response_type = MTEResponse.GREEN
             # Scan optimisé (step=3)
             best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, output_matches=True)
 
@@ -427,7 +431,7 @@ class VCLikeEngine:
                 multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
                 self.scale = multiscale_match.predicted_class
 
-                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
+                self.translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
                     int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
 
                 # Change mode if there are 5 green points around and the target is roughly centered
@@ -437,7 +441,7 @@ class VCLikeEngine:
                 if not self.one_shot_mode and (not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
                     not math.isclose(y1, image.shape[0]/2, rel_tol=1/1)):
                     not_centered = True
-                    response_type = MTEResponse.ORANGE
+                    self.response_type = MTEResponse.ORANGE
                     begin_timeout = time.time()
                     self.mode = 0
                 else: 
@@ -451,7 +455,7 @@ class VCLikeEngine:
                     if number_of_green_around >= 4:
                         self.mode = 2
             else:
-                response_type = MTEResponse.ORANGE
+                self.response_type = MTEResponse.ORANGE
                 begin_timeout = time.time()
                 self.mode = 0
 
@@ -461,70 +465,14 @@ class VCLikeEngine:
             step_done = True
 
         # Boîte rose
-        if self.mode in (2, 3) and (not step_done or self.one_shot_mode):
-            prev_mode = self.mode
-            response_type = MTEResponse.GREEN
+        if self.mode == 2 and (not step_done or self.one_shot_mode):
+            prev_mode, step_done, capture, best_match, matches, green_matches, light_green_matches, orange_matches, number_of_green_around, to_display = self.mode2and3(image, number_of_green_around, capture)
 
-            # Scan optimisé (step=1)
-            best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
-
-            if best_match.success:
-                # Calcul du scale
-                pt_tl = Point2D()
-                pt_tl.x = best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x
-                pt_tl.y = best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y
-
-                pt_br = Point2D()
-                pt_br.x = pt_tl.x + self.box_learner_64_multiscale.sight.width
-                pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
-
-                self.box_learner_64_multiscale.input_image = image
-                multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
-                self.scale = multiscale_match.predicted_class
-                
-                translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
-                    int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
-
-                green_count = 0
-                x1 = best_match.anchor.x
-                y1 = best_match.anchor.y
-                if not self.one_shot_mode and (not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
-                    not math.isclose(y1, image.shape[0]/2, rel_tol=1/1)):
-                    begin_timeout = time.time()
-                    response_type = MTEResponse.ORANGE
-                    not_centered = True
-                    self.mode = 0
-                else:
-                    for m in matches:
-                        x2 = m.anchor.x
-                        y2 = m.anchor.y
-                        if m.success:
-                            green_count += 1
-                        if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
-                            number_of_green_around += 1
-                # Change mode if there are 6 green points around and the target is roughly centered
-                    if number_of_green_around >= 6:
-                        self.mode = 3
-                    else:
-                        self.mode = 2
-            else:
-                self.mode = 1
-            
-            if prev_mode == 3 and response_type == MTEResponse.GREEN:
-                prev_mode = 3
-
-                self.validation_count += 1
-                capture = (self.validation_count >= self.nb_following_captures)
-                if capture:
-                    response_type = MTEResponse.CAPTURE
+        if self.mode == 3 and (not step_done or self.one_shot_mode):
+            prev_mode, step_done, capture, best_match, matches, green_matches, light_green_matches, orange_matches, number_of_green_around, to_display = self.mode2and3(image, number_of_green_around, capture)
         
-            if best_match.success:
-                self.last_match = best_match
-
-            step_done = True
-        
-        self.last_response_type = response_type
-        self.last_translation = translation
+        self.last_response_type = self.response_type
+        self.last_translation = self.translation
 
         if self.debug_mode and best_match.anchor is not None:
             x1 = best_match.anchor.x
@@ -572,14 +520,14 @@ class VCLikeEngine:
         if best_match.success:
             print("Step = {}, X,Y = {},{}, Scale = {}, Dist = {}, Nb Success = {}, Nb green neighbours = {}, Green = {}, Lightgreen = {}, Orange = {}".\
                 format(prev_mode, best_match.anchor.x, best_match.anchor.y, self.scale, best_match.max_distance, len(matches), number_of_green_around, green_matches, light_green_matches, orange_matches))
-            lenght = len(matches)
+            length = len(matches)
             # writer.writerow({'Frame Id' : frame_id,
             #                     'Step' : prev_mode,
             #                     'X' : best_match.anchor.x,
             #                     'Y' : best_match.anchor.y,
             #                     'Scale' : self.scale,
             #                     'Dist' : int(best_match.max_distance),
-            #                     'Nb Success' : lenght,
+            #                     'Nb Success' : length,
             #                     'Green' : green_matches,
             #                     'L Green' : light_green_matches,
             #                     'Orange' : orange_matches,
@@ -619,7 +567,71 @@ class VCLikeEngine:
 
         # cv2.imshow("Input image", input_image) #Debug
         # cv2.imshow("Transformed", transformed) #Debug
-        return best_match.success, response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), translation, transformed
+        return best_match.success, self.response_type, (float(self.scale)/100, float(self.scale)/100), (0, 0), self.translation, transformed
+    
+    def mode2and3(self, image, number_of_green_around, capture):
+        prev_mode = self.mode
+        self.response_type = MTEResponse.GREEN
+
+        # Scan optimisé (step=1)
+        best_match, matches, green_matches, light_green_matches, orange_matches, to_display = self.box_learners_64_singlescale[self.scale].optimised_scan_sequenced(image, best_match=self.last_match, pixel_scan=True, output_matches=True)
+
+        if best_match.success:
+            # Calcul du scale
+            pt_tl = Point2D()
+            pt_tl.x = best_match.anchor.x - self.box_learner_64_multiscale.sight.anchor.x
+            pt_tl.y = best_match.anchor.y - self.box_learner_64_multiscale.sight.anchor.y
+
+            pt_br = Point2D()
+            pt_br.x = pt_tl.x + self.box_learner_64_multiscale.sight.width
+            pt_br.y = pt_tl.y + self.box_learner_64_multiscale.sight.height
+
+            self.box_learner_64_multiscale.input_image = image
+            multiscale_match = self.box_learner_64_multiscale.find_target(pt_tl, pt_br, skip_tolerance=True)
+            self.scale = multiscale_match.predicted_class
+            
+            self.translation = (int((pt_tl.x - (self.image_width/2 - self.box_learner_64_multiscale.sight.width/2))*(self.scale/100)), \
+                int((pt_tl.y - (self.image_height/2 - self.box_learner_64_multiscale.sight.height/2))*(self.scale/100)))
+
+            green_count = 0
+            x1 = best_match.anchor.x
+            y1 = best_match.anchor.y
+            if not self.one_shot_mode and (not math.isclose(x1, image.shape[1]/2, rel_tol=1/1) or\
+                not math.isclose(y1, image.shape[0]/2, rel_tol=1/1)):
+                begin_timeout = time.time()
+                self.response_type = MTEResponse.ORANGE
+                not_centered = True
+                self.mode = 0
+            else:
+                for m in matches:
+                    x2 = m.anchor.x
+                    y2 = m.anchor.y
+                    if m.success:
+                        green_count += 1
+                    if (math.sqrt(pow(x2-x1, 2) + pow(y2-y1, 2)) < 10) and m.success:
+                        number_of_green_around += 1
+            # Change mode if there are 6 green points around and the target is roughly centered
+                if number_of_green_around >= 6:
+                    self.mode = 3
+                else:
+                    self.mode = 2
+        else:
+            self.mode = 1
+        
+        if prev_mode == 3 and self.response_type == MTEResponse.GREEN:
+            prev_mode = 3
+
+            self.validation_count += 1
+            capture = (self.validation_count >= self.nb_following_captures)
+            if capture:
+                self.response_type = MTEResponse.CAPTURE
+    
+        if best_match.success:
+            self.last_match = best_match
+
+        step_done = True
+
+        return prev_mode, step_done, capture, best_match, matches, green_matches, light_green_matches, orange_matches, number_of_green_around, to_display
     
     def generate_histogram_data(self, template):
         histogram_matching_data = []
