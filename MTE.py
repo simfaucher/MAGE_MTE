@@ -915,11 +915,13 @@ class MTE:
         """
 
         size = int(image_ref.shape[1]/18)
-        blurred = self.is_image_blurred(self.crop_image(image_ref, 1/3), \
-                        size=size, thresh=10)
-        if blurred[1]:
-            print("The image is blurred")
-            return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
+
+        if not self.disable_blur:
+            blurred = self.is_image_blurred(self.crop_image(image_ref, 1/3), \
+                            size=size, thresh=10)
+            if blurred[1]:
+                print("The image is blurred")
+                return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
 
         kernel_size = 10
         sigma = 3
