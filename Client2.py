@@ -80,7 +80,7 @@ FAST = False
 # LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
 # SAMPLE_PATH = "videos/samples/3-1/"
 # LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
-SAMPLE_PATH = "videos/samples/translation/7/"
+SAMPLE_PATH = "videos/samples/5/"
 LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
 
 class Client:
@@ -200,12 +200,12 @@ class Client:
                         print("Error during learning : {}".format(ErrorLearning(reply["status"])\
                             .name))
                     else:
-                        print("Learning successfull")
+                        print("Learning successful")
                         self.learning_data.id_ref = -1
                         self.learning_data.mte_parameters = reply["mte_parameters"]
                 elif self.mode == MTEMode.INITIALIZE_MTE:
                     if ErrorInitialize(reply["status"]) == ErrorInitialize.SUCCESS:
-                        print("Initialize successfull.")
+                        print("Initialize successful.")
                     elif ErrorInitialize(reply["status"]) == ErrorInitialize.NEED_TO_CLEAR_MTE:
                         print("Need to clear MTE first.")
                     else:
@@ -237,7 +237,7 @@ class Client:
                         cv2.putText(to_draw, "Size: {}".format(prev_size), (20, 20), \
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
                         cv2.putText(to_draw, MTEResponse(response["flag"]).name, \
-                            (620, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_box, 2)
+                            (620, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
                         if not prev_size == size:
                             print("Change of size {} -> {}".format(prev_size, size))
@@ -248,7 +248,7 @@ class Client:
                         elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             # print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
                             pass
-                        elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
+                        else:
                             # print("Flag {} : {}".format(response["flag"], \
                             #     ErrorRecognition(response["status"]).name))
                             

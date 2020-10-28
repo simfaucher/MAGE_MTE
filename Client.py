@@ -224,7 +224,8 @@ class Client:
                         elif MTEResponse(response["flag"]) == MTEResponse.RED:
                             # print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
                             pass
-                        elif response["target_data"]["translations"][0] != 0 or response["target_data"]["translations"][1] != 0:
+                        else:
+                            pass:
                             # print("Flag {} : {}".format(response["flag"], \
                             #     ErrorRecognition(response["status"]).name))
                             
