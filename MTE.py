@@ -347,6 +347,10 @@ class MTE:
                         self.format_resolution = data_restored["mte_parameters"]["ratio"]
                         self.set_mte_parameters(self.format_resolution)
                         self.reference.initialiaze_control_assist(data_restored["id_ref"], data_restored["mte_parameters"])
+                        
+                        if self.mte_algo == MTEAlgo.VC_LIKE:
+                            self.vc_like_engine.init_engine(self.reference)
+                        
                         log_writer = self.create_log()
                         data = data_restored
                         data["mode"] = MTEMode.MOTION_TRACKING
@@ -397,7 +401,7 @@ class MTE:
                         self.validation = self.min_validation_count
                     if self.validation == self.min_validation_count:
                         is_blurred = self.is_image_blurred(image, \
-                            size=int(response.requested_image_size[0]/18), thresh=10)
+                            size=int(response.requested_image_size[0]/18))
                         # if the image is not blurred else we just return green
                         if self.disable_blur:
                             if response.user_information == UserInformation.CENTERED:
@@ -471,6 +475,12 @@ class MTE:
 
         # cv2.imshow("Input image", image)
 
+        mean, is_blurred = self.is_blurred_fft(image, size, thresh)
+        # mean, is_blurred = self.is_blurred_laplacian(image, thresh)
+
+        return mean, is_blurred
+    
+    def is_blurred_fft(self, image, size=60, thresh=10):
         # Histogram equalization
         hist, bins = np.histogram(image.flatten(), 256, [0,256])
         cdf = hist.cumsum()
@@ -496,6 +506,13 @@ class MTE:
         # cv2.waitKey(0)
 
         return (mean, mean <= thresh)
+    
+    def is_blurred_laplacian(self, image, thresh=10):
+        score = cv2.Laplacian(image, cv2.CV_64F).var()
+        grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        contrast = grey_image.std()
+
+        return (score, score <= thresh)
 
     def compute_direction(self, translation_value, scale_value, size_w):
         """Return a string representing a cardinal direction.
@@ -918,7 +935,7 @@ class MTE:
 
         if not self.disable_blur:
             blurred = self.is_image_blurred(self.crop_image(image_ref, 1/3), \
-                            size=size, thresh=10)
+                            size=size)
             if blurred[1]:
                 print("The image is blurred")
                 return ErrorLearning.ERROR_REFERENCE_IS_BLURRED
