@@ -478,8 +478,7 @@ class MTE:
         mean, is_blurred = self.is_blurred_fft(image, size, thresh)
         # mean, is_blurred = self.is_blurred_laplacian(image, thresh)
 
-        # return mean, is_blurred
-        return mean, True #TODO: For test purpose only
+        return mean, is_blurred
     
     def is_blurred_fft(self, image, size=60, thresh=10):
         # Histogram equalization
