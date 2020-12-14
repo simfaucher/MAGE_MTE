@@ -139,4 +139,4 @@ If some errors are encounterred while you run the executable, you will have to r
 In the folder `multiprocessing` rename `Pool.pyc` to `pool.pyc`
 In the folder `scipy\spatial` rename `cKDTree.cp37-win_amd64.pyd` to `ckdtree.cp37-win_amd64.pyd`
 
-It is advised to the executable at this point in the `build` directory.
+It is advised to test the executable at this point in the `build` directory.
