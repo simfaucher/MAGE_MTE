@@ -225,7 +225,6 @@ class Client:
                             # print("Flag RED : {}".format(ErrorRecognition(response["status"]).name))
                             pass
                         else:
-                            pass:
                             # print("Flag {} : {}".format(response["flag"], \
                             #     ErrorRecognition(response["status"]).name))
                             
