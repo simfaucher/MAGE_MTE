@@ -118,3 +118,25 @@ If you lost the image ID, you can find it running:
 ```shell
 docker image list
 ```
+
+### Windows compilation
+
+To distribute the software to a Windows 10 platform, checkout to the "compilation" branch, then :
+First use cx_freeze scripts to make an exeutable file.
+
+Install cx_freeze typing :
+```shell
+python -m pip install cx-Freeze
+python -m pip install idna
+```
+
+Then run cx_freeze typing :
+```shell
+python setup.py build
+```
+
+If some errors are encounterred while you run the executable, you will have to rename two files in the `build\exe.win-amd64-3.7\lib` folder : 
+In the folder `multiprocessing` rename `Pool.pyc` to `pool.pyc`
+In the folder `scipy\spatial` rename `cKDTree.cp37-win_amd64.pyd` to `ckdtree.cp37-win_amd64.pyd`
+
+It is advised to the executable at this point in the `build` directory.
