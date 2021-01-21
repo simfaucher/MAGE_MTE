@@ -298,13 +298,17 @@ class MTE:
                         "status" : ErrorInitialize.ERROR.value
                     }
                     print("Error inside parameters for init.")
-                elif (not self.reference.is_empty()) and self.reference.id_ref != data["id_ref"]:
-                    to_send = {
-                        "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
-                    }
-                    print("Engine already init with a different ref.")
-                    # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
+                # elif (not self.reference.is_empty()) and self.reference.id_ref != data["id_ref"]:
+                #     to_send = {
+                #         "status" : ErrorInitialize.NEED_TO_CLEAR_MTE.value
+                #     }
+                #     print("Engine already initialized with a different ref.")
+                #     # Pas de retour d'id car MTEMode.CLEAR_MTE s'en occupe
                 else:
+                    # Clear MTE 
+                    self.clear_mte()
+
+                    # Initialize MTE
                     self.rollback = 0
                     self.validation = 0
                     self.resolution_change_allowed = 3
@@ -423,26 +427,24 @@ class MTE:
                     # Samples
                     cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), str(time.time()) + ".png"), raw_image)
 
-            elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE:
-                status = self.reference.clean_control_assist(data["id_ref"])
-                if status != 0:
-                    id_ref = self.reference.id_ref
-                    print("Clean failed wrong ref.")
+            elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE :
+                if "id_ref" in data and data["id_ref"] is not None:
+                    status, id_ref = self.clear_mte(data["id_ref"])
+                    to_send = {
+                        "status" : status,
+                        "id_ref" : id_ref
+                    }
                 else:
-                    id_ref = -1
-                    if os.path.isfile('temporaryData.txt'):
-                        os.remove('temporaryData.txt')
-                    self.rollback = 0
-                    self.validation = 0
-                    self.resolution_change_allowed = 3
-                    self.orange_count_for_rollback = 0
-                    print("Clean success.")
+                    print("No reference id provided.")
+                    to_send = {
+                        "status" : 1
+                    }
+                
+            elif MTEMode(data["mode"]) == MTEMode.FORCE_CLEAR_MTE:
+                status, _ = self.clear_mte()
                 to_send = {
-                    "status" : status,
-                    "id_ref" : id_ref
+                    "status" : status
                 }
-                if self.result_csv is not None:
-                    self.result_csv = self.result_csv.close()
             elif MTEMode(data["mode"]) == MTEMode.RUNNING_VERIFICATION:
                 to_send = {
                     "status" : 0
@@ -452,7 +454,7 @@ class MTE:
                 to_send = {
                     "status" : 1
                 }
-                print("An error has occured.")
+                print("An error occured.")
 
             if "id_ref" in data:
                 self.fill_server_log(server_log_writter, MTEMode(data["mode"]), \
@@ -463,6 +465,29 @@ class MTE:
             except ZMQError:
                 # Timeout reached
                 continue
+    
+    def clear_mte(self, id_ref=None):
+        status = self.reference.clean_control_assist(id_ref)
+
+        if status != 0:
+            id_ref = self.reference.id_ref
+            print("Clean failed, wrong reference id.")
+        else:
+            if os.path.isfile('temporaryData.txt'):
+                os.remove('temporaryData.txt')
+
+            id_ref = -1
+            self.rollback = 0
+            self.validation = 0
+            self.resolution_change_allowed = 3
+            self.orange_count_for_rollback = 0
+
+            if self.result_csv is not None:
+                self.result_csv = self.result_csv.close()
+
+            print("Clean success.")
+
+        return status, id_ref
 
     def is_image_blurred(self, image, size=60, thresh=10):
         """Check if an image is blurred. Return a tuple (mean: float, blurred: bool)

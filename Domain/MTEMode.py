@@ -14,3 +14,4 @@ class MTEMode(Enum):
     MOTION_TRACKING = 3
     CLEAR_MTE = 4
     RUNNING_VERIFICATION = 5
+    FORCE_CLEAR_MTE = 6

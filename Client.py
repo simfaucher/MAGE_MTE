@@ -151,6 +151,10 @@ class Client:
                 data = json.dumps({
                     "mode": self.mode.value,
                 })
+            elif self.mode == MTEMode.FORCE_CLEAR_MTE:
+                data = json.dumps({
+                    "mode": self.mode.value
+                })
 
             to_draw = full_image.copy()
             if self.mode != MTEMode.NEUTRAL:
@@ -273,7 +277,7 @@ class Client:
                                                 int(y_coordinate+(full_image.shape[0]/2)*mean_scale))
                             cv2.rectangle(to_draw, upper_left_conner,\
                                                     lower_right_corner, color_box, thickness=3)
-                elif self.mode == MTEMode.CLEAR_MTE:
+                elif self.mode == MTEMode.CLEAR_MTE or self.mode == MTEMode.FORCE_CLEAR_MTE:
                     if reply["status"] == 0:
                         print("Clear successfull.")
                     else:
@@ -319,6 +323,8 @@ class Client:
                 self.mode = MTEMode.CLEAR_MTE
             elif key == ord("5") or key == ord("("):
                 self.mode = MTEMode.RUNNING_VERIFICATION
+            elif key == ord("6") or key == ord("-"):
+                self.mode = MTEMode.FORCE_CLEAR_MTE
             elif key == ord("q"):
                 sys.exit("User ended program.")
                 if CAPTURE_DEMO:
