@@ -60,11 +60,11 @@ class LearningData:
 
         return ErrorInitialize.SUCCESS.value
 
-    def clean_control_assist(self, id_ref):
+    def clean_control_assist(self, id_ref=None):
         """ Clear the memory from the given reference."""
 
         # If we try to clean the wrong reference
-        if id_ref == self.id_ref:
+        if id_ref is None or id_ref == self.id_ref:
             self.mte_parameters = None
             self.id_ref = None
             return 0
