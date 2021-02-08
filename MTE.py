@@ -1168,7 +1168,7 @@ if __name__ == "__main__":
         const=True, default=False,\
         help="Disable the histogram matching. Default: False")
     ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
-        const=True, default=False,\
+        const=True, default=True,\
         help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
     ap.add_argument("-d", "--debug", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
