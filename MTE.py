@@ -293,7 +293,8 @@ class MTE:
                 # print("<<<<<<<<<<<<<<<< Calcul = {}, Change = {}, Total = {} >>>>>>>>>>>".format(t1-t0, t2-t1, t2-t0))
 
             elif MTEMode(data["mode"]) == MTEMode.INITIALIZE_MTE:
-                if data["mte_parameters"]["ratio"] is None:
+                if data["mte_parameters"]["ratio"] is None \
+                    or "id_session" not in data or data["id_session"] is None:
                     to_send = {
                         "status" : ErrorInitialize.ERROR.value
                     }
@@ -309,6 +310,7 @@ class MTE:
                     self.clear_mte()
 
                     # Initialize MTE
+                    print("Session ID: {}".format(data["id_session"]))
                     self.rollback = 0
                     self.validation = 0
                     self.resolution_change_allowed = 3
@@ -365,12 +367,14 @@ class MTE:
                     to_send = {
                         "status" : ErrorRecognition.ENGINE_IS_NOT_INITIALIZED.value
                     }
-                elif data["id_ref"] != self.reference.id_ref:
+                elif data["id_ref"] != self.reference.id_ref \
+                    or "id_session" not in data or data["id_session"] is None:
                     print("Wrong initialization.")
                     to_send = {
                         "status" : ErrorRecognition.MISMATCH_REF.value
                     }
                 else:
+                    print("Session ID: {}".format(data["id_session"]))
                     self.debug = image.copy()
                     if self.devicetype == "CPU" and image.shape[1] > self.width_medium:
                         image = cv2.resize(image, target,\
@@ -428,14 +432,16 @@ class MTE:
                     cv2.imwrite(os.path.join(SAMPLE_FOLDER, str(self.reference.id_ref), str(time.time()) + ".png"), raw_image)
 
             elif MTEMode(data["mode"]) == MTEMode.CLEAR_MTE :
-                if "id_ref" in data and data["id_ref"] is not None:
+                if "id_ref" in data and data["id_ref"] is not None \
+                    and "id_session" in data and data["id_session"] is not None:
+                    print("Session ID: {}".format(data["id_session"]))
                     status, id_ref = self.clear_mte(data["id_ref"])
                     to_send = {
                         "status" : status,
                         "id_ref" : id_ref
                     }
                 else:
-                    print("No reference id provided.")
+                    print("No reference or session id provided.")
                     to_send = {
                         "status" : 1
                     }
@@ -1169,12 +1175,12 @@ if __name__ == "__main__":
         help="Disable the histogram matching. Default: False")
     ap.add_argument("-o", "--oneshot", required=False, type=str2bool, nargs='?',\
         const=True, default=True,\
-        help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: False")
+        help="Pass every step possible each time in VC-like mode. Use only with slow connection. Default: True")
     ap.add_argument("-d", "--debug", required=False, type=str2bool, nargs='?',\
         const=True, default=False,\
         help="Display debug images. Do not use with Docker. Default: False")
     args = vars(ap.parse_args())
-
+    
     mte = MTE(mte_algo=MTEAlgo[args["algo"]], crop_margin=convert_to_float(args["crop"]),\
          ransacount=args["ransacount"], disable_blur=args["disable_blur"], disable_centering=args["disable_centering"], \
          one_shot_mode=args["oneshot"], disable_histogram_matching=args["disable_histogram_matching"], debug_mode=args["debug"])

@@ -80,7 +80,7 @@ FAST = False
 # LEARNING_IMAGE_PATH = "videos/video_moteur/capture.png"
 # SAMPLE_PATH = "videos/samples/3-1/"
 # LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
-SAMPLE_PATH = "videos/samples/5/"
+SAMPLE_PATH = "videos/samples/106/"
 LEARNING_IMAGE_PATH = SAMPLE_PATH + "Ref.png"
 
 class Client:
@@ -160,16 +160,19 @@ class Client:
             elif self.mode == MTEMode.INITIALIZE_MTE:
                 temp = self.learning_data.to_dict()
                 temp["mode"] = self.mode.value
+                temp["id_session"] = "id_session_client_2"
                 data = json.dumps(temp)
             elif self.mode == MTEMode.MOTION_TRACKING:
                 data = json.dumps({
                     "mode": self.mode.value,
-                    "id_ref" : self.learning_data.id_ref
+                    "id_ref": self.learning_data.id_ref,
+                    "id_session": "id_session_client_2"
                 })
             elif self.mode == MTEMode.CLEAR_MTE:
                 data = json.dumps({
                     "mode": self.mode.value,
-                    "id_ref" : self.learning_data.id_ref
+                    "id_ref": self.learning_data.id_ref,
+                    "id_session": "id_session_client_2"
                 })
             elif self.mode == MTEMode.RUNNING_VERIFICATION:
                 data = json.dumps({
