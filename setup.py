@@ -88,7 +88,7 @@ cible_1 = Executable(
 # creation du setup
 setup(
     name="Motion Tracking Engine",
-    version="2.3.5",
+    version="2.4.0",
     description="Altran Motion Tracking Engine",
     author="Altran",
     options={"build_exe": options},
@@ -103,5 +103,3 @@ for filename in os.listdir ("build"):
     if os.path.exists(os.path.join("build", filename, "lib", "scipy", "spatial", "cKDTree.cp37-win_amd64.pyd")):
         os.rename(os.path.join("build", filename, "lib", "scipy", "spatial", "cKDTree.cp37-win_amd64.pyd"),
                   os.path.join("build", filename, "lib", "scipy", "spatial", "ckdtree.cp37-win_amd64.pyd"))
-    if not os.path.exists(os.path.join("build", filename, "indic")):
-        os.mkdir(os.path.join("build", filename, "indic"))

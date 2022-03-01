@@ -34,7 +34,7 @@ class LearningData:
             "vc_like_data": None
         }
 
-    def initialiaze_control_assist(self, id_ref, parameters):
+    def initialize_control_assist(self, id_ref, parameters):
         """Initialize keypoints and theirs descriptors from
            a dictionnary as well as the LearningKnowledge.
         """
