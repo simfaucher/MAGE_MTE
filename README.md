@@ -122,7 +122,7 @@ docker image list
 ### Windows compilation
 
 To distribute the software to a Windows 10 platform, checkout to the "compilation" branch, then :
-First use cx_freeze scripts to make an exeutable file.
+First use cx_freeze scripts to make an executable file.
 
 Install cx_freeze typing :
 ```shell
