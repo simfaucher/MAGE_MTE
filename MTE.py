@@ -132,8 +132,8 @@ class MTE:
     def fill_server_log(self, writer, action, ref):
         """This function fill server's logs."""
 
-        writer.writerow({'Timestamp' : datetime.now(),
-                         'Action' : action,
+        writer.writerow({'Timestamp': datetime.now(),
+                         'Action': action,
                          'Ref Client': ref})
 
     def init_log(self, name):
@@ -429,7 +429,7 @@ class MTE:
                     # status, id_ref = self.clear_mte(data["id_ref"])
                     del self.sessions[data["id_session"]] 
                     to_send = {
-                        "status" : status,
+                        "status" : 0,
                         "id_ref" : data["id_ref"]
                     }
                 else:
