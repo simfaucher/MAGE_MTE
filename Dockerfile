@@ -10,5 +10,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 ENV PATH="/opt/gtk/bin:$PATH"
 COPY . .
 
-CMD [ "python", "-u", "./MTE.py" ]
+# CMD [ "python", "-u", "./MTE.py" ]
 # CMD ["python", "./debug.py" ]
