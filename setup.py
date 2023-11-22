@@ -20,7 +20,8 @@ path = sys.path
  
 # options d'inclusion/exclusion des modules
 includes = ["matplotlib.backends.backend_tkagg", "scipy.sparse.csgraph._validation", \
-    "scipy.spatial.ckdtree"]  # nommer les modules non trouves par cx_freeze
+    "scipy.spatial.ckdtree", "Cython", "IPython", "numpy", "zmq","pytest","pygments", "PyQt6", "os", "pandas","skimage.feature.match",\
+    "skimage.measure.fit","skimage.transform._geometric","skimage.exposure.histogram_matching"]  # nommer les modules non trouves par cx_freeze
 excludes = []
 packages = ["idna", "os", "sys", "operator", "glob", "math", \
     "json", "datetime", "csv", "time", "statistics", "tkinter", \
