@@ -27,7 +27,7 @@ from Domain.MTEResponse import MTEResponse
 CAPTURE_DEMO = False
 DEMO_FOLDER = "demo/"
 
-MODE_CAMERA = False
+MODE_CAMERA = True
 MODE_VIDEO = not MODE_CAMERA
 
 FAST = False
@@ -94,7 +94,7 @@ class Client:
         else:
             self.cap = cv2.VideoCapture(VIDEO_PATH)
 
-        self.mode = MTEMode.NEUTRAL
+        self.mode = MTEMode.MOTION_TRACKING
         self.pov_id = 8
         self.learning_data = LearningData()
 
