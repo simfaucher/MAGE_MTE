@@ -118,3 +118,48 @@ If you lost the image ID, you can find it running:
 ```shell
 docker image list
 ```
+
+## 3.12 Update
+
+Python 3.12 was release on october 2023 and will receive security updates until october 2028.
+
+We were able to update almost all the dependencies to the latest version. The only one that we couldn't update is [pykson](https://pypi.org/project/pykson/). We tried to update it to the latest version but it was not compatible with the rest of the project. And the package is not maintained anymore. So we decided to keep the old version of pykson that is still working with python 3.12.
+
+We also found out that some packages were is beta version and got released under a new name. So we updated them to the latest version.
+
+### Packages updated version
+
+| Package                                                                          | Old version | New version |
+| -------------------------------------------------------------------------------- | ----------- | ----------- |
+| [matplotlib](https://pypi.org/project/matplotlib/)                               | 3.1.3       | 3.8.2       |
+| [opencv-contrib-python](https://pypi.org/project/opencv-contrib-python/)         | 3.4.2.17    | 4.9.0.80    |
+| [pykson](https://pypi.org/project/pykson/)                                       | 0.9.4       | 0.9.4       |
+| sklearn(beta) -> [scikit-learn](https://pypi.org/project/scikit-learn/)(release) | 0.0         | 1.3.2       |
+| [imutils](https://pypi.org/project/imutils/)                                     | 0.5.3       | 0.5.4       |
+| [pyzmq](https://pypi.org/project/pyzmq/)                                         | 18.1.0      | 25.1.2      |
+| [numpy](https://pypi.org/project/numpy/)                                         | 1.18.2      | 1.26.3      |
+| [pytz](https://pypi.org/project/pytz/)                                           | 2019.3      | 2023.3      |
+| [scikit-image](https://pypi.org/project/scikit-image/)                           | 0.16.2      | 0.22.0      |
+| [tqdm](https://pypi.org/project/tqdm/)                                           | 4.46.0      | 4.66.1      |
+| [h5py](https://pypi.org/project/h5py/)                                           | 2.10.0      | 3.10.0      |
+| [imagezmq](https://pypi.org/project/imagezmq/)                                   | 1.0.1       | 1.1.1       |
+
+By updating all these packages, we were able to update the python version from 3.7 to 3.12. We were able to run the communication test successfully with the new version of python.
+
+### Warnings about packages
+
+#### Discontinued packages
+
+While looking for the new version of the packages, we found out that some of them were not maintained anymore (or didn't receive any update since 2022) but were working with the latest version of python. So we decided to keep them. Note that these packages are not used a lot (based on their respective Github stats) so they are most likely never going to be updated or forked.
+
+Here is the list of the packages that are not maintained anymore:
+
+| Package                                        | latest version | last update |
+| ---------------------------------------------- | -------------- | ----------- |
+| [pykson](https://pypi.org/project/pykson/)     | 0.9.9.8.17     | 26-12-2022  |
+| [imutils](https://pypi.org/project/imutils/)   | 0.5.4          | 15-01-2021  |
+| [imagezmq](https://pypi.org/project/imagezmq/) | 1.1.1          | 23-05-2020  |
+
+#### Packages included in the repository
+
+We found out that one package was included in the repository because it was not available on PyPI. We decided to remove it from the repository and install it using pip. The package was imagezmq.
