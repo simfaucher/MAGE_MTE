@@ -113,3 +113,31 @@ If you lost the image ID, you can find it running:
 ```shell
 docker image list
 ```
+
+### Building the application
+
+To build the application, you can use the following command on windows:
+
+```shell
+.\build.ps1
+```
+
+this will install the dependencies for the application and the build then build the application.
+
+The application will be built in the `build` folder and the executable should be named MTE or MTE.exe.
+
+**IMPORTANT:**
+The script will need to be updated when cx-freeze will be available for Python 3.12.
+
+#### Update the build script
+
+Check if cx-freeze is available for Python 3.12 and add it to the `build-requirements.txt` file if it is.
+
+You can check the availability of cx-freeze for Python 3.12 on the [pypi website](https://pypi.org/project/cx-Freeze/) and on their [github](https://github.com/marcelotduarte/cx_Freeze).
+
+Then, remove the following lines from the `build.ps1` script as they will not be needed anymore:
+
+```shell
+echo "Installing cx_Freeze Beta version as version for python 3.12 is not available at the time of writing this script."
+pip install --force --quiet --no-cache --pre --extra-index-url https://marcelotduarte.github.io/packages/ cx_Freeze
+```
