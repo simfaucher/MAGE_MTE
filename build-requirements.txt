@@ -1,0 +1,10 @@
+# Build dependencies
+idna==3.6
+pandas==2.2.1
+PyQt6==6.6.1
+pytest==8.0.2
+Cython==3.0.8
+ipython==8.22.1
+# pip install --force --no-cache --pre --extra-index-url https://marcelotduarte.github.io/packages/ cx_Freeze
+# add cx-freeze to the build-requirements.txt when it is released for python 3.12
+# cx_Freeze==6.16.0.dev52

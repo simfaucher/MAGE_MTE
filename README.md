@@ -9,19 +9,21 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-The project runs with Python 3.6+ (tested on 3.7.3) and Python libraries packaged using Anaconda. Any desktop operating system supported by Anaconda should work.
+The project runs with Python 3.6+ (tested on 3.12) and Python libraries packaged using Anaconda. Any desktop operating system supported by Anaconda should work.
 
 ### Installing
 
 A regular installation of Python and the project's dependencies would work, but it is preferable to use Anaconda to create a separate virtual environment with the good version of the libraries. This can prevent this installation to interfere with possible others.
 
-First, install Anaconda following the instructions from its [website](https://www.anaconda.com/distribution/ "Anaconda website"). Once installed, open Anaconda prompt on Windows and on Unix systems, open a terminal.
+First, install Anaconda following the instructions from its [website](https://docs.anaconda.com/free/anaconda/install/index.html "Anaconda website"). Once installed, open Anaconda prompt on Windows and on Unix systems, open a terminal.
 
 Create the virtual envionment `mte-env` for the project:
 
 ```shell
-conda create -n mte-env python=3.7.3
+conda create -n mte-env python=3.12
 ```
+
+you can add the minor version number to install this specific version of Python.
 
 Then, activate the environment:
 
@@ -32,14 +34,7 @@ conda activate mte-env
 Finally, install the dependencies inside the virtual environment:
 
 ```shell
-python -m pip install matplotlib==3.1.3
-python -m pip install opencv-contrib-python==3.4.2.17
-python -m pip install pykson==0.9.4
-python -m pip install sklearn==0.0
-python -m pip install scikit-image==0.16.2
-python -m pip install imutils==0.5.3
-conda install pyzmq
-python -m pip install pytz==2019.3
+python -m pip install -r requirements.txt
 ```
 Install the dependencies for D2Net inside the virtual environment:
 
@@ -62,12 +57,12 @@ You should see `(mte-env)` at the beginning of the current shell line.
 
 Navigate to the folder where the programs are and run the server:
 ```shell
-python Server.py
+python MTE.py
 ```
 
 You can see how to parametrate the server by launching instead:
 ```shell
-python Server.py --help
+python MTE.py --help
 ```
 
 Run the client in another terminal with the Anaconda environment `(mte-env)` activated:
@@ -117,4 +112,32 @@ docker run -p 5555:5555 <imageID>
 If you lost the image ID, you can find it running:
 ```shell
 docker image list
+```
+
+### Building the application
+
+To build the application, you can use the following command on windows:
+
+```shell
+.\build.ps1
+```
+
+this will install the dependencies for the application and the build then build the application.
+
+The application will be built in the `build` folder and the executable should be named MTE or MTE.exe.
+
+**IMPORTANT:**
+The script will need to be updated when cx-freeze will be available for Python 3.12.
+
+#### Update the build script
+
+Check if cx-freeze is available for Python 3.12 and add it to the `build-requirements.txt` file if it is.
+
+You can check the availability of cx-freeze for Python 3.12 on the [pypi website](https://pypi.org/project/cx-Freeze/) and on their [github](https://github.com/marcelotduarte/cx_Freeze).
+
+Then, remove the following lines from the `build.ps1` script as they will not be needed anymore:
+
+```shell
+echo "Installing cx_Freeze Beta version as version for python 3.12 is not available at the time of writing this script."
+pip install --force --quiet --no-cache --pre --extra-index-url https://marcelotduarte.github.io/packages/ cx_Freeze
 ```
